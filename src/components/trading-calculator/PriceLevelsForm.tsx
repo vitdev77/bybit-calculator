@@ -3,6 +3,7 @@
 import React from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 interface PriceLevelsProps {
   entryPrice: number;
@@ -11,6 +12,7 @@ interface PriceLevelsProps {
   setStopLossPercent: (v: number) => void;
   riskRewardRatio: number;
   setRiskRewardRatio: (v: number) => void;
+  onReset: () => void;
 }
 
 export default function PriceLevelsForm({
@@ -20,7 +22,18 @@ export default function PriceLevelsForm({
   setStopLossPercent,
   riskRewardRatio,
   setRiskRewardRatio,
+  onReset,
 }: PriceLevelsProps) {
+  // Функция-обертка с защитным диалоговым окном (Alert) перед сбросом
+  const handleResetWithAlert = () => {
+    const isConfirmed = window.confirm(
+      "Вы уверены, что хотите сбросить все настройки калькулятора?",
+    );
+    if (isConfirmed) {
+      onReset();
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Цена входа */}
@@ -56,6 +69,18 @@ export default function PriceLevelsForm({
             onChange={(e) => setRiskRewardRatio(Number(e.target.value))}
           />
         </div>
+      </div>
+
+      {/* ИСПРАВЛЕНО: Увеличен отступ до pt-5, добавлен cursor-pointer и защитный alert */}
+      <div className="flex justify-center pt-5 w-full">
+        <Button
+          type="button"
+          variant="link"
+          className="h-auto p-0 text-[10px] font-medium text-muted-foreground/40 hover:text-muted-foreground/80 transition-colors select-none shadow-none no-underline hover:no-underline cursor-pointer"
+          onClick={handleResetWithAlert}
+        >
+          Сбросить настройки
+        </Button>
       </div>
     </div>
   );

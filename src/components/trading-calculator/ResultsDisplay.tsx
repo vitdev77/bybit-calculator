@@ -78,7 +78,7 @@ export default function ResultsDisplay({ results, coin }: ResultsDisplayProps) {
       <div className="space-y-2.5">
         <div className="flex justify-between items-center text-sm">
           <span className="text-muted-foreground">Макс. Риск:</span>
-          <div className="w-[180px] flex items-center justify-end gap-1.5 text-right">
+          <div className="w-45 flex items-center justify-end gap-1.5 text-right">
             <span className="text-base font-semibold text-muted-foreground">
               {results.riskAmount.toFixed(2)}{" "}
               <span className="text-xs font-normal">USDT</span>
@@ -89,7 +89,7 @@ export default function ResultsDisplay({ results, coin }: ResultsDisplayProps) {
 
         <div className="flex justify-between items-center text-sm">
           <span className="text-muted-foreground">Объем позиции:</span>
-          <div className="w-[180px] flex items-center justify-end gap-1.5 text-right">
+          <div className="w-45 flex items-center justify-end gap-1.5 text-right">
             <span className="text-base font-semibold text-muted-foreground">
               {results.positionSizeUsdt.toFixed(2)}{" "}
               <span className="text-xs font-normal">USDT</span>
@@ -100,7 +100,7 @@ export default function ResultsDisplay({ results, coin }: ResultsDisplayProps) {
 
         <div className="flex justify-between items-center text-sm">
           <span className="text-muted-foreground">Размер позиции:</span>
-          <div className="w-[180px] flex items-center justify-end gap-1.5 text-right">
+          <div className="w-45 flex items-center justify-end gap-1.5 text-right">
             <span className="text-base font-bold text-rose-600 dark:text-rose-400">
               {formattedCryptoQty}{" "}
               <span className="text-xs font-normal text-muted-foreground">
@@ -116,7 +116,7 @@ export default function ResultsDisplay({ results, coin }: ResultsDisplayProps) {
 
         <div className="flex justify-between items-center text-sm">
           <span className="text-muted-foreground">Плечо (выбр. / макс):</span>
-          <div className="w-[180px] flex items-center justify-end gap-1.5 text-right">
+          <div className="w-45 flex items-center justify-end gap-1.5 text-right">
             <span
               className={`text-sm font-bold ${isLeverageTooLow ? "text-amber-500 font-extrabold" : "text-foreground"}`}
             >
@@ -131,7 +131,7 @@ export default function ResultsDisplay({ results, coin }: ResultsDisplayProps) {
 
         <div className="flex justify-between items-center text-sm">
           <span className="text-muted-foreground">Выделяемая маржа:</span>
-          <div className="w-[180px] flex items-center justify-end gap-1.5 text-right">
+          <div className="w-45 flex items-center justify-end gap-1.5 text-right">
             <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">
               {formattedMargin}{" "}
               <span className="text-xs font-normal text-muted-foreground">
@@ -147,7 +147,7 @@ export default function ResultsDisplay({ results, coin }: ResultsDisplayProps) {
 
         <div className="flex justify-between items-center text-sm border-t pt-2 mt-1">
           <span className="text-muted-foreground">Комиссия Bybit (круг):</span>
-          <div className="w-[180px] flex items-center justify-end gap-1.5 text-right">
+          <div className="w-45 flex items-center justify-end gap-1.5 text-right">
             <span className="text-xs font-medium text-muted-foreground">
               {results.totalFeeUsdt.toFixed(3)}{" "}
               <span className="text-xs">USDT</span>
@@ -158,7 +158,7 @@ export default function ResultsDisplay({ results, coin }: ResultsDisplayProps) {
 
         <div className="flex justify-between items-center text-sm">
           <span className="text-muted-foreground">Чистая прибыль (1:3):</span>
-          <div className="w-[180px] flex items-center justify-end gap-1.5 text-right">
+          <div className="w-45 flex items-center justify-end gap-1.5 text-right">
             <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
               +{results.netProfitUsdt.toFixed(2)}{" "}
               <span className="text-xs font-normal">USDT</span>
@@ -176,7 +176,7 @@ export default function ResultsDisplay({ results, coin }: ResultsDisplayProps) {
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Take Profit (1:3)
             </span>
-            <div className="w-[180px] flex items-center justify-end gap-1.5 text-right">
+            <div className="w-45 flex items-center justify-end gap-1.5 text-right">
               <span className="text-xl font-extrabold tracking-tight text-emerald-600 dark:text-emerald-400">
                 {formattedTP}{" "}
                 <span className="text-xs font-normal text-muted-foreground">
@@ -188,7 +188,7 @@ export default function ResultsDisplay({ results, coin }: ResultsDisplayProps) {
           </div>
           <div className="flex justify-between items-center text-[11px]">
             <span className="text-muted-foreground">Ожидаемый Net ROI:</span>
-            <span className="font-semibold text-emerald-600 dark:text-emerald-400 mr-[30px]">
+            <span className="font-semibold text-emerald-600 dark:text-emerald-400 mr-7.5">
               +{tpRoiPcnt.toFixed(2)}% (+{results.netProfitUsdt.toFixed(2)}{" "}
               USDT)
             </span>
@@ -201,7 +201,7 @@ export default function ResultsDisplay({ results, coin }: ResultsDisplayProps) {
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Stop Loss
             </span>
-            <div className="w-[180px] flex items-center justify-end gap-1.5 text-right">
+            <div className="w-45 flex items-center justify-end gap-1.5 text-right">
               <span className="text-xl font-extrabold tracking-tight text-rose-600 dark:text-rose-400">
                 {formattedSL}{" "}
                 <span className="text-xs font-normal text-muted-foreground">
@@ -213,7 +213,7 @@ export default function ResultsDisplay({ results, coin }: ResultsDisplayProps) {
           </div>
           <div className="flex justify-between items-center text-[11px]">
             <span className="text-muted-foreground">Ожидаемый Net ROI:</span>
-            <span className="font-semibold text-rose-600 dark:text-rose-400 mr-[30px]">
+            <span className="font-semibold text-rose-600 dark:text-rose-400 mr-7.5">
               {slRoiPcnt.toFixed(2)}% (-{slLossUsdt.toFixed(2)} USDT)
             </span>
           </div>

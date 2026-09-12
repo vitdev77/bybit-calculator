@@ -53,7 +53,7 @@ interface TickerData {
   turnover24h: number;
 }
 
-// КАСТОМНЫЙ ХУК ДЛЯ ОБНОВЛЕНИЯ НАЗВАНИЯ ВКЛАДКИ С ПОЛНЫМ ТИКЕРОМ ПАРЫ (BTCUSDT)
+// ХУК ДЛЯ ОБНОВЛЕНИЯ НАЗВАНИЯ ВКЛАДКИ С ДОБАВЛЕНИЕМ СЛОВА "ТРЕЙДИНГ" И ПОЛНОЙ ПАРЫ (BTCUSDT)
 function useTabTicker(
   price: number | undefined,
   coin: string,
@@ -77,16 +77,13 @@ function useTabTicker(
     }
 
     prevPriceRef.current = price;
-
-    // ИСПРАВЛЕНО: Теперь используется оригинальная переменная coin (BTCUSDT) без обрезки
-    document.title = `${triangle} ${formattedPrice} | Трейдинг ${coin} | Bybit Futures Calculator`;
+    document.title = `${triangle} ${formattedPrice} | Трейдинг ${coin} | Bybit Calculator`;
   }, [price, coin, decimals]);
 
   useEffect(() => {
     prevPriceRef.current = null;
   }, [coin]);
 }
-
 export default function TradingCalculator() {
   const [balance, setBalance] = useState(100);
   const [riskPercent, setRiskPercent] = useState(2);
@@ -117,7 +114,7 @@ export default function TradingCalculator() {
     netProfitUsdt: 0,
   });
 
-  // Активируем хук динамической вкладки
+  // Подключаем хук динамической вкладки браузера
   useTabTicker(tickerData?.lastPrice, selectedCoin, currentDecimals);
 
   const fetchLiveTicker = useCallback(
@@ -142,7 +139,28 @@ export default function TradingCalculator() {
     if (price > 0) setEntryPrice(price);
   };
 
-  // Загрузка состояния из локального хранилища браузера
+  // ФУНКЦИЯ ПОЛНОГО СБРОСА (Вызывается из формы по ссылке)
+  const handleReset = () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+    setBalance(100);
+    setRiskPercent(2);
+    setRiskRewardRatio(3);
+    setSelectedCoin("BTCUSDT");
+    setOrderType("MARKET");
+    setStopLossPercent(1);
+    setLeverage(10);
+    setSide("BUY");
+
+    if (tickerData && selectedCoin === "BTCUSDT") {
+      setEntryPrice(tickerData.lastPrice);
+    } else {
+      setEntryPrice(77342.45);
+    }
+  };
+
+  // Чтение сохраненного состояния из кэша
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedState = localStorage.getItem(STORAGE_KEY);
@@ -170,7 +188,7 @@ export default function TradingCalculator() {
     }
   }, []);
 
-  // Запуск интервала фонового обновления котировок каждые 3 секунды
+  // Интервал запросов к бирже
   useEffect(() => {
     if (!isLoaded) return;
     fetchLiveTicker(selectedCoin, false);
@@ -190,7 +208,7 @@ export default function TradingCalculator() {
     }
   }, [selectedCoin, isLoaded]);
 
-  // Сохранение изменений в localStorage
+  // Запись изменений в localStorage
   useEffect(() => {
     if (isLoaded && typeof window !== "undefined") {
       const state = {
@@ -218,7 +236,7 @@ export default function TradingCalculator() {
     side,
     isLoaded,
   ]);
-  // Математический пересчет торговых параметров без циклической блокировки плеча
+  // Математический блок пересчета параметров фьючерсного ордера
   useEffect(() => {
     if (entryPrice <= 0 || stopLossPercent <= 0 || balance <= 0) return;
     const riskAmount = (balance * riskPercent) / 100;
@@ -290,7 +308,7 @@ export default function TradingCalculator() {
 
   return (
     <div className="w-full max-w-5xl mx-auto p-4">
-      {/* Воздушная серая подложка без внешних теней с радиусом скругления 32px */}
+      {/* Плотная и выразительная серая подложка без внешних теней (32px скругление) */}
       <div className="p-6 rounded-[2rem] bg-muted/70 dark:bg-muted/15 shadow-none backdrop-blur-[2px] space-y-4">
         {/* Панель заголовка */}
         <div className="flex items-center justify-between px-1">
@@ -309,7 +327,7 @@ export default function TradingCalculator() {
           <ModeToggle />
         </div>
 
-        {/* Профессиональный 5-колоночный информер Bybit с матовым эффектом */}
+        {/* Профессиональный вдавленный информер (5 просторных колонок без border-dashed) */}
         <MarketTicker
           data={tickerData}
           loading={tickerLoading}
@@ -317,9 +335,9 @@ export default function TradingCalculator() {
           onPriceClick={handlePriceApply}
         />
 
-        {/* Две внутренние сбалансированные карточки Card с закруглением rounded-2xl */}
+        {/* Сетка двух независимых белых карточек параметров и отчета */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
-          {/* ЛЕВАЯ КАРТОЧКА: Панель параметров */}
+          {/* ЛЕВАЯ КАРТОЧКА: Форма ввода параметров */}
           <Card className="shadow-sm border border-border/40 bg-background flex flex-col rounded-2xl">
             <CardHeader className="py-2.5 px-4 border-b border-border/40">
               <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -350,11 +368,12 @@ export default function TradingCalculator() {
                 setStopLossPercent={setStopLossPercent}
                 riskRewardRatio={riskRewardRatio}
                 setRiskRewardRatio={setRiskRewardRatio}
+                onReset={handleReset}
               />
             </CardContent>
           </Card>
 
-          {/* ПРАВАЯ КАРТОЧКА: Торговый отчёт */}
+          {/* ПРАВАЯ КАРТОЧКА: Торговый отчёт результатов */}
           <Card className="shadow-sm border border-border/40 bg-background flex flex-col rounded-2xl">
             <CardHeader className="py-2.5 px-4 border-b border-border/40">
               <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
