@@ -84,7 +84,7 @@ export default function PriceLevelsForm({
           <Select value={currentPresetValue} onValueChange={handlePresetChange}>
             <SelectTrigger
               id="rr-preset-select"
-              className="w-full !h-9 bg-background"
+              className="w-full h-9! bg-background"
             >
               <SelectValue placeholder="1:3">
                 {(value: any) => {

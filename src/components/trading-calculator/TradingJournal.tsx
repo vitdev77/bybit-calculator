@@ -270,7 +270,7 @@ export default function TradingJournal() {
                       key={deal.id}
                       className={`transition-all border-b border-border/20 ${
                         !isOpen
-                          ? "opacity-45 grayscale-[20%] select-none hover:bg-transparent"
+                          ? "opacity-45 grayscale-20 select-none hover:bg-transparent"
                           : ""
                       }`}
                     >
