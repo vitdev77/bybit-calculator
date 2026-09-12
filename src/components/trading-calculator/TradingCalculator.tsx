@@ -13,35 +13,14 @@ export type PositionSide = "BUY" | "SELL";
 const PARTS_COUNT = 5;
 const STORAGE_KEY = "bybit_calculator_state_v14";
 
-const INITIAL_PRICES: Record<string, number> = {
-  BTCUSDT: 77342.45,
-  ETHUSDT: 2534.22,
-  XAUTUSDT: 4349.45,
-  SOLUSDT: 102.02,
-  ZECUSDT: 1150.91,
-  MNTUSDT: 0.5743,
-  GRAMUSDT: 1.378,
-  XRPUSDT: 1.3678,
-  DOGEUSDT: 0.08477,
-  SUIUSDT: 0.725,
-  HYPEUSDT: 79.245,
-  NEARUSDT: 2.367,
-  LINKUSDT: 11.543,
-};
-const COIN_DECIMALS: Record<string, number> = {
-  BTCUSDT: 1,
-  ETHUSDT: 2,
-  XAUTUSDT: 2,
-  SOLUSDT: 2,
-  ZECUSDT: 2,
-  HYPEUSDT: 2,
-  NEARUSDT: 2,
-  LINKUSDT: 2,
-  XRPUSDT: 4,
-  MNTUSDT: 4,
-  SUIUSDT: 4,
-  GRAMUSDT: 4,
-  DOGEUSDT: 5,
+// ЖЕЛЕЗОБЕТОННЫЙ ФИКС: Берем длину строки первой группы, чтобы вернуть реальное число знаков (3-4 для NEAR)
+const detectDecimals = (price: number | string | undefined): number => {
+  if (!price) return 2;
+  const priceStr = String(price);
+  const match = priceStr.match(/\.(\d+)/);
+  if (!match || !match[1]) return 2;
+  const length = match[1].length;
+  return length < 2 ? 2 : length;
 };
 
 interface TickerData {
@@ -53,7 +32,6 @@ interface TickerData {
   turnover24h: number;
 }
 
-// ХУК ДЛЯ ОБНОВЛЕНИЯ НАЗВАНИЯ ВКЛАДКИ С ДОБАВЛЕНИЕМ СЛОВА "ТРЕЙДИНГ" И ПОЛНОЙ ПАРЫ (BTCUSDT)
 function useTabTicker(
   price: number | undefined,
   coin: string,
@@ -63,7 +41,9 @@ function useTabTicker(
 
   useEffect(() => {
     if (!price) {
-      document.title = "Bybit Calculator";
+      if (document.title !== "Bybit Calculator") {
+        document.title = "Bybit Calculator";
+      }
       return;
     }
 
@@ -77,11 +57,16 @@ function useTabTicker(
     }
 
     prevPriceRef.current = price;
-    document.title = `${triangle} ${formattedPrice} | Трейдинг ${coin} | Bybit Calculator`;
+
+    const nextTitle = `${triangle} ${formattedPrice} | Трейдинг ${coin} | Bybit Calculator`;
+    if (document.title !== nextTitle) {
+      document.title = nextTitle;
+    }
   }, [price, coin, decimals]);
 
   useEffect(() => {
     prevPriceRef.current = null;
+    document.title = "Bybit Calculator";
   }, [coin]);
 }
 export default function TradingCalculator() {
@@ -98,7 +83,10 @@ export default function TradingCalculator() {
   const [tickerData, setTickerData] = useState<TickerData | null>(null);
   const [tickerLoading, setTickerLoading] = useState(false);
 
-  const currentDecimals = COIN_DECIMALS[selectedCoin] ?? 4;
+  const currentDecimals = tickerData?.lastPrice
+    ? detectDecimals(tickerData.lastPrice)
+    : 4;
+
   const [results, setResults] = useState({
     riskAmount: 0,
     positionSizeCrypto: 0,
@@ -112,9 +100,10 @@ export default function TradingCalculator() {
     decimals: 2,
     totalFeeUsdt: 0,
     netProfitUsdt: 0,
+    riskRewardRatio: 3,
+    liquidationPrice: 0,
   });
 
-  // Подключаем хук динамической вкладки браузера
   useTabTicker(tickerData?.lastPrice, selectedCoin, currentDecimals);
 
   const fetchLiveTicker = useCallback(
@@ -139,11 +128,8 @@ export default function TradingCalculator() {
     if (price > 0) setEntryPrice(price);
   };
 
-  // ФУНКЦИЯ ПОЛНОГО СБРОСА (Вызывается из формы по ссылке)
   const handleReset = () => {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem(STORAGE_KEY);
-    }
+    if (typeof window !== "undefined") localStorage.removeItem(STORAGE_KEY);
     setBalance(100);
     setRiskPercent(2);
     setRiskRewardRatio(3);
@@ -152,15 +138,13 @@ export default function TradingCalculator() {
     setStopLossPercent(1);
     setLeverage(10);
     setSide("BUY");
-
-    if (tickerData && selectedCoin === "BTCUSDT") {
-      setEntryPrice(tickerData.lastPrice);
-    } else {
-      setEntryPrice(77342.45);
-    }
+    setEntryPrice(
+      tickerData && selectedCoin === "BTCUSDT"
+        ? tickerData.lastPrice
+        : 77342.45,
+    );
   };
 
-  // Чтение сохраненного состояния из кэша
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedState = localStorage.getItem(STORAGE_KEY);
@@ -182,16 +166,15 @@ export default function TradingCalculator() {
           console.error("Storage error", e);
         }
       } else {
-        setEntryPrice(INITIAL_PRICES["BTCUSDT"]);
+        setEntryPrice(0);
       }
       setIsLoaded(true);
     }
   }, []);
 
-  // Интервал запросов к бирже
   useEffect(() => {
     if (!isLoaded) return;
-    fetchLiveTicker(selectedCoin, false);
+    fetchLiveTicker(selectedCoin, tickerData === null);
     const interval = setInterval(
       () => fetchLiveTicker(selectedCoin, false),
       3000,
@@ -202,13 +185,12 @@ export default function TradingCalculator() {
   const prevCoinRef = useRef(selectedCoin);
   useEffect(() => {
     if (isLoaded && prevCoinRef.current !== selectedCoin) {
-      const freshPrice = INITIAL_PRICES[selectedCoin];
-      if (freshPrice) setEntryPrice(freshPrice);
+      setEntryPrice(0);
+      setTickerData(null);
       prevCoinRef.current = selectedCoin;
     }
   }, [selectedCoin, isLoaded]);
 
-  // Запись изменений в localStorage
   useEffect(() => {
     if (isLoaded && typeof window !== "undefined") {
       const state = {
@@ -236,12 +218,12 @@ export default function TradingCalculator() {
     side,
     isLoaded,
   ]);
-  // Математический блок пересчета параметров фьючерсного ордера
   useEffect(() => {
     if (entryPrice <= 0 || stopLossPercent <= 0 || balance <= 0) return;
-    const riskAmount = (balance * riskPercent) / 100;
-    const allocatedMarginMax = balance / PARTS_COUNT;
+
     const isLong = side === "BUY";
+    const baseRiskAmount = (balance * riskPercent) / 100;
+    const allocatedMarginMax = balance / PARTS_COUNT;
 
     const stopLossPrice =
       entryPrice *
@@ -252,28 +234,46 @@ export default function TradingCalculator() {
         ? 1 + (stopLossPercent * riskRewardRatio) / 100
         : 1 - (stopLossPercent * riskRewardRatio) / 100);
 
-    let positionSizeUsdt =
-      (riskAmount / Math.abs(entryPrice - stopLossPrice)) * entryPrice;
-    const maxSafeLeverage = Math.ceil(positionSizeUsdt / allocatedMarginMax);
+    const priceLossFactor = Math.abs(entryPrice - stopLossPrice) / entryPrice;
 
+    const openFeeRate = orderType === "MARKET" ? 0.00055 : 0.0002;
+    const closeFeeRate = 0.00055;
+    const totalFeeRate = openFeeRate + closeFeeRate;
+
+    let positionSizeUsdt = baseRiskAmount / (priceLossFactor + totalFeeRate);
     let marginUsed = positionSizeUsdt / leverage;
 
-    // Включаем защитный лимит: маржа на позицию не может превышать 1/5 от баланса
     if (marginUsed > allocatedMarginMax) {
       marginUsed = allocatedMarginMax;
       positionSizeUsdt = marginUsed * leverage;
     }
 
     const positionSizeCrypto = positionSizeUsdt / entryPrice;
-    const openFee =
-      positionSizeUsdt * (orderType === "MARKET" ? 0.00055 : 0.0002);
-    const totalFeeUsdt = openFee + positionSizeUsdt * 0.00055;
+    const openFee = positionSizeUsdt * openFeeRate;
+    const closeFee = positionSizeUsdt * closeFeeRate;
+    const totalFeeUsdt = openFee + closeFee;
+
+    const rawLossUsdt =
+      positionSizeCrypto * Math.abs(entryPrice - stopLossPrice);
+    const actualRiskAmount = rawLossUsdt + totalFeeUsdt;
+
     const netProfitUsdt =
       positionSizeCrypto * Math.abs(entryPrice - takeProfitPrice) -
       totalFeeUsdt;
 
+    const MMR = 0.005;
+    let liquidationPrice = 0;
+    if (isLong) {
+      liquidationPrice = entryPrice * (1 - 1 / leverage + MMR);
+    } else {
+      liquidationPrice = entryPrice * (1 + 1 / leverage - MMR);
+    }
+    if (liquidationPrice < 0) liquidationPrice = 0;
+
+    const maxSafeLeverage = Math.ceil(positionSizeUsdt / allocatedMarginMax);
+
     setResults({
-      riskAmount,
+      riskAmount: actualRiskAmount,
       positionSizeCrypto,
       positionSizeUsdt,
       selectedLeverage: leverage,
@@ -285,6 +285,8 @@ export default function TradingCalculator() {
       decimals: currentDecimals,
       totalFeeUsdt,
       netProfitUsdt,
+      riskRewardRatio,
+      liquidationPrice,
     });
   }, [
     balance,
@@ -308,9 +310,7 @@ export default function TradingCalculator() {
 
   return (
     <div className="w-full max-w-5xl mx-auto p-4">
-      {/* Плотная и выразительная серая подложка без внешних теней (32px скругление) */}
       <div className="p-6 rounded-[2rem] bg-muted/70 dark:bg-muted/15 shadow-none backdrop-blur-[2px] space-y-4">
-        {/* Панель заголовка */}
         <div className="flex items-center justify-between px-1">
           <div className="space-y-0.5">
             <h1 className="text-xl font-bold tracking-tight text-foreground">
@@ -327,17 +327,16 @@ export default function TradingCalculator() {
           <ModeToggle />
         </div>
 
-        {/* Профессиональный вдавленный информер (5 просторных колонок без border-dashed) */}
+        {/* НАСТРОЕНО: Передаем selectedCoin для локального поиска картинок */}
         <MarketTicker
           data={tickerData}
           loading={tickerLoading}
           decimals={currentDecimals}
           onPriceClick={handlePriceApply}
+          selectedCoin={selectedCoin}
         />
 
-        {/* Сетка двух независимых белых карточек параметров и отчета */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
-          {/* ЛЕВАЯ КАРТОЧКА: Форма ввода параметров */}
           <Card className="shadow-sm border border-border/40 bg-background flex flex-col rounded-2xl">
             <CardHeader className="py-2.5 px-4 border-b border-border/40">
               <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -373,7 +372,6 @@ export default function TradingCalculator() {
             </CardContent>
           </Card>
 
-          {/* ПРАВАЯ КАРТОЧКА: Торговый отчёт результатов */}
           <Card className="shadow-sm border border-border/40 bg-background flex flex-col rounded-2xl">
             <CardHeader className="py-2.5 px-4 border-b border-border/40">
               <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
