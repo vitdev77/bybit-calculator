@@ -1,11 +1,11 @@
 import TradingCalculator from "@/components/trading-calculator/TradingCalculator";
+import TradingJournal from "@/components/trading-calculator/TradingJournal"; // Импортируем журнал
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4 antialiased selection:bg-foreground selection:text-background transition-colors duration-200">
-      <div className="w-full max-w-4xl">
-        <TradingCalculator />
-      </div>
+    <main className="min-h-screen py-8 space-y-6">
+      <TradingCalculator />
+      <TradingJournal /> {/* Рендерим журнал прямо снизу */}
     </main>
   );
 }

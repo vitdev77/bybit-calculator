@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, FolderPlus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ResultsDisplayProps {
@@ -23,7 +23,6 @@ interface ResultsDisplayProps {
   coin: string;
 }
 
-// ИСПРАВЛЕНО: Кнопка стала выразительной, заметной, со стильной подложкой и четким ховер-эффектом
 function CopyButton({ text }: { text: string }) {
   const [isCopied, setIsCopied] = useState(false);
   const handleCopy = (e: React.MouseEvent) => {
@@ -55,6 +54,9 @@ function CopyButton({ text }: { text: string }) {
 }
 export default function ResultsDisplay({ results, coin }: ResultsDisplayProps) {
   const assetName = coin.replace("USDT", "");
+  const [isSaving, setIsSaveLoading] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState(false);
 
   const formattedCryptoQty = results.positionSizeCrypto.toFixed(5);
   const formattedMargin = results.marginUsed.toFixed(2);
@@ -83,12 +85,64 @@ export default function ResultsDisplay({ results, coin }: ResultsDisplayProps) {
   const slRoiPcnt =
     results.marginUsed > 0 ? (-slLossUsdt / results.marginUsed) * 100 : 0;
 
+  // Умная функция отправки с распознаванием дубликатов без страшных алертов
+  const handleSaveDeal = async () => {
+    if (results.positionSizeUsdt <= 0 || isSaving) return;
+    try {
+      setIsSaveLoading(true);
+      setDuplicateWarning(false);
+
+      const isLong = results.takeProfitPrice > results.stopLossPrice;
+
+      const response = await fetch("/api/journal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          coin: coin,
+          side: isLong ? "BUY" : "SELL",
+          order_type: "MARKET",
+          entry_price: isLong
+            ? results.stopLossPrice /
+              (1 - results.riskAmount / results.positionSizeUsdt)
+            : results.stopLossPrice /
+              (1 + results.riskAmount / results.positionSizeUsdt),
+          stop_loss: results.stopLossPrice,
+          take_profit: results.takeProfitPrice,
+          volume: results.positionSizeUsdt,
+          margin: results.marginUsed,
+          leverage: results.selectedLeverage,
+          status: "OPEN",
+        }),
+      });
+
+      // Если база выдала 409 Conflict, значит это дубликат. Обрабатываем мягко в UI
+      if (response.status === 409) {
+        setDuplicateWarning(true);
+        setTimeout(() => setDuplicateWarning(false), 3000);
+        return;
+      }
+
+      if (!response.ok) throw new Error("Save error");
+
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
+
+      window.dispatchEvent(new Event("refresh-trading-journal"));
+    } catch (err) {
+      console.error("Не удалось сохранить сделку в Neon:", err);
+      alert("Критическая ошибка при сохранении трейда в Neon!");
+    } finally {
+      setIsSaveLoading(false);
+    }
+  };
   return (
-    <div className="flex flex-col h-full space-y-4">
-      {/* Верхний блок расчётов */}
+    <div className="flex flex-col h-full space-y-4 justify-between">
+      {/* Блок расчётов */}
       <div className="space-y-2.5">
         <div className="flex justify-between items-center text-sm">
-          <span className="text-muted-foreground">Итоговый Риск (с ком.):</span>
+          <span className="text-muted-foreground">
+            Итоговый Риск (with fees):
+          </span>
           <div className="w-45 flex items-center justify-end gap-1.5 text-right">
             <span className="text-base font-semibold text-rose-500">
               {results.riskAmount.toFixed(2)}{" "}
@@ -98,7 +152,6 @@ export default function ResultsDisplay({ results, coin }: ResultsDisplayProps) {
           </div>
         </div>
 
-        {/* Объем позиции в USDT с новой сочной кнопкой */}
         <div className="flex justify-between items-center text-sm">
           <span className="text-muted-foreground">Объем позиции:</span>
           <div className="w-45 flex items-center justify-end gap-1.5 text-right">
@@ -136,7 +189,7 @@ export default function ResultsDisplay({ results, coin }: ResultsDisplayProps) {
             >
               x{results.selectedLeverage}
               <span className="text-xs font-medium text-muted-foreground ml-1">
-                (макс: x{results.maxSafeLeverage})
+                (max: x{results.maxSafeLeverage})
               </span>
             </span>
             <div className="w-7 shrink-0" />
@@ -154,7 +207,6 @@ export default function ResultsDisplay({ results, coin }: ResultsDisplayProps) {
           </div>
         </div>
 
-        {/* Цена ликвидации позиции */}
         <div className="flex justify-between items-center text-sm text-amber-600 dark:text-amber-400">
           <span className="font-medium">Цена liquidationPrice:</span>
           <div className="w-45 flex items-center justify-end gap-1.5 text-right">
@@ -190,9 +242,8 @@ export default function ResultsDisplay({ results, coin }: ResultsDisplayProps) {
         </div>
       </div>
 
-      {/* Нижний блок ордеров с ROI */}
+      {/* Блок ордеров с ROI */}
       <div className="space-y-3 pt-3 border-t w-full">
-        {/* Блок Take Profit */}
         <div className="space-y-0.5">
           <div className="flex justify-between items-center w-full">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -217,7 +268,6 @@ export default function ResultsDisplay({ results, coin }: ResultsDisplayProps) {
           </div>
         </div>
 
-        {/* Блок Stop Loss */}
         <div className="space-y-0.5">
           <div className="flex justify-between items-center w-full">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -240,6 +290,42 @@ export default function ResultsDisplay({ results, coin }: ResultsDisplayProps) {
             </span>
           </div>
         </div>
+
+        {/* КНОПКА С ОБНОВЛЕННЫМ СТРОГИМ ТЕКСТОМ ПРЕДУПРЕЖДЕНИЯ И ОТСТУПОМ mt-5 */}
+        <Button
+          type="button"
+          disabled={isSaving || results.positionSizeUsdt <= 0}
+          onClick={handleSaveDeal}
+          className={`w-full mt-5 h-9 text-xs font-bold tracking-wider uppercase transition-all duration-300 shadow-sm cursor-pointer rounded-xl flex items-center justify-center gap-2 ${
+            saveSuccess
+              ? "bg-emerald-600 hover:bg-emerald-600 text-white font-bold"
+              : duplicateWarning
+                ? "bg-amber-600 hover:bg-amber-600 text-white font-bold"
+                : "bg-primary hover:bg-primary/90 text-primary-foreground"
+          }`}
+        >
+          {isSaving ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Фиксация трейда...
+            </>
+          ) : saveSuccess ? (
+            <>
+              <Check className="h-4 w-4 animate-bounce" />
+              Успешно сохранено!
+            </>
+          ) : duplicateWarning ? (
+            <>
+              <FolderPlus className="h-4 w-4" />
+              Позиция уже открыта
+            </>
+          ) : (
+            <>
+              <FolderPlus className="h-4 w-4" />
+              Зафиксировать в журнал
+            </>
+          )}
+        </Button>
       </div>
     </div>
   );

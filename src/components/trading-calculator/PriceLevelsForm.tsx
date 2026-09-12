@@ -1,9 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -11,6 +12,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface PriceLevelsProps {
   entryPrice: number;
@@ -22,7 +34,6 @@ interface PriceLevelsProps {
   onReset: () => void;
 }
 
-// Готовые пресеты соотношения Risk/Reward
 const RR_PRESETS = [
   { label: "SL 1% | TP 1% (1:1)", sl: 1, rr: 1 },
   { label: "SL 1% | TP 2% (1:2)", sl: 1, rr: 2 },
@@ -30,7 +41,6 @@ const RR_PRESETS = [
   { label: "SL 1% | TP 4% (1:4)", sl: 1, rr: 4 },
   { label: "SL 1% | TP 5% (1:5)", sl: 1, rr: 5 },
 ];
-
 export default function PriceLevelsForm({
   entryPrice,
   setEntryPrice,
@@ -40,17 +50,11 @@ export default function PriceLevelsForm({
   setRiskRewardRatio,
   onReset,
 }: PriceLevelsProps) {
-  const handleResetWithAlert = () => {
-    const isConfirmed = window.confirm(
-      "Вы уверены, что хотите сбросить все настройки калькулятора?",
-    );
-    if (isConfirmed) onReset();
-  };
-
-  // Технический ключ (константа в стейте, например "1-3")
   const currentPresetValue = `${stopLossPercent}-${riskRewardRatio}`;
 
-  // Обработчик смены пресета для Base UI
+  // ИСПРАВЛЕНО ПОД BASE UI: Стейт контроля открытия, чтобы кнопки не слипались и окно закрывалось вовремя
+  const [isOpen, setIsOpen] = useState(false);
+
   const handlePresetChange = (value: any): void => {
     if (typeof value !== "string") return;
     const [slStr, rrStr] = value.split("-");
@@ -60,9 +64,7 @@ export default function PriceLevelsForm({
 
   return (
     <div className="space-y-4">
-      {/* Горизонтальный ряд параметров */}
       <div className="grid grid-cols-2 gap-4 items-start">
-        {/* Левая колонка: Цена входа */}
         <div className="space-y-2">
           <Label htmlFor="entryPrice">Цена входа (USDT)</Label>
           <Input
@@ -77,7 +79,6 @@ export default function PriceLevelsForm({
           />
         </div>
 
-        {/* Правая колонка: Селектор пресетов */}
         <div className="space-y-2">
           <Label htmlFor="rr-preset-select">Режим торговли (R:R)</Label>
           <Select value={currentPresetValue} onValueChange={handlePresetChange}>
@@ -85,7 +86,6 @@ export default function PriceLevelsForm({
               id="rr-preset-select"
               className="w-full !h-9 bg-background"
             >
-              {/* ИСПРАВЛЕНО: Теперь на экране отображается строго чистый вид "1:3" вместо длинной записи */}
               <SelectValue placeholder="1:3">
                 {(value: any) => {
                   if (!value || typeof value !== "string") return "1:3";
@@ -108,16 +108,45 @@ export default function PriceLevelsForm({
         </div>
       </div>
 
-      {/* Ссылка на полный сброс параметров */}
       <div className="flex justify-center pt-5 w-full">
-        <Button
-          type="button"
-          variant="link"
-          className="h-auto p-0 text-[10px] font-medium text-muted-foreground/40 hover:text-muted-foreground/80 transition-colors select-none shadow-none no-underline hover:no-underline cursor-pointer"
-          onClick={handleResetWithAlert}
-        >
-          Сбросить настройки
-        </Button>
+        {/* НАСТРОЕНО: open привязан к нашему стейту контроля */}
+        <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
+          <AlertDialogTrigger
+            className={buttonVariants({
+              variant: "link",
+              className:
+                "h-auto p-0 text-[10px] font-medium text-muted-foreground/40 hover:text-muted-foreground/80 transition-colors select-none shadow-none no-underline hover:no-underline cursor-pointer",
+            })}
+          >
+            Сбросить настройки
+          </AlertDialogTrigger>
+          <AlertDialogContent className="rounded-[2rem] max-w-sm">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Сбросить калькулятор?</AlertDialogTitle>
+              <AlertDialogDescription className="text-xs">
+                Это действие вернет все параметры торговли, включая депозит,
+                риски и цену входа, к дефолтным значениям.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2 sm:gap-2">
+              <AlertDialogCancel className="rounded-xl text-xs h-9 cursor-pointer">
+                Отмена
+              </AlertDialogCancel>
+              {/* ЖЕЛЕЗОБЕТОННЫЙ ФИКС: Вернули AlertDialogAction, чтобы восстановить стили gap-2 в футере shadcn, а закрытие делаем руками */}
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault(); // Гарантируем, что Base UI не перехватит клик раньше времени
+                  onReset();
+                  setIsOpen(false); // Принудительно захлопываем модалку
+                }}
+                variant="destructive"
+                className="rounded-xl text-xs h-9 bg-rose-600 hover:bg-rose-700 text-white cursor-pointer border-none flex items-center justify-center"
+              >
+                Сбросить
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
