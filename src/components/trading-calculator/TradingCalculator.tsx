@@ -69,6 +69,7 @@ function useTabTicker(
     document.title = "Bybit Calculator";
   }, [coin]);
 }
+
 export default function TradingCalculator() {
   const [balance, setBalance] = useState(100);
   const [riskPercent, setRiskPercent] = useState(2);
@@ -86,7 +87,6 @@ export default function TradingCalculator() {
   const currentDecimals = tickerData?.lastPrice
     ? detectDecimals(tickerData.lastPrice)
     : 4;
-
   const [results, setResults] = useState({
     riskAmount: 0,
     positionSizeCrypto: 0,
@@ -225,6 +225,7 @@ export default function TradingCalculator() {
     const baseRiskAmount = (balance * riskPercent) / 100;
     const allocatedMarginMax = balance / PARTS_COUNT;
 
+    // 1. Точный расчет цен ордеров
     const stopLossPrice =
       entryPrice *
       (isLong ? 1 - stopLossPercent / 100 : 1 + stopLossPercent / 100);
@@ -234,34 +235,41 @@ export default function TradingCalculator() {
         ? 1 + (stopLossPercent * riskRewardRatio) / 100
         : 1 - (stopLossPercent * riskRewardRatio) / 100);
 
-    const priceLossFactor = Math.abs(entryPrice - stopLossPrice) / entryPrice;
-
+    // 2. Ставки комиссий Bybit
     const openFeeRate = orderType === "MARKET" ? 0.00055 : 0.0002;
     const closeFeeRate = 0.00055;
     const totalFeeRate = openFeeRate + closeFeeRate;
 
-    let positionSizeUsdt = baseRiskAmount / (priceLossFactor + totalFeeRate);
+    // 3. Честный расчет объема позиции по чистой дистанции стопа
+    const priceLossFactor = stopLossPercent / 100;
+    let positionSizeUsdt = baseRiskAmount / priceLossFactor;
     let marginUsed = positionSizeUsdt / leverage;
 
+    // Ограничение по максимальной марже на 1 позицию (1/5 депозита)
     if (marginUsed > allocatedMarginMax) {
       marginUsed = allocatedMarginMax;
       positionSizeUsdt = marginUsed * leverage;
     }
 
     const positionSizeCrypto = positionSizeUsdt / entryPrice;
+
+    // 4. Прозрачный расчет комиссий Bybit поверх объема
     const openFee = positionSizeUsdt * openFeeRate;
     const closeFee = positionSizeUsdt * closeFeeRate;
     const totalFeeUsdt = openFee + closeFee;
 
+    // Итоговый риск — это чистый убыток по стопу плюс комиссия за вход и выход
     const rawLossUsdt =
       positionSizeCrypto * Math.abs(entryPrice - stopLossPrice);
     const actualRiskAmount = rawLossUsdt + totalFeeUsdt;
 
+    // Чистая прибыль — это грязный профит по тейку минус комиссии за круг
     const netProfitUsdt =
       positionSizeCrypto * Math.abs(entryPrice - takeProfitPrice) -
       totalFeeUsdt;
 
-    const MMR = 0.005;
+    // 5. Расчет цены ликвидации (Формула изолированной маржи Bybit)
+    const MMR = 0.005; // Поддерживающая маржа 0.5%
     let liquidationPrice = 0;
     if (isLong) {
       liquidationPrice = entryPrice * (1 - 1 / leverage + MMR);
@@ -327,7 +335,6 @@ export default function TradingCalculator() {
           <ModeToggle />
         </div>
 
-        {/* НАСТРОЕНО: Передаем selectedCoin для локального поиска картинок */}
         <MarketTicker
           data={tickerData}
           loading={tickerLoading}
@@ -379,7 +386,11 @@ export default function TradingCalculator() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 flex-1 flex flex-col justify-between">
-              <ResultsDisplay results={results} coin={selectedCoin} />
+              <ResultsDisplay
+                results={results}
+                coin={selectedCoin}
+                entryPrice={entryPrice}
+              />
             </CardContent>
           </Card>
         </div>

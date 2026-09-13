@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Copy, Check, FolderPlus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast"; // Импортируем готовый менеджер
 
 interface ResultsDisplayProps {
   results: {
@@ -21,6 +22,7 @@ interface ResultsDisplayProps {
     liquidationPrice: number;
   };
   coin: string;
+  entryPrice: number;
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -52,7 +54,12 @@ function CopyButton({ text }: { text: string }) {
     </Button>
   );
 }
-export default function ResultsDisplay({ results, coin }: ResultsDisplayProps) {
+
+export default function ResultsDisplay({
+  results,
+  coin,
+  entryPrice,
+}: ResultsDisplayProps) {
   const assetName = coin.replace("USDT", "");
   const [isSaving, setIsSaveLoading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -84,7 +91,6 @@ export default function ResultsDisplay({ results, coin }: ResultsDisplayProps) {
   const slLossUsdt = results.riskAmount;
   const slRoiPcnt =
     results.marginUsed > 0 ? (-slLossUsdt / results.marginUsed) * 100 : 0;
-
   // Умная функция отправки с распознаванием дубликатов без страшных алертов
   const handleSaveDeal = async () => {
     if (results.positionSizeUsdt <= 0 || isSaving) return;
@@ -101,11 +107,7 @@ export default function ResultsDisplay({ results, coin }: ResultsDisplayProps) {
           coin: coin,
           side: isLong ? "BUY" : "SELL",
           order_type: "MARKET",
-          entry_price: isLong
-            ? results.stopLossPrice /
-              (1 - results.riskAmount / results.positionSizeUsdt)
-            : results.stopLossPrice /
-              (1 + results.riskAmount / results.positionSizeUsdt),
+          entry_price: entryPrice,
           stop_loss: results.stopLossPrice,
           take_profit: results.takeProfitPrice,
           volume: results.positionSizeUsdt,
@@ -115,9 +117,14 @@ export default function ResultsDisplay({ results, coin }: ResultsDisplayProps) {
         }),
       });
 
-      // Если база выдала 409 Conflict, значит это дубликат. Обрабатываем мягко в UI
+      // Если база выдала 409 Conflict, обрабатываем мягко через toast.add()
       if (response.status === 409) {
         setDuplicateWarning(true);
+        toast.add({
+          title: "Позиция уже существует",
+          description: `Ордер по паре ${coin} с такими же параметрами уже зафиксирован в журнале.`,
+          type: "warning",
+        });
         setTimeout(() => setDuplicateWarning(false), 3000);
         return;
       }
@@ -125,12 +132,22 @@ export default function ResultsDisplay({ results, coin }: ResultsDisplayProps) {
       if (!response.ok) throw new Error("Save error");
 
       setSaveSuccess(true);
+      toast.add({
+        title: "Трейд зафиксирован!",
+        description: `Позиция ${isLong ? "Long" : "Short"} по ${coin} успешно добавлена в облачный журнал Neon.`,
+        type: "success",
+      });
       setTimeout(() => setSaveSuccess(false), 2000);
 
       window.dispatchEvent(new Event("refresh-trading-journal"));
     } catch (err) {
       console.error("Не удалось сохранить сделку в Neon:", err);
-      alert("Критическая ошибка при сохранении трейда в Neon!");
+      toast.add({
+        title: "Критическая ошибка",
+        description:
+          "Не удалось подключиться к базе данных Neon. Проверьте конфигурацию DATABASE_URL.",
+        type: "error",
+      });
     } finally {
       setIsSaveLoading(false);
     }
@@ -208,7 +225,7 @@ export default function ResultsDisplay({ results, coin }: ResultsDisplayProps) {
         </div>
 
         <div className="flex justify-between items-center text-sm text-amber-600 dark:text-amber-400">
-          <span className="font-medium">Цена liquidationPrice:</span>
+          <span className="font-medium">Цена Liquidation:</span>
           <div className="w-45 flex items-center justify-end gap-1.5 text-right">
             <span className="text-base font-black">
               {formattedLiq} <span className="text-xs font-normal">USDT</span>
@@ -291,7 +308,6 @@ export default function ResultsDisplay({ results, coin }: ResultsDisplayProps) {
           </div>
         </div>
 
-        {/* КНОПКА С ОБНОВЛЕННЫМ СТРОГИМ ТЕКСТОМ ПРЕДУПРЕЖДЕНИЯ И ОТСТУПОМ mt-5 */}
         <Button
           type="button"
           disabled={isSaving || results.positionSizeUsdt <= 0}

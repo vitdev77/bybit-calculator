@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     await ensureTableExists();
     const body = await request.json();
 
-    if (!body.coin || !body.entry_price || !body.volume) {
+    if (!body.coin || body.entry_price === undefined || !body.volume) {
       return NextResponse.json(
         { error: "Пропущены поля ордера" },
         { status: 400 },
@@ -57,19 +57,22 @@ export async function POST(request: Request) {
     const coin = String(body.coin);
     const side = String(body.side);
     const order_type = String(body.order_type);
-    const entry_price = Number(body.entry_price);
-    const stop_loss = Number(body.stop_loss);
-    const take_profit = Number(body.take_profit);
-    const volume = Number(body.volume);
-    const margin = Number(body.margin);
-    const leverage = Number(body.leverage);
 
+    // Безопасный парсинг чисел с плавающей точкой
+    const entry_price = parseFloat(Number(body.entry_price).toFixed(6));
+    const stop_loss = parseFloat(Number(body.stop_loss).toFixed(6));
+    const take_profit = parseFloat(Number(body.take_profit).toFixed(6));
+    const volume = parseFloat(Number(body.volume).toFixed(2));
+    const margin = parseFloat(Number(body.margin).toFixed(2));
+    const leverage = parseInt(body.leverage, 10);
+
+    // Умная проверка дубликатов с учетом погрешности JS-вычислений
     const existingDuplicates = await sql`
       SELECT id FROM deals
       WHERE coin = ${coin} AND side = ${side} AND status = 'OPEN'
-        AND ABS(entry_price - ${entry_price}) < 0.00001
-        AND ABS(stop_loss - ${stop_loss}) < 0.00001
-        AND ABS(take_profit - ${take_profit}) < 0.00001;
+        AND ABS(entry_price - ${entry_price}) < 0.0001
+        AND ABS(stop_loss - ${stop_loss}) < 0.0001
+        AND ABS(take_profit - ${take_profit}) < 0.0001;
     `;
 
     if (existingDuplicates && existingDuplicates.length > 0) {
@@ -92,6 +95,15 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
+    if (!process.env.DATABASE_URL)
+      return NextResponse.json(
+        { error: "DATABASE_URL не настроен" },
+        { status: 500 },
+      );
+
+    // ДОБАВЛЕНО: Защита от холодного старта Neon
+    await ensureTableExists();
+
     const body = await request.json();
     if (!body.id || !body.status) {
       return NextResponse.json(
@@ -99,8 +111,12 @@ export async function PATCH(request: Request) {
         { status: 400 },
       );
     }
+
+    const targetId = parseInt(body.id, 10);
+    const targetStatus = String(body.status);
+
     const result = await sql`
-      UPDATE deals SET status = ${String(body.status)} WHERE id = ${Number(body.id)} RETURNING *;
+      UPDATE deals SET status = ${targetStatus} WHERE id = ${targetId} RETURNING *;
     `;
     return NextResponse.json({ success: true, data: result });
   } catch (err: any) {
@@ -108,13 +124,20 @@ export async function PATCH(request: Request) {
   }
 }
 
-// DELETE: Одиночное ИЛИ ПОЛНОЕ удаление таблицы из Neon
 export async function DELETE(request: Request) {
   try {
+    if (!process.env.DATABASE_URL)
+      return NextResponse.json(
+        { error: "DATABASE_URL не настроен" },
+        { status: 500 },
+      );
+
+    // ДОБАВЛЕНО: Защита от холодного старта Neon
+    await ensureTableExists();
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
-    // ИСПРАВЛЕНО: Если id не передан, стираем вообще все записи из таблицы
     if (!id) {
       await sql`TRUNCATE TABLE deals;`;
       return NextResponse.json({
@@ -123,7 +146,8 @@ export async function DELETE(request: Request) {
       });
     }
 
-    await sql`DELETE FROM deals WHERE id = ${Number(id)};`;
+    const targetId = parseInt(id, 10);
+    await sql`DELETE FROM deals WHERE id = ${targetId};`;
     return NextResponse.json({ success: true });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
