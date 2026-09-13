@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Copy, Check, FolderPlus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/components/ui/toast"; // Импортируем готовый менеджер
+import { toast } from "@/components/ui/toast";
 
 interface ResultsDisplayProps {
   results: {
@@ -117,7 +117,7 @@ export default function ResultsDisplay({
         }),
       });
 
-      // Если база выдала 409 Conflict, обрабатываем мягко через toast.add()
+      // ИСПРАВЛЕНО: Универсальный тост без упоминания конкретных брендов
       if (response.status === 409) {
         setDuplicateWarning(true);
         toast.add({
@@ -132,20 +132,22 @@ export default function ResultsDisplay({
       if (!response.ok) throw new Error("Save error");
 
       setSaveSuccess(true);
+      // ИСПРАВЛЕНО: Текст изменен на «облачный журнал сделок»
       toast.add({
         title: "Трейд зафиксирован!",
-        description: `Позиция ${isLong ? "Long" : "Short"} по ${coin} успешно добавлена в облачный журнал Neon.`,
+        description: `Позиция ${isLong ? "Long" : "Short"} по ${coin} успешно добавлена в облачный журнал сделок.`,
         type: "success",
       });
       setTimeout(() => setSaveSuccess(false), 2000);
 
       window.dispatchEvent(new Event("refresh-trading-journal"));
     } catch (err) {
-      console.error("Не удалось сохранить сделку в Neon:", err);
+      console.error("Не удалось сохранить сделку в базу данных:", err);
+      // ИСПРАВЛЕНО: Строгий алерт ошибки подключения без упоминания бренда
       toast.add({
         title: "Критическая ошибка",
         description:
-          "Не удалось подключиться к базе данных Neon. Проверьте конфигурацию DATABASE_URL.",
+          "Не удалось подключиться к базе данных. Проверьте конфигурацию DATABASE_URL.",
         type: "error",
       });
     } finally {

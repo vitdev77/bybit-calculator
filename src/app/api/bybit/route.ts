@@ -5,7 +5,9 @@ export async function GET(request: Request) {
   const symbol = searchParams.get("symbol") || "BTCUSDT";
 
   try {
-    const baseUrl = "https://api.bytick.com"; // Официальное стабильное зеркало
+    // ЖЕЛЕЗОБЕТОННЫЙ ФИКС: Берем URL зеркала из env, если он не задан — используем запасной вариант
+    const baseUrl =
+      process.env.NEXT_PUBLIC_BYBIT_API_URL || "https://api.bytick.com";
     const endpoint = "/v5/market/tickers";
 
     const queryParams = new URLSearchParams();
@@ -54,12 +56,12 @@ export async function GET(request: Request) {
     return NextResponse.json({
       lastPrice: parseFloat(ticker.lastPrice),
       prevPrice24h: parseFloat(ticker.prevPrice24h),
-      price24hPcnt: parseFloat(ticker.price24hPcnt) * 100,
+      price24hPcnt: parseFloat(ticker.price24hPcnt),
       highPrice24h: parseFloat(ticker.highPrice24h),
       lowPrice24h: parseFloat(ticker.lowPrice24h),
       fundingRate: parseFloat(ticker.fundingRate) * 100,
-      volume24h: parseFloat(ticker.volume24h), // Добавлено: Объем в крипте
-      turnover24h: parseFloat(ticker.turnover24h), // Добавлено: Оборот в USDT
+      volume24h: parseFloat(ticker.volume24h),
+      turnover24h: parseFloat(ticker.turnover24h),
     });
   } catch (error) {
     return NextResponse.json({ error: "Internal Error" }, { status: 500 });

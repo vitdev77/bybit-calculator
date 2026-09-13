@@ -70,11 +70,19 @@ function useTabTicker(
   }, [coin]);
 }
 
-export default function TradingCalculator() {
+// ДОБАВЛЕНО: Интерфейс пропсов для связи стейта монеты с графиком на уровне page.tsx
+interface TradingCalculatorProps {
+  selectedCoin: string;
+  setSelectedCoin: (coin: string) => void;
+}
+
+export default function TradingCalculator({
+  selectedCoin,
+  setSelectedCoin,
+}: TradingCalculatorProps) {
   const [balance, setBalance] = useState(100);
   const [riskPercent, setRiskPercent] = useState(2);
   const [riskRewardRatio, setRiskRewardRatio] = useState(3);
-  const [selectedCoin, setSelectedCoin] = useState("BTCUSDT");
   const [orderType, setOrderType] = useState<OrderType>("MARKET");
   const [entryPrice, setEntryPrice] = useState(0);
   const [stopLossPercent, setStopLossPercent] = useState(1);
@@ -170,7 +178,7 @@ export default function TradingCalculator() {
       }
       setIsLoaded(true);
     }
-  }, []);
+  }, [setSelectedCoin]);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -317,7 +325,7 @@ export default function TradingCalculator() {
     );
 
   return (
-    <div className="w-full max-w-5xl mx-auto p-4">
+    <div className="w-full max-w-5xl mx-auto p-4 pb-0">
       <div className="p-6 rounded-[2rem] bg-muted/70 dark:bg-muted/15 shadow-none backdrop-blur-[2px] space-y-4">
         <div className="flex items-center justify-between px-1">
           <div className="space-y-0.5">
