@@ -143,7 +143,7 @@ export default function MarketTicker({
 
   return (
     <div className="p-4 border border-border/40 dark:border-black/40 rounded-xl bg-muted/30 dark:bg-black/40 shadow-inner grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 w-full items-center min-h-22.5">
-      {/* 1. Блок названия монеты (Двухрядный вывод слева) */}
+      {/* 1. Блок названия монеты */}
       <div className="flex items-center gap-3 p-1 md:col-span-1 select-none border-r border-border/30 pr-2 h-11">
         {!iconError ? (
           <img
@@ -228,7 +228,8 @@ export default function MarketTicker({
             style={{ left: `${currentPositionPercent}%` }}
           />
         </div>
-        <div className="flex justify-between text-[8px] text-muted-foreground/80 font-mono whitespace-nowrap mt-1 leading-none">
+        {/* ИСПРАВЛЕНО: Убран класс font-mono */}
+        <div className="flex justify-between text-[8px] text-muted-foreground/80 whitespace-nowrap mt-1 leading-none">
           <span>{data.lowPrice24h.toFixed(decimals)}</span>
           <span>{data.highPrice24h.toFixed(decimals)}</span>
         </div>
@@ -240,7 +241,8 @@ export default function MarketTicker({
           <span className="text-[8px] font-medium uppercase tracking-wider text-muted-foreground block select-none leading-none">
             Turnover
           </span>
-          <span className="text-xs font-bold text-foreground font-mono block tracking-tight whitespace-nowrap leading-none mt-0.5">
+          {/* ИСПРАВЛЕНО: Убран класс font-mono */}
+          <span className="text-xs font-bold text-foreground block tracking-tight whitespace-nowrap leading-none mt-0.5">
             {formatCompactNumber(data.turnover24h)}{" "}
             <span className="text-[8px] font-normal text-muted-foreground">
               USDT
@@ -251,8 +253,9 @@ export default function MarketTicker({
           <span className="text-[8px] font-medium uppercase tracking-wider text-muted-foreground block select-none leading-none">
             Funding:
           </span>
+          {/* ИСПРАВЛЕНО: Убран класс font-mono */}
           <span
-            className={`text-[10px] font-bold block font-mono whitespace-nowrap leading-none ${data.fundingRate >= 0 ? "text-amber-600 dark:text-amber-400" : "text-violet-600 dark:text-violet-400"}`}
+            className={`text-[10px] font-bold block whitespace-nowrap leading-none ${data.fundingRate >= 0 ? "text-amber-600 dark:text-amber-400" : "text-violet-600 dark:text-violet-400"}`}
           >
             {data.fundingRate.toFixed(4)}%
           </span>

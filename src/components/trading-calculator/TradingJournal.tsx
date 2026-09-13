@@ -47,17 +47,16 @@ export default function TradingJournal() {
   const [isClearOpen, setIsClearOpen] = useState(false);
   const [activeDeleteId, setActiveDeleteId] = useState<number | null>(null);
 
-  // ЖЕЛЕЗОБЕТОННЫЙ ФИКС: Отключаем кэш и строго проверяем, что пришел массив rows
+  // Отключаем кэш и строго проверяем, что пришел массив rows
   const fetchJournal = useCallback(async () => {
     try {
       const res = await fetch("/api/journal", {
-        cache: "no-store", // Фикс кэширования Next.js
+        cache: "no-store",
         headers: { Pragma: "no-cache", "Cache-Control": "no-cache" },
       });
       if (!res.ok) throw new Error("Load error");
       const data = await res.json();
 
-      // Гарантируем, что в стейт попадет строго массив, даже если API вернул объект
       const cleanArray = Array.isArray(data)
         ? data
         : data.data && Array.isArray(data.data)
@@ -179,11 +178,20 @@ export default function TradingJournal() {
       });
     }
   };
-  // Функция рендеринга строки сделки для вывода в таблицу
+  // Оптимизированная функция рендеринга строки сделки с безубытком и типом ордера
   const renderDealRow = (deal: Deal) => {
     const isLong = deal.side === "BUY";
     const isOpen = deal.status === "OPEN";
     const precision = deal.entry_price >= 500 ? 2 : 4;
+
+    // Рассчитываем точную цену безубытка с учетом типа ордера (как на Bybit)
+    const openFeeRate = deal.order_type === "LIMIT" ? 0.0002 : 0.00055;
+    const closeFeeRate = 0.00055;
+    const totalFeeRate = openFeeRate + closeFeeRate;
+
+    const breakevenPrice = isLong
+      ? deal.entry_price * (1 + totalFeeRate)
+      : deal.entry_price * (1 - totalFeeRate);
 
     const bClass =
       "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold border select-none ";
@@ -223,6 +231,16 @@ export default function TradingJournal() {
             /USDT
           </span>
         </TableCell>
+
+        {/* НОВАЯ ЯЧЕЙКА: Тип ордера */}
+        <TableCell className="py-3 px-2">
+          <span
+            className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold border ${deal.order_type === "LIMIT" ? "bg-violet-500/10 text-violet-500 border-violet-500/20" : "bg-blue-500/10 text-blue-500 border-blue-500/20"}`}
+          >
+            {deal.order_type}
+          </span>
+        </TableCell>
+
         <TableCell className="py-3 px-3">
           <span
             className={`font-bold text-[11px] ${isOpen ? (isLong ? "text-emerald-600" : "text-rose-600") : "text-muted-foreground"}`}
@@ -242,6 +260,12 @@ export default function TradingJournal() {
         <TableCell className="py-3 px-3 font-semibold">
           {deal.entry_price.toFixed(precision)}
         </TableCell>
+
+        {/* НОВАЯ ЯЧЕЙКА: Расчитанная цена безубытка */}
+        <TableCell className="py-3 px-3 font-medium text-amber-600/90 dark:text-amber-400/90">
+          {breakevenPrice.toFixed(precision)}
+        </TableCell>
+
         <TableCell
           className={`py-3 px-3 ${isOpen ? "text-emerald-600/90" : "text-muted-foreground/70"}`}
         >
@@ -411,6 +435,9 @@ export default function TradingJournal() {
                   <TableHead className="py-2.5 px-4 h-auto text-muted-foreground font-medium">
                     Пара
                   </TableHead>
+                  <TableHead className="py-2.5 px-2 h-auto text-muted-foreground font-medium">
+                    Тип
+                  </TableHead>
                   <TableHead className="py-2.5 px-3 h-auto text-muted-foreground font-medium">
                     Направление
                   </TableHead>
@@ -419,6 +446,9 @@ export default function TradingJournal() {
                   </TableHead>
                   <TableHead className="py-2.5 px-3 h-auto text-muted-foreground font-medium">
                     Вход
+                  </TableHead>
+                  <TableHead className="py-2.5 px-3 h-auto text-muted-foreground font-medium">
+                    Безубыток
                   </TableHead>
                   <TableHead className="py-2.5 px-3 h-auto text-muted-foreground font-medium">
                     Take Profit

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
-import { Toaster } from "@/components/ui/toast"; // ИСПРАВЛЕНО: Импортируем Toaster напрямую из файла toast
+import { Toaster } from "@/components/ui/toast";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -36,7 +36,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           {children}
-          <Toaster /> {/* Контейнер для вывода всплывающих уведомлений */}
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>
