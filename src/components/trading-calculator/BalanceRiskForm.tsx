@@ -4,7 +4,7 @@ import React from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { ButtonGroup } from "@/components/ui/button-group"; // Импортируем официальный ButtonGroup
+import { ButtonGroup } from "@/components/ui/button-group";
 import {
   Select,
   SelectContent,
@@ -39,7 +39,6 @@ export default function BalanceRiskForm({
 }: BalanceRiskProps) {
   return (
     <div className="space-y-4">
-      {/* Крупные кнопки направления сделки, объединенные в каноничную группу (Высота h-11) */}
       <ButtonGroup className="w-full h-11 flex">
         <Button
           type="button"
@@ -67,7 +66,6 @@ export default function BalanceRiskForm({
         </Button>
       </ButtonGroup>
 
-      {/* Горизонтальный ряд: Депозит, Риск и Плечо */}
       <div className="grid grid-cols-3 gap-4">
         <div className="space-y-2">
           <Label htmlFor="balance">Депозит (USDT)</Label>

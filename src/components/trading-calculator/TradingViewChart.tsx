@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useTheme } from "next-themes";
 
 interface TradingViewChartProps {
@@ -53,8 +53,6 @@ export default function TradingViewChart({ coin }: TradingViewChartProps) {
           hide_side_toolbar: false,
           allow_symbol_change: false,
           container_id: containerRef.current.id,
-          // ИСПРАВЛЕНО: Передаем пустой массив, чтобы убрать RSI и MA.
-          // Родные вертикальные объемы Bybit останутся включенными по умолчанию.
           studies: [],
         });
       }

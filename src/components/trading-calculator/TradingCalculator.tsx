@@ -13,7 +13,6 @@ export type PositionSide = "BUY" | "SELL";
 const PARTS_COUNT = 5;
 const STORAGE_KEY = "bybit_calculator_state_v14";
 
-// ЖЕЛЕЗОБЕТОННЫЙ ФИКС: Берем длину строки первой группы, чтобы вернуть реальное число знаков (3-4 для NEAR)
 const detectDecimals = (price: number | string | undefined): number => {
   if (!price) return 2;
   const priceStr = String(price);

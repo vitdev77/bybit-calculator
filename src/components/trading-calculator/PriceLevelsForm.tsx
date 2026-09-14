@@ -4,7 +4,7 @@ import React, { useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -52,7 +52,6 @@ export default function PriceLevelsForm({
 }: PriceLevelsProps) {
   const currentPresetValue = `${stopLossPercent}-${riskRewardRatio}`;
 
-  // ИСПРАВЛЕНО ПОД BASE UI: Стейт контроля открытия, чтобы кнопки не слипались и окно закрывалось вовремя
   const [isOpen, setIsOpen] = useState(false);
 
   const handlePresetChange = (value: any): void => {
@@ -109,7 +108,6 @@ export default function PriceLevelsForm({
       </div>
 
       <div className="flex justify-center pt-5 w-full">
-        {/* НАСТРОЕНО: open привязан к нашему стейту контроля */}
         <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
           <AlertDialogTrigger
             className={buttonVariants({
@@ -132,7 +130,6 @@ export default function PriceLevelsForm({
               <AlertDialogCancel className="rounded-xl text-xs h-9 cursor-pointer">
                 Отмена
               </AlertDialogCancel>
-              {/* ЖЕЛЕЗОБЕТОННЫЙ ФИКС: Вернули AlertDialogAction, чтобы восстановить стили gap-2 в футере shadcn, а закрытие делаем руками */}
               <AlertDialogAction
                 onClick={(e) => {
                   e.preventDefault(); // Гарантируем, что Base UI не перехватит клик раньше времени

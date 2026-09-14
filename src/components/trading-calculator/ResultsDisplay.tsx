@@ -117,7 +117,6 @@ export default function ResultsDisplay({
         }),
       });
 
-      // ИСПРАВЛЕНО: Универсальный тост без упоминания конкретных брендов
       if (response.status === 409) {
         setDuplicateWarning(true);
         toast.add({
@@ -132,7 +131,6 @@ export default function ResultsDisplay({
       if (!response.ok) throw new Error("Save error");
 
       setSaveSuccess(true);
-      // ИСПРАВЛЕНО: Текст изменен на «облачный журнал сделок»
       toast.add({
         title: "Трейд зафиксирован!",
         description: `Позиция ${isLong ? "Long" : "Short"} по ${coin} успешно добавлена в облачный журнал сделок.`,
@@ -143,7 +141,6 @@ export default function ResultsDisplay({
       window.dispatchEvent(new Event("refresh-trading-journal"));
     } catch (err) {
       console.error("Не удалось сохранить сделку в базу данных:", err);
-      // ИСПРАВЛЕНО: Строгий алерт ошибки подключения без упоминания бренда
       toast.add({
         title: "Критическая ошибка",
         description:

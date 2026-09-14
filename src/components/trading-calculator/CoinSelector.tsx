@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import {
   Select,
   SelectContent,
@@ -20,7 +19,6 @@ interface CoinSelectorProps {
   setOrderType: (value: OrderType) => void;
 }
 
-// ИСПРАВЛЕНО: MNT и ZEC перенесены в начало списка сразу после ETH
 export const AVAILABLE_COINS = [
   "BTCUSDT",
   "ETHUSDT",
@@ -45,15 +43,12 @@ export default function CoinSelector({
 }: CoinSelectorProps) {
   return (
     <div className="space-y-2 w-full">
-      {/* Строка подписей (лейблов) */}
       <div className="grid grid-cols-2 gap-4">
         <Label htmlFor="coin-select">Торговая пара</Label>
         <Label>Тип ордера</Label>
       </div>
 
-      {/* Горизонтальный ряд элементов */}
       <div className="grid grid-cols-2 gap-4 items-center w-full">
-        {/* Левая колонка: Селектор монет */}
         <Select
           value={selectedCoin}
           onValueChange={(value) => {
@@ -75,7 +70,6 @@ export default function CoinSelector({
           </SelectContent>
         </Select>
 
-        {/* Правая колонка: Официальный ButtonGroup из shadcn */}
         <ButtonGroup className="w-full h-9 flex">
           <Button
             type="button"
