@@ -241,13 +241,24 @@ export default function TradingJournal({
     let pnlDisplay = null;
     const isCurrentActiveCoin = activeCoin === deal.coin;
 
-    if (isOpen) {
+    // Инициализируем флаги триггеров TP/SL
+    let isHitTP = false;
+    let isHitSL = false;
+
+    if (isOpen && isCurrentActiveCoin && livePrice > 0) {
       const isPriceValidForCoin =
         (deal.coin === "BTCUSDT" && livePrice > 30000) ||
         (deal.coin === "ETHUSDT" && livePrice > 1000 && livePrice < 10000) ||
         (deal.coin !== "BTCUSDT" && deal.coin !== "ETHUSDT" && livePrice < 500);
 
-      if (isCurrentActiveCoin && livePrice > 0 && isPriceValidForCoin) {
+      if (isPriceValidForCoin) {
+        isHitTP = isLong
+          ? livePrice >= deal.take_profit
+          : livePrice <= deal.take_profit;
+        isHitSL = isLong
+          ? livePrice <= deal.stop_loss
+          : livePrice >= deal.stop_loss;
+
         const cryptoQty = deal.volume / deal.entry_price;
         const livePnlUsdt = isLong
           ? (livePrice - breakevenPrice) * cryptoQty
@@ -291,10 +302,14 @@ export default function TradingJournal({
             </span>
           </div>
         );
-      } else {
-        const lastKnown = frozenPnL[deal.id] || { pnl: 0, roi: 0 };
-        const isLastProfit = lastKnown.pnl >= 0;
+      }
+    }
 
+    if (!pnlDisplay) {
+      const lastKnown = frozenPnL[deal.id] || { pnl: 0, roi: 0 };
+      const isLastProfit = lastKnown.pnl >= 0;
+
+      if (isOpen) {
         pnlDisplay = (
           <div className="flex flex-col text-right select-none opacity-45 relative w-full pl-6">
             <Pause className="size-2.5 text-muted-foreground absolute left-1 top-1.5" />
@@ -315,56 +330,56 @@ export default function TradingJournal({
             </span>
           </div>
         );
-      }
-    } else {
-      let targetPrice = 0;
-      if (deal.status === "PROFIT") targetPrice = deal.take_profit;
-      else if (deal.status === "LOSS") targetPrice = deal.stop_loss;
-      else if (
-        deal.status === "CLOSED" &&
-        deal.closed_at_price &&
-        Number(deal.closed_at_price) > 0
-      ) {
-        targetPrice = Number(deal.closed_at_price);
-      } else if (
-        deal.status === "CLOSED" &&
-        isCurrentActiveCoin &&
-        livePrice > 0
-      ) {
-        targetPrice = livePrice;
       } else {
-        targetPrice = deal.entry_price;
-      }
+        let targetPrice = 0;
+        if (deal.status === "PROFIT") targetPrice = deal.take_profit;
+        else if (deal.status === "LOSS") targetPrice = deal.stop_loss;
+        else if (
+          deal.status === "CLOSED" &&
+          deal.closed_at_price &&
+          Number(deal.closed_at_price) > 0
+        ) {
+          targetPrice = Number(deal.closed_at_price);
+        } else if (
+          deal.status === "CLOSED" &&
+          isCurrentActiveCoin &&
+          livePrice > 0
+        ) {
+          targetPrice = livePrice;
+        } else {
+          targetPrice = deal.entry_price;
+        }
 
-      const cryptoQty =
-        deal.entry_price > 0 ? deal.volume / deal.entry_price : 0;
-      const finalPnlUsdt = isLong
-        ? (targetPrice - breakevenPrice) * cryptoQty
-        : (breakevenPrice - targetPrice) * cryptoQty;
+        const cryptoQty =
+          deal.entry_price > 0 ? deal.volume / deal.entry_price : 0;
+        const finalPnlUsdt = isLong
+          ? (targetPrice - breakevenPrice) * cryptoQty
+          : (breakevenPrice - targetPrice) * cryptoQty;
 
-      const finalRoi =
-        deal.margin > 0.01 ? (finalPnlUsdt / deal.margin) * 100 : 0;
-      const isFinalProfit = finalPnlUsdt >= 0;
+        const finalRoi =
+          deal.margin > 0.01 ? (finalPnlUsdt / deal.margin) * 100 : 0;
+        const isFinalProfit = finalPnlUsdt >= 0;
 
-      pnlDisplay = (
-        <div className="flex flex-col text-right opacity-65 select-none w-full">
-          <span
-            className={`font-black text-xs ${isFinalProfit ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
-          >
-            {isFinalProfit ? "+" : ""}
-            {finalRoi.toFixed(2)}%
-          </span>
-          <span
-            className={`text-[10px] font-bold ${isFinalProfit ? "text-emerald-500/80" : "text-rose-500/80"}`}
-          >
-            {isFinalProfit ? "+" : ""}
-            {finalPnlUsdt.toFixed(4)}{" "}
-            <span className="text-[9px] font-normal opacity-60 text-muted-foreground">
-              USDT
+        pnlDisplay = (
+          <div className="flex flex-col text-right opacity-65 select-none w-full">
+            <span
+              className={`font-black text-xs ${isFinalProfit ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
+            >
+              {isFinalProfit ? "+" : ""}
+              {finalRoi.toFixed(2)}%
             </span>
-          </span>
-        </div>
-      );
+            <span
+              className={`text-[10px] font-bold ${isFinalProfit ? "text-emerald-500/80" : "text-rose-500/80"}`}
+            >
+              {isFinalProfit ? "+" : ""}
+              {finalPnlUsdt.toFixed(4)}{" "}
+              <span className="text-[9px] font-normal opacity-60 text-muted-foreground">
+                USDT
+              </span>
+            </span>
+          </div>
+        );
+      }
     }
     let formattedDateOnly = "--.--.----",
       formattedTimeOnly = "--:--:--";
@@ -408,7 +423,6 @@ export default function TradingJournal({
         className={`transition-all border-b border-border/20 ${isCurrentActiveCoin ? "bg-amber-500/5 dark:bg-amber-500/10 hover:bg-amber-500/10 dark:hover:bg-amber-500/15" : !isOpen ? "opacity-45 grayscale-20" : ""}`}
       >
         <TableCell className="py-2 px-2 whitespace-nowrap relative pl-4">
-          {/* 🔥 ИСПРАВЛЕНО: Возвращена индикация BUY/SELL на левую грань. Для активной строки добавляется неоновое свечение соответствующего цвета */}
           <div
             className={`absolute left-0 top-0 bottom-0 transition-all duration-300 ${
               isLong
@@ -436,7 +450,6 @@ export default function TradingJournal({
           className="py-3 px-2 font-bold cursor-pointer transition-colors select-none group/coin whitespace-nowrap text-xs tracking-tight"
           title="Кликните для переключения калькулятора на эту монету"
         >
-          {/* 🔥 ИСПРАВЛЕНО: Добавлен четкий текстовый бейдж направления сделки LONG/SHORT прямо под названием монеты */}
           <div className="flex flex-col space-y-1">
             <div className="flex items-center gap-1.5">
               <span
@@ -483,19 +496,38 @@ export default function TradingJournal({
         <TableCell className="py-3 px-2 font-semibold text-foreground/90 border-none">
           {breakevenPrice.toFixed(precision)}
         </TableCell>
+
+        {/* 🔥 ИСПРАВЛЕНО: Индикаторы алертов TP/SL перенесены непосредственно на ценовые значения внутри колонки */}
         <TableCell className="py-3 px-2">
-          <div className="flex flex-col space-y-0.5">
+          <div className="flex flex-col space-y-1">
             <span
-              className={`font-semibold ${isOpen ? "text-emerald-600/90" : "text-muted-foreground/60"}`}
+              className={`font-semibold transition-all duration-300 rounded px-1 -mx-1 w-fit ${
+                isOpen
+                  ? isHitTP
+                    ? "text-emerald-500 dark:text-emerald-400 bg-emerald-500/15 font-black border border-emerald-500/30 animate-pulse"
+                    : "text-emerald-600/90"
+                  : "text-muted-foreground/60"
+              }`}
               title="Take Profit"
             >
-              {deal.take_profit.toFixed(precision)}
+              {isHitTP
+                ? `🔥 ${deal.take_profit.toFixed(precision)}`
+                : deal.take_profit.toFixed(precision)}
             </span>
+
             <span
-              className={`font-semibold ${isOpen ? "text-rose-600/90" : "text-muted-foreground/60"}`}
+              className={`font-semibold transition-all duration-300 rounded px-1 -mx-1 w-fit ${
+                isOpen
+                  ? isHitSL
+                    ? "text-rose-500 dark:text-rose-400 bg-rose-500/15 font-black border border-rose-500/30 animate-pulse"
+                    : "text-rose-600/90"
+                  : "text-muted-foreground/60"
+              }`}
               title="Stop Loss"
             >
-              {deal.stop_loss.toFixed(precision)}
+              {isHitSL
+                ? `⚠️ ${deal.stop_loss.toFixed(precision)}`
+                : deal.stop_loss.toFixed(precision)}
             </span>
           </div>
         </TableCell>
@@ -583,6 +615,7 @@ export default function TradingJournal({
       return matchesSearch && deal.status !== "OPEN";
     return matchesSearch;
   });
+
   return (
     <div className="w-full bg-transparent flex flex-col px-1 sm:px-6">
       <div className="py-4 border-b border-border/40 flex flex-row items-center justify-between gap-4 flex-wrap md:flex-nowrap bg-transparent select-none">
