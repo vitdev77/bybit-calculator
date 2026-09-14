@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { buttonVariants } from "@/components/ui/button";
@@ -34,13 +33,6 @@ interface PriceLevelsProps {
   onReset: () => void;
 }
 
-const RR_PRESETS = [
-  { label: "SL 1% | TP 1% (1:1)", sl: 1, rr: 1 },
-  { label: "SL 1% | TP 2% (1:2)", sl: 1, rr: 2 },
-  { label: "SL 1% | TP 3% (1:3)", sl: 1, rr: 3 },
-  { label: "SL 1% | TP 4% (1:4)", sl: 1, rr: 4 },
-  { label: "SL 1% | TP 5% (1:5)", sl: 1, rr: 5 },
-];
 export default function PriceLevelsForm({
   entryPrice,
   setEntryPrice,
@@ -50,55 +42,60 @@ export default function PriceLevelsForm({
   setRiskRewardRatio,
   onReset,
 }: PriceLevelsProps) {
-  const currentPresetValue = `${stopLossPercent}-${riskRewardRatio}`;
-
+  const currentRRValue = String(riskRewardRatio);
+  const rrPresets = [1, 1.5, 2, 3, 4, 5];
   const [isOpen, setIsOpen] = useState(false);
 
   const handlePresetChange = (value: any): void => {
     if (typeof value !== "string") return;
-    const [slStr, rrStr] = value.split("-");
-    setStopLossPercent(Number(slStr));
-    setRiskRewardRatio(Number(rrStr));
+    setRiskRewardRatio(Number(value));
   };
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4 items-start">
-        <div className="space-y-2">
-          <Label htmlFor="entryPrice">Цена входа (USDT)</Label>
+    <div className="space-y-3">
+      {/* 🔥 ИСПРАВЛЕНО: Сетка адаптирована под вертикальный стэк на мобилках */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+        <div className="space-y-1">
+          <Label htmlFor="entryPrice" className="text-xs sm:text-sm">
+            Цена входа (USDT)
+          </Label>
           <Input
             id="entryPrice"
             type="number"
             placeholder="0.00"
             value={entryPrice || ""}
-            className="h-9"
+            className="h-9 text-xs sm:text-sm"
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               setEntryPrice(Number(e.target.value))
             }
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="rr-preset-select">Режим торговли (R:R)</Label>
-          <Select value={currentPresetValue} onValueChange={handlePresetChange}>
+        <div className="space-y-1">
+          <Label htmlFor="rr-preset-select" className="text-xs sm:text-sm">
+            Режим торговли (R:R)
+          </Label>
+          <Select
+            key={`${stopLossPercent}-${riskRewardRatio}`}
+            value={currentRRValue}
+            onValueChange={handlePresetChange}
+          >
             <SelectTrigger
               id="rr-preset-select"
-              className="w-full h-9! bg-background"
+              className="w-full h-9 bg-background text-xs sm:text-sm"
             >
-              <SelectValue placeholder="1:3">
-                {(value: any) => {
-                  if (!value || typeof value !== "string") return "1:3";
-                  const [, rr] = value.split("-");
-                  return `1:${rr}`;
-                }}
-              </SelectValue>
+              <SelectValue placeholder="1:3">{`1:${riskRewardRatio}`}</SelectValue>
             </SelectTrigger>
             <SelectContent>
-              {RR_PRESETS.map((preset) => {
-                const valKey = `${preset.sl}-${preset.rr}`;
+              {rrPresets.map((rr) => {
+                const targetTPPercent = (stopLossPercent * rr).toFixed(1);
                 return (
-                  <SelectItem key={valKey} value={valKey}>
-                    {preset.label}
+                  <SelectItem
+                    key={`rr-${rr}`}
+                    value={String(rr)}
+                    className="text-xs sm:text-sm"
+                  >
+                    {`SL ${stopLossPercent}% | TP ${targetTPPercent}% (1:${rr})`}
                   </SelectItem>
                 );
               })}
@@ -107,7 +104,7 @@ export default function PriceLevelsForm({
         </div>
       </div>
 
-      <div className="flex justify-center pt-5 w-full">
+      <div className="flex justify-center pt-3 w-full">
         <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
           <AlertDialogTrigger
             className={buttonVariants({
@@ -118,23 +115,25 @@ export default function PriceLevelsForm({
           >
             Сбросить настройки
           </AlertDialogTrigger>
-          <AlertDialogContent className="rounded-[2rem] max-w-sm">
+          <AlertDialogContent className="rounded-2xl max-w-xs sm:max-w-sm">
             <AlertDialogHeader>
-              <AlertDialogTitle>Сбросить калькулятор?</AlertDialogTitle>
-              <AlertDialogDescription className="text-xs">
+              <AlertDialogTitle className="text-sm sm:text-base">
+                Сбросить калькулятор?
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-[11px] sm:text-xs">
                 Это действие вернет все параметры торговли, включая депозит,
                 риски и цену входа, к дефолтным значениям.
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter className="gap-2 sm:gap-2">
+            <AlertDialogFooter className="gap-1.5 sm:gap-2">
               <AlertDialogCancel className="rounded-xl text-xs h-9 cursor-pointer">
                 Отмена
               </AlertDialogCancel>
               <AlertDialogAction
                 onClick={(e) => {
-                  e.preventDefault(); // Гарантируем, что Base UI не перехватит клик раньше времени
+                  e.preventDefault();
                   onReset();
-                  setIsOpen(false); // Принудительно захлопываем модалку
+                  setIsOpen(false);
                 }}
                 variant="destructive"
                 className="rounded-xl text-xs h-9 bg-rose-600 hover:bg-rose-700 text-white cursor-pointer border-none flex items-center justify-center"

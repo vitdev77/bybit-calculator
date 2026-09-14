@@ -13,12 +13,21 @@ export type PositionSide = "BUY" | "SELL";
 const PARTS_COUNT = 5;
 const STORAGE_KEY = "bybit_calculator_state_v14";
 
-const detectDecimals = (price: number | string | undefined): number => {
-  if (!price) return 2;
-  const priceStr = String(price);
-  const match = priceStr.match(/\.(\d+)/);
-  if (!match || !match[1]) return 2;
-  return match[1].length < 2 ? 2 : match[1].length;
+// Официальная карта разрядностей цен (Price Scale) фьючерсных контрактов Bybit
+const COIN_PRECISION_MAP: Record<string, number> = {
+  BTCUSDT: 2,
+  ETHUSDT: 2,
+  XAUTUSDT: 2,
+  SOLUSDT: 2,
+  LINKUSDT: 2,
+  NEARUSDT: 3,
+  SUIUSDT: 3,
+  HYPEUSDT: 3,
+  MNTUSDT: 4,
+  ZECUSDT: 4,
+  GRAMUSDT: 4,
+  XRPUSDT: 4,
+  DOGEUSDT: 5,
 };
 
 interface TickerData {
@@ -85,9 +94,14 @@ export default function TradingCalculator({
   const [tickerData, setTickerData] = useState<TickerData | null>(null);
   const [tickerLoading, setTickerLoading] = useState(false);
 
-  const currentDecimals = tickerData?.lastPrice
-    ? detectDecimals(tickerData.lastPrice)
-    : 4;
+  // Статическая разрядность из карты спецификаций Bybit
+  const currentDecimals =
+    COIN_PRECISION_MAP[selectedCoin] !== undefined
+      ? COIN_PRECISION_MAP[selectedCoin]
+      : 4;
+
+  const maxSafeLeverage =
+    selectedCoin === "BTCUSDT" || selectedCoin === "ETHUSDT" ? 100 : 50;
 
   const [results, setResults] = useState({
     riskAmount: 0,
@@ -127,7 +141,6 @@ export default function TradingCalculator({
         setTickerData(data);
         onPriceUpdate?.(data.lastPrice);
 
-        // ЖЕЛЕЗОБЕТОННЫЙ ФИКС: Подставляем цену только при первом входе, смене монеты, или если поле было пустым
         if (
           isFirstInit ||
           prevCoinRef.current !== coin ||
@@ -142,11 +155,45 @@ export default function TradingCalculator({
         if (isCurrent()) setTickerLoading(false);
       }
     },
-    [onPriceUpdate], // Убрали entryPrice из зависимостей хука, теперь ввод пользователя не ломает интервал опроса
+    [onPriceUpdate],
   );
 
   const handlePriceApply = (price: number) => {
     if (price > 0) setEntryPrice(price);
+  };
+
+  const handleCoinChange = (newCoin: string) => {
+    setSelectedCoin(newCoin);
+
+    const baseRiskAmount = (balance * riskPercent) / 100;
+    const allocatedMarginMax = balance / PARTS_COUNT;
+    const openFeeRate = orderType === "MARKET" ? 0.00055 : 0.0002;
+    const totalFeeRate = openFeeRate + 0.00055;
+    const priceLossFactor = stopLossPercent / 100;
+
+    const idealPositionSizeUsdt =
+      baseRiskAmount / (priceLossFactor + totalFeeRate);
+    const calculatedRecLeverage = Math.ceil(
+      idealPositionSizeUsdt / allocatedMarginMax,
+    );
+
+    const standardSteps = [1, 2, 5, 10, 15, 20, 25, 30, 50, 75, 100];
+    let finalRecLeverage = 10;
+
+    for (const step of standardSteps) {
+      if (step >= calculatedRecLeverage) {
+        finalRecLeverage = step;
+        break;
+      }
+    }
+
+    const coinMaxLimit =
+      newCoin === "BTCUSDT" || newCoin === "ETHUSDT" ? 100 : 50;
+    if (finalRecLeverage > coinMaxLimit) {
+      finalRecLeverage = coinMaxLimit;
+    }
+
+    setLeverage(finalRecLeverage);
   };
 
   const handleReset = () => {
@@ -157,7 +204,7 @@ export default function TradingCalculator({
     setSelectedCoin("BTCUSDT");
     setOrderType("MARKET");
     setStopLossPercent(1);
-    setLeverage(10);
+    setLeverage(100);
     setSide("BUY");
     setEntryPrice(
       tickerData && selectedCoin === "BTCUSDT"
@@ -165,6 +212,12 @@ export default function TradingCalculator({
         : 77342.45,
     );
   };
+  useEffect(() => {
+    if (leverage > maxSafeLeverage) {
+      setLeverage(maxSafeLeverage);
+    }
+  }, [selectedCoin, leverage, maxSafeLeverage]);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedState = localStorage.getItem(STORAGE_KEY);
@@ -288,8 +341,6 @@ export default function TradingCalculator({
       : entryPrice * (1 + 1 / leverage - MMR - closeFeeRate);
     if (liquidationPrice < 0) liquidationPrice = 0;
 
-    const maxSafeLeverage = Math.ceil(positionSizeUsdt / allocatedMarginMax);
-
     setResults({
       riskAmount: actualRiskAmount,
       positionSizeCrypto,
@@ -317,11 +368,13 @@ export default function TradingCalculator({
     leverage,
     currentDecimals,
     isLoaded,
+    selectedCoin,
+    maxSafeLeverage,
   ]);
 
   if (!isLoaded) return null;
   return (
-    <div className="w-full p-4 space-y-4">
+    <div className="w-full p-2 sm:p-4 space-y-4">
       <MarketTicker
         data={tickerData}
         loading={tickerLoading}
@@ -331,16 +384,16 @@ export default function TradingCalculator({
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
-        <Card className="shadow-sm border border-border/40 bg-background flex flex-col rounded-2xl">
-          <CardHeader className="py-2.5 px-4 border-b border-border/40">
-            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <Card className="shadow-sm border border-border/40 bg-background flex flex-col rounded-xl sm:rounded-2xl">
+          <CardHeader className="py-2 px-3 sm:py-2.5 sm:px-4 border-b border-border/40">
+            <CardTitle className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Панель параметров
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 p-4 flex-1">
+          <CardContent className="space-y-4 p-3 sm:p-4 flex-1">
             <CoinSelector
               selectedCoin={selectedCoin}
-              onCoinChange={setSelectedCoin}
+              onCoinChange={handleCoinChange}
               orderType={orderType}
               setOrderType={setOrderType}
             />
@@ -353,6 +406,8 @@ export default function TradingCalculator({
               setLeverage={setLeverage}
               side={side}
               setSide={setSide}
+              maxSafeLeverage={maxSafeLeverage}
+              selectedCoin={selectedCoin}
             />
             <PriceLevelsForm
               entryPrice={entryPrice}
@@ -366,13 +421,13 @@ export default function TradingCalculator({
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border border-border/40 bg-background flex flex-col rounded-2xl">
-          <CardHeader className="py-2.5 px-4 border-b border-border/40">
-            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <Card className="shadow-sm border border-border/40 bg-background flex flex-col rounded-xl sm:rounded-2xl">
+          <CardHeader className="py-2 px-3 sm:py-2.5 sm:px-4 border-b border-border/40">
+            <CardTitle className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Торговый отчёт
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-4 flex-1 flex flex-col justify-between">
+          <CardContent className="p-3 sm:p-4 flex-1 flex flex-col justify-between">
             <ResultsDisplay
               results={results}
               coin={selectedCoin}

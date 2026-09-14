@@ -42,56 +42,64 @@ export default function CoinSelector({
   setOrderType,
 }: CoinSelectorProps) {
   return (
-    <div className="space-y-2 w-full">
-      <div className="grid grid-cols-2 gap-4">
-        <Label htmlFor="coin-select">Торговая пара</Label>
-        <Label>Тип ордера</Label>
-      </div>
+    <div className="space-y-1.5 w-full">
+      {/* 🔥 ИСПРАВЛЕНО: Скрываем лейблы на мобилках (или ставим в flex), разносим элементы по адаптивной сетке */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full items-center">
+        <div className="space-y-1 w-full">
+          <Label htmlFor="coin-select" className="text-xs sm:text-sm">
+            Торговая пара
+          </Label>
+          <Select
+            value={selectedCoin}
+            onValueChange={(value) => {
+              if (value) onCoinChange(value);
+            }}
+          >
+            <SelectTrigger
+              id="coin-select"
+              className="h-9 w-full bg-background border border-input shadow-none text-xs sm:text-sm"
+            >
+              <SelectValue placeholder="Выберите монету" />
+            </SelectTrigger>
+            <SelectContent>
+              {AVAILABLE_COINS.map((coin) => (
+                <SelectItem
+                  key={coin}
+                  value={coin}
+                  className="text-xs sm:text-sm"
+                >
+                  {coin}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-      <div className="grid grid-cols-2 gap-4 items-center w-full">
-        <Select
-          value={selectedCoin}
-          onValueChange={(value) => {
-            if (value) onCoinChange(value);
-          }}
-        >
-          <SelectTrigger
-            id="coin-select"
-            className="h-9 w-full bg-background border border-input shadow-none"
-          >
-            <SelectValue placeholder="Выберите монету" />
-          </SelectTrigger>
-          <SelectContent>
-            {AVAILABLE_COINS.map((coin) => (
-              <SelectItem key={coin} value={coin}>
-                {coin}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <ButtonGroup className="w-full h-9 flex">
-          <Button
-            type="button"
-            variant={orderType === "MARKET" ? "default" : "outline"}
-            className={`flex-1 h-full text-xs font-semibold shadow-none ${
-              orderType === "MARKET" ? "font-bold" : ""
-            }`}
-            onClick={() => setOrderType("MARKET")}
-          >
-            Market
-          </Button>
-          <Button
-            type="button"
-            variant={orderType === "LIMIT" ? "default" : "outline"}
-            className={`flex-1 h-full text-xs font-semibold shadow-none ${
-              orderType === "LIMIT" ? "font-bold" : ""
-            }`}
-            onClick={() => setOrderType("LIMIT")}
-          >
-            Limit
-          </Button>
-        </ButtonGroup>
+        <div className="space-y-1 w-full">
+          <Label className="text-xs sm:text-sm">Тип ордера</Label>
+          <ButtonGroup className="w-full h-9 flex">
+            <Button
+              type="button"
+              variant={orderType === "MARKET" ? "default" : "outline"}
+              className={`flex-1 h-full text-xs font-semibold shadow-none border border-input ${
+                orderType === "MARKET" ? "font-bold" : ""
+              }`}
+              onClick={() => setOrderType("MARKET")}
+            >
+              Market
+            </Button>
+            <Button
+              type="button"
+              variant={orderType === "LIMIT" ? "default" : "outline"}
+              className={`flex-1 h-full text-xs font-semibold shadow-none border border-input ${
+                orderType === "LIMIT" ? "font-bold" : ""
+              }`}
+              onClick={() => setOrderType("LIMIT")}
+            >
+              Limit
+            </Button>
+          </ButtonGroup>
+        </div>
       </div>
     </div>
   );

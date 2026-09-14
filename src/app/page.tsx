@@ -56,43 +56,50 @@ export default function Home() {
     updateAttr("data-hide-journal", isJournalExpanded);
   }, [isCalcExpanded, isChartExpanded, isJournalExpanded, isMounted]);
   return (
-    <main className="min-h-screen py-8 space-y-6 max-w-5xl mx-auto px-4">
+    <main className="min-h-screen py-4 sm:py-8 space-y-4 sm:space-y-6 max-w-5xl mx-auto px-2 sm:px-4">
       {/* --- ГЛОБАЛЬНАЯ ШАПКА ПРИЛОЖЕНИЯ --- */}
-      <div className="flex items-center justify-between px-2 select-none border-b border-border/20 pb-4">
-        <div className="space-y-0.5">
-          <h1 className="text-xl font-bold tracking-tight text-foreground">
+      {/* Адаптивная структура: на мобилках элементы выстраиваются в колонку, на планшетах - в ряд */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-2 select-none border-b border-border/20 pb-4">
+        <div className="space-y-1">
+          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
             Bybit Futures{" "}
             <span className="text-muted-foreground font-normal">
               / Calculator
             </span>
           </h1>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-[11px] sm:text-xs text-muted-foreground leading-normal">
             Изолированная маржа 1/{PARTS_COUNT} •{" "}
-            {(currentBalance / PARTS_COUNT).toFixed(2)} USDT на позицию
+            <span className="font-semibold text-foreground/90">
+              {(currentBalance / PARTS_COUNT).toFixed(2)} USDT
+            </span>{" "}
+            на позицию
           </p>
         </div>
-        <ModeToggle />
+        <div className="flex justify-end sm:block">
+          <ModeToggle />
+        </div>
       </div>
 
       {/* --- БЛОК 1: КАЛЬКУЛЯТОР ПАРАМЕТРОВ --- */}
-      <div className="border border-border/40 bg-muted/30 dark:bg-muted/10 rounded-[2rem] p-2 transition-all duration-300">
+      {/* Адаптивные скругления: на мобильных экранах закругления становятся меньше (rounded-2xl) */}
+      <div className="border border-border/40 bg-muted/30 dark:bg-muted/10 rounded-2xl sm:rounded-[2rem] p-1 sm:p-2 transition-all duration-300">
         <div
           onClick={() => setIsCalcExpanded(!isCalcExpanded)}
-          className="flex items-center justify-between px-6 py-3 select-none cursor-pointer group/header hover:opacity-80 transition-opacity"
+          className="flex items-center justify-between px-3 sm:px-6 py-2 sm:py-3 select-none cursor-pointer group/header hover:opacity-80 transition-opacity"
         >
-          <div className="flex flex-col">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground group-hover/header:text-foreground transition-colors">
+          <div className="flex flex-col min-w-0 pr-2">
+            <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-muted-foreground group-hover/header:text-foreground transition-colors truncate">
               Калькулятор Позиций
             </h2>
-            <p className="text-xs text-muted-foreground/70">
+            <p className="text-[11px] sm:text-xs text-muted-foreground/70 truncate">
               Расчёт маржи, рисков и параметров ордера
             </p>
           </div>
-          <div className="p-2 rounded-xl text-muted-foreground group-hover/header:text-foreground group-hover/header:bg-muted/50 dark:group-hover/header:bg-muted/20 transition-all">
+          <div className="p-1.5 sm:p-2 rounded-xl text-muted-foreground group-hover/header:text-foreground group-hover/header:bg-muted/50 dark:group-hover/header:bg-muted/20 transition-all shrink-0">
             {isCalcExpanded ? (
-              <ChevronUp className="size-4" />
+              <ChevronUp className="size-3.5 sm:size-4" />
             ) : (
-              <ChevronDown className="size-4" />
+              <ChevronDown className="size-3.5 sm:size-4" />
             )}
           </div>
         </div>
@@ -110,26 +117,25 @@ export default function Home() {
           </div>
         </div>
       </div>
-
       {/* --- БЛОК 2: ЖИВОЙ ГРАФИК TRADINGVIEW --- */}
-      <div className="border border-border/40 bg-background rounded-[2rem] p-2 transition-all duration-300">
+      <div className="border border-border/40 bg-background rounded-2xl sm:rounded-[2rem] p-1 sm:p-2 transition-all duration-300">
         <div
           onClick={() => setIsChartExpanded(!isChartExpanded)}
-          className="flex items-center justify-between px-6 py-3 select-none cursor-pointer group/header hover:opacity-80 transition-opacity"
+          className="flex items-center justify-between px-3 sm:px-6 py-2 sm:py-3 select-none cursor-pointer group/header hover:opacity-80 transition-opacity"
         >
-          <div className="flex flex-col">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground group-hover/header:text-foreground transition-colors">
+          <div className="flex flex-col min-w-0 pr-2">
+            <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-muted-foreground group-hover/header:text-foreground transition-colors truncate">
               Интерактивный Живой График
             </h2>
-            <p className="text-xs text-muted-foreground/70">
+            <p className="text-[11px] sm:text-xs text-muted-foreground/70 truncate">
               Поток котировок Bybit для пары {selectedCoin}
             </p>
           </div>
-          <div className="p-2 rounded-xl text-muted-foreground group-hover/header:text-foreground group-hover/header:bg-muted/50 dark:group-hover/header:bg-muted/20 transition-all">
+          <div className="p-1.5 sm:p-2 rounded-xl text-muted-foreground group-hover/header:text-foreground group-hover/header:bg-muted/50 dark:group-hover/header:bg-muted/20 transition-all shrink-0">
             {isChartExpanded ? (
-              <ChevronUp className="size-4" />
+              <ChevronUp className="size-3.5 sm:size-4" />
             ) : (
-              <ChevronDown className="size-4" />
+              <ChevronDown className="size-3.5 sm:size-4" />
             )}
           </div>
         </div>
@@ -141,38 +147,39 @@ export default function Home() {
           </div>
         </div>
       </div>
-
       {/* --- БЛОК 3: ОБЛАЧНЫЙ ЖУРНАЛ СДЕЛОК --- */}
-      <div className="border border-border/40 bg-background rounded-[2rem] p-2 transition-all duration-300">
+      <div className="border border-border/40 bg-background rounded-2xl sm:rounded-[2rem] p-1 sm:p-2 transition-all duration-300">
         <div
           onClick={() => setIsJournalExpanded(!isJournalExpanded)}
-          className="flex items-center justify-between px-6 py-3 select-none cursor-pointer group/header hover:opacity-80 transition-opacity"
+          className="flex items-center justify-between px-3 sm:px-6 py-2 sm:py-3 select-none cursor-pointer group/header hover:opacity-80 transition-opacity"
         >
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground group-hover/header:text-foreground transition-colors">
+          <div className="flex flex-col min-w-0 pr-2 flex-1">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-muted-foreground group-hover/header:text-foreground transition-colors truncate">
                 Журнал сделок и Аналитика
               </h2>
-              {dealsSummary.open > 0 && (
-                <span className="inline-flex items-center justify-center bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[10px] font-black px-1.5 py-0.5 rounded-md animate-pulse">
-                  {dealsSummary.open} OPEN
-                </span>
-              )}
-              {dealsSummary.closed > 0 && (
-                <span className="inline-flex items-center justify-center bg-muted text-muted-foreground border border-border/60 text-[10px] font-black px-1.5 py-0.5 rounded-md">
-                  {dealsSummary.closed} CLOSE
-                </span>
-              )}
+              <div className="flex items-center gap-1 shrink-0">
+                {dealsSummary.open > 0 && (
+                  <span className="inline-flex items-center justify-center bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[9px] sm:text-[10px] font-black px-1.5 py-0.5 rounded-md animate-pulse whitespace-nowrap">
+                    {dealsSummary.open} OPEN
+                  </span>
+                )}
+                {dealsSummary.closed > 0 && (
+                  <span className="inline-flex items-center justify-center bg-muted text-muted-foreground border border-border/60 text-[9px] sm:text-[10px] font-black px-1.5 py-0.5 rounded-md whitespace-nowrap">
+                    {dealsSummary.closed} CLOSE
+                  </span>
+                )}
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground/70">
+            <p className="text-[11px] sm:text-xs text-muted-foreground/70 truncate">
               История торгов и статистика WinRate из облачной базы
             </p>
           </div>
-          <div className="p-2 rounded-xl text-muted-foreground group-hover/header:text-foreground group-hover/header:bg-muted/50 dark:group-hover/header:bg-muted/20 transition-all">
+          <div className="p-1.5 sm:p-2 rounded-xl text-muted-foreground group-hover/header:text-foreground group-hover/header:bg-muted/50 dark:group-hover/header:bg-muted/20 transition-all shrink-0">
             {isJournalExpanded ? (
-              <ChevronUp className="size-4" />
+              <ChevronUp className="size-3.5 sm:size-4" />
             ) : (
-              <ChevronDown className="size-4" />
+              <ChevronDown className="size-3.5 sm:size-4" />
             )}
           </div>
         </div>
@@ -180,7 +187,6 @@ export default function Home() {
           className={`journal-container-grid grid transition-all duration-300 ease-in-out ${isJournalExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0 overflow-hidden"}`}
         >
           <div className="overflow-hidden">
-            {/* ИСПРАВЛЕНО: Добавлен onCoinSelect для переключения пары в один клик */}
             <TradingJournal
               onDealsCountChange={setDealsCount}
               livePrice={currentCoinPrice}

@@ -55,7 +55,6 @@ function CopyButton({ text }: { text: string }) {
     </Button>
   );
 }
-
 export default function ResultsDisplay({
   results,
   coin,
@@ -83,7 +82,9 @@ export default function ResultsDisplay({
       ? results.liquidationPrice.toFixed(results.decimals)
       : "0.00";
 
-  const isLeverageTooLow = results.selectedLeverage < results.maxSafeLeverage;
+  // Флаг превышения допустимого биржевого плеча актива
+  const isLeverageTooHigh = results.selectedLeverage > results.maxSafeLeverage;
+
   const tpRoiPcnt =
     results.marginUsed > 0
       ? (results.netProfitUsdt / results.marginUsed) * 100
@@ -92,7 +93,7 @@ export default function ResultsDisplay({
   const slRoiPcnt =
     results.marginUsed > 0 ? (-slLossUsdt / results.marginUsed) * 100 : 0;
   const handleSaveDeal = async () => {
-    if (results.positionSizeUsdt <= 0 || isSaving) return;
+    if (results.positionSizeUsdt <= 0 || isSaving || isLeverageTooHigh) return;
     try {
       setIsSaveLoading(true);
       setDuplicateWarning(false);
@@ -150,7 +151,6 @@ export default function ResultsDisplay({
       setIsSaveLoading(false);
     }
   };
-
   return (
     <div className="flex flex-col h-full space-y-4 justify-between">
       <div className="space-y-2.5">
@@ -196,19 +196,39 @@ export default function ResultsDisplay({
           </div>
         </div>
 
-        <div className="flex justify-between items-center text-sm">
-          <span className="text-muted-foreground">Плечо (выбр. / макс):</span>
-          <div className="w-45 flex items-center justify-end gap-1.5 text-right">
+        {/* 🔴 КРАСНЫЙ АЛЕРТ: Оборачиваем строку в рамку и выводим ошибку, если выбранное плечо превысило лимит Bybit */}
+        <div
+          className={`transition-all duration-300 rounded-lg ${isLeverageTooHigh ? "bg-red-500/10 border border-red-500/30 p-2 -mx-2 space-y-1" : ""}`}
+        >
+          <div className="flex justify-between items-center text-sm">
             <span
-              className={`text-sm font-bold ${isLeverageTooLow ? "text-amber-500 font-extrabold" : "text-foreground"}`}
+              className={
+                isLeverageTooHigh
+                  ? "text-red-500 dark:text-red-400 font-medium"
+                  : "text-muted-foreground"
+              }
             >
-              x{results.selectedLeverage}
-              <span className="text-xs font-medium text-muted-foreground ml-1">
-                (max: x{results.maxSafeLeverage})
-              </span>
+              Плечо (выбр. / макс):
             </span>
-            <div className="w-7 shrink-0" />
+            <div className="w-45 flex items-center justify-end gap-1.5 text-right">
+              <span
+                className={`text-sm font-bold transition-colors ${isLeverageTooHigh ? "text-red-500 dark:text-red-400 font-black" : "text-foreground"}`}
+              >
+                x{results.selectedLeverage}
+                <span
+                  className={`text-xs font-medium ml-1 ${isLeverageTooHigh ? "text-red-500/70 dark:text-red-400/70" : "text-muted-foreground"}`}
+                >
+                  (max: x{results.maxSafeLeverage})
+                </span>
+              </span>
+              <div className="w-7 shrink-0" />
+            </div>
           </div>
+          {isLeverageTooHigh && (
+            <span className="text-[10px] font-semibold text-red-500 dark:text-red-400 block text-right pr-8 animate-pulse leading-none">
+              Выбранное плечо недоступно для {coin.replace("USDT", "")} на Bybit
+            </span>
+          )}
         </div>
 
         <div className="flex justify-between items-center text-sm">
@@ -307,14 +327,18 @@ export default function ResultsDisplay({
 
         <Button
           type="button"
-          disabled={isSaving || results.positionSizeUsdt <= 0}
+          disabled={
+            isSaving || results.positionSizeUsdt <= 0 || isLeverageTooHigh
+          }
           onClick={handleSaveDeal}
           className={`w-full mt-5 h-9 text-xs font-bold tracking-wider uppercase transition-all duration-300 shadow-sm cursor-pointer rounded-xl flex items-center justify-center gap-2 ${
-            saveSuccess
-              ? "bg-emerald-600 hover:bg-emerald-600 text-white font-bold"
-              : duplicateWarning
-                ? "bg-amber-600 hover:bg-amber-600 text-white font-bold"
-                : "bg-primary hover:bg-primary/90 text-primary-foreground"
+            isLeverageTooHigh
+              ? "bg-red-500/10 text-red-500/60 border border-solid border-red-500/20 cursor-not-allowed font-extrabold"
+              : saveSuccess
+                ? "bg-emerald-600 hover:bg-emerald-600 text-white font-bold"
+                : duplicateWarning
+                  ? "bg-amber-600 hover:bg-amber-600 text-white font-bold"
+                  : "bg-primary hover:bg-primary/90 text-primary-foreground"
           }`}
         >
           {isSaving ? (
@@ -332,6 +356,8 @@ export default function ResultsDisplay({
               <FolderPlus className="h-4 w-4" />
               Позиция уже открыта
             </>
+          ) : isLeverageTooHigh ? (
+            <>Ошибка: Уменьшите плечо</>
           ) : (
             <>
               <FolderPlus className="h-4 w-4" />

@@ -60,16 +60,21 @@ interface TradingJournalProps {
   onCoinSelect?: (coin: string) => void;
 }
 
-/**
- * Динамически вычисляет количество знаков после запятой на основе переданной цены.
- * Если знаков нет или передан 0, по умолчанию возвращает 2.
- */
-const detectPriceDecimals = (price: number | string | undefined): number => {
-  if (!price) return 2;
-  const priceStr = String(price);
-  const match = priceStr.match(/\.(\d+)/);
-  if (!match || !match[1]) return 2;
-  return match[1].length < 2 ? 2 : match[1].length;
+// Карта точных фиксированных разрядностей Bybit для журнала сделок
+const JOURNAL_PRECISION_MAP: Record<string, number> = {
+  BTCUSDT: 2,
+  ETHUSDT: 2,
+  XAUTUSDT: 2,
+  SOLUSDT: 2,
+  LINKUSDT: 2,
+  NEARUSDT: 3,
+  SUIUSDT: 3,
+  HYPEUSDT: 3,
+  MNTUSDT: 4,
+  ZECUSDT: 4,
+  GRAMUSDT: 4,
+  XRPUSDT: 4,
+  DOGEUSDT: 5,
 };
 export default function TradingJournal({
   onDealsCountChange,
@@ -220,8 +225,11 @@ export default function TradingJournal({
     const isLong = deal.side === "BUY";
     const isOpen = deal.status === "OPEN";
 
-    // 🔥 ДИНАМИЧЕСКАЯ ТОЧНОСТЬ: Считаем разрядность под каждую монету индивидуально
-    const precision = detectPriceDecimals(deal.entry_price);
+    // Берутся фиксированные эталонные знаки Bybit
+    const precision =
+      JOURNAL_PRECISION_MAP[deal.coin] !== undefined
+        ? JOURNAL_PRECISION_MAP[deal.coin]
+        : 4;
 
     const openFeeRate = deal.order_type === "LIMIT" ? 0.0002 : 0.00055;
     const closeFeeRate = 0.00055;
@@ -271,13 +279,13 @@ export default function TradingJournal({
               className={`font-black text-xs ${isProfit ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
             >
               {isProfit ? "+" : ""}
-              {liveRoi.toFixed(1)}%
+              {liveRoi.toFixed(2)}%
             </span>
             <span
               className={`text-[10px] font-bold ${isProfit ? "text-emerald-500/80" : "text-rose-500/80"}`}
             >
               {isProfit ? "+" : ""}
-              {livePnlUsdt.toFixed(2)}{" "}
+              {livePnlUsdt.toFixed(4)}{" "}
               <span className="text-[9px] font-normal opacity-60 text-muted-foreground">
                 USDT
               </span>
@@ -295,13 +303,13 @@ export default function TradingJournal({
               className={`text-xs font-bold ${isLastProfit ? "text-emerald-600/80 dark:text-emerald-400/80" : "text-rose-600/80 dark:text-rose-400/80"}`}
             >
               {isLastProfit ? "+" : ""}
-              {lastKnown.roi.toFixed(1)}%
+              {lastKnown.roi.toFixed(2)}%
             </span>
             <span
               className={`text-[10px] font-bold ${isLastProfit ? "text-emerald-500/60" : "text-rose-500/60"}`}
             >
               {isLastProfit ? "+" : ""}
-              {lastKnown.pnl.toFixed(2)}{" "}
+              {lastKnown.pnl.toFixed(4)}{" "}
               <span className="text-[9px] font-normal text-muted-foreground opacity-60">
                 USDT
               </span>
@@ -345,13 +353,13 @@ export default function TradingJournal({
             className={`font-black text-xs ${isFinalProfit ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
           >
             {isFinalProfit ? "+" : ""}
-            {finalRoi.toFixed(1)}%
+            {finalRoi.toFixed(2)}%
           </span>
           <span
             className={`text-[10px] font-bold ${isFinalProfit ? "text-emerald-500/80" : "text-rose-500/80"}`}
           >
             {isFinalProfit ? "+" : ""}
-            {finalPnlUsdt.toFixed(2)}{" "}
+            {finalPnlUsdt.toFixed(4)}{" "}
             <span className="text-[9px] font-normal opacity-60 text-muted-foreground">
               USDT
             </span>
@@ -547,7 +555,7 @@ export default function TradingJournal({
   });
 
   return (
-    <div className="w-full bg-transparent flex flex-col px-6">
+    <div className="w-full bg-transparent flex flex-col px-1 sm:px-6">
       <div className="py-4 border-b border-border/40 flex flex-row items-center justify-between gap-4 flex-wrap md:flex-nowrap bg-transparent select-none">
         <div className="flex flex-row items-center gap-3 flex-1 max-w-xl">
           <div className="relative w-full max-w-55 flex items-center group">
@@ -686,7 +694,7 @@ export default function TradingJournal({
               <TableHeader>
                 <TableRow className="border-b border-border/30 bg-muted/40 dark:bg-muted/20 text-[10px] uppercase tracking-wider text-muted-foreground font-medium hover:bg-muted/40">
                   <TableHead className="py-2.5 px-2 h-auto text-muted-foreground font-medium pl-4">
-                    Вход / Статус
+                    Вход / Status
                   </TableHead>
                   <TableHead className="py-2.5 px-2 h-auto text-muted-foreground font-medium">
                     Пара
