@@ -13,20 +13,20 @@ export type PositionSide = "BUY" | "SELL";
 const PARTS_COUNT = 5;
 const STORAGE_KEY = "bybit_calculator_state_v14";
 
-// Официальная карта разрядностей цен (Price Scale) фьючерсных контрактов Bybit
+// 🔥 ЖЕЛЕЗОБЕТОННЫЙ ФИКС: Карта разрядностей фьючерсов Bybit под твои параметры
 const COIN_PRECISION_MAP: Record<string, number> = {
   BTCUSDT: 2,
   ETHUSDT: 2,
   XAUTUSDT: 2,
-  SOLUSDT: 2,
-  LINKUSDT: 2,
+  ZECUSDT: 2, // 2 знака (Обновлено!)
+  SOLUSDT: 2, // 2 знака (Обновлено!)
+  HYPEUSDT: 2, // 2 знака (Обновлено!)
+  LINKUSDT: 3,
   NEARUSDT: 3,
-  SUIUSDT: 3,
-  HYPEUSDT: 3,
+  GRAMUSDT: 3, // 3 знака (Обновлено!)
   MNTUSDT: 4,
-  ZECUSDT: 4,
-  GRAMUSDT: 4,
   XRPUSDT: 4,
+  SUIUSDT: 4, // 4 знака (Обновлено!)
   DOGEUSDT: 5,
 };
 
@@ -94,7 +94,7 @@ export default function TradingCalculator({
   const [tickerData, setTickerData] = useState<TickerData | null>(null);
   const [tickerLoading, setTickerLoading] = useState(false);
 
-  // Статическая разрядность из карты спецификаций Bybit
+  // Применяем проверенную точную разрядность из обновленной карты параметров
   const currentDecimals =
     COIN_PRECISION_MAP[selectedCoin] !== undefined
       ? COIN_PRECISION_MAP[selectedCoin]
