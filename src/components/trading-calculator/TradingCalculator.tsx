@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import CoinSelector from "./CoinSelector";
@@ -66,7 +67,6 @@ interface TradingCalculatorProps {
   onBalanceChange?: (balance: number) => void;
   onPriceUpdate?: (price: number) => void;
 }
-
 export default function TradingCalculator({
   selectedCoin,
   setSelectedCoin,
@@ -88,6 +88,7 @@ export default function TradingCalculator({
   const currentDecimals = tickerData?.lastPrice
     ? detectDecimals(tickerData.lastPrice)
     : 4;
+
   const [results, setResults] = useState({
     riskAmount: 0,
     positionSizeCrypto: 0,
@@ -107,9 +108,12 @@ export default function TradingCalculator({
 
   useTabTicker(tickerData?.lastPrice, selectedCoin, currentDecimals);
 
-  // Храним ссылку на последнюю выбранную монету для отслеживания момента переключения
   const prevCoinRef = useRef(selectedCoin);
+  const entryPriceRef = useRef(entryPrice);
 
+  useEffect(() => {
+    entryPriceRef.current = entryPrice;
+  }, [entryPrice]);
   const fetchLiveTicker = useCallback(
     async (coin: string, isFirstInit: boolean, isCurrent: () => boolean) => {
       try {
@@ -123,10 +127,14 @@ export default function TradingCalculator({
         setTickerData(data);
         onPriceUpdate?.(data.lastPrice);
 
-        // ИСПРАВЛЕНО: Инпут заполняется рыночной ценой ТОЛЬКО если это первая загрузка приложения ИЛИ монета сменилась
-        if (isFirstInit || prevCoinRef.current !== coin || entryPrice === 0) {
+        // ЖЕЛЕЗОБЕТОННЫЙ ФИКС: Подставляем цену только при первом входе, смене монеты, или если поле было пустым
+        if (
+          isFirstInit ||
+          prevCoinRef.current !== coin ||
+          entryPriceRef.current === 0
+        ) {
           setEntryPrice(data.lastPrice);
-          prevCoinRef.current = coin; // Фиксируем, что цену для новой монеты успешно подставили
+          prevCoinRef.current = coin;
         }
       } catch (err) {
         console.error("Bybit fetch error", err);
@@ -134,7 +142,7 @@ export default function TradingCalculator({
         if (isCurrent()) setTickerLoading(false);
       }
     },
-    [entryPrice, onPriceUpdate],
+    [onPriceUpdate], // Убрали entryPrice из зависимостей хука, теперь ввод пользователя не ломает интервал опроса
   );
 
   const handlePriceApply = (price: number) => {
@@ -157,7 +165,6 @@ export default function TradingCalculator({
         : 77342.45,
     );
   };
-
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedState = localStorage.getItem(STORAGE_KEY);
@@ -196,7 +203,6 @@ export default function TradingCalculator({
     let active = true;
     const isCurrent = () => active;
 
-    // ИСПРАВЛЕНО: Убрали setEntryPrice(0), ломавший инпут при переключениях
     fetchLiveTicker(selectedCoin, true, isCurrent);
 
     const interval = setInterval(() => {
@@ -208,7 +214,6 @@ export default function TradingCalculator({
       clearInterval(interval);
     };
   }, [selectedCoin, isLoaded, fetchLiveTicker]);
-
   useEffect(() => {
     if (isLoaded && typeof window !== "undefined") {
       const state = {
@@ -236,6 +241,7 @@ export default function TradingCalculator({
     side,
     isLoaded,
   ]);
+
   useEffect(() => {
     if (entryPrice <= 0 || stopLossPercent <= 0 || balance <= 0) return;
 
@@ -269,7 +275,6 @@ export default function TradingCalculator({
     const openFee = positionSizeUsdt * openFeeRate;
     const closeFee = positionSizeUsdt * closeFeeRate;
     const totalFeeUsdt = openFee + closeFee;
-
     const rawLossUsdt =
       positionSizeCrypto * Math.abs(entryPrice - stopLossPrice);
     const actualRiskAmount = rawLossUsdt + totalFeeUsdt;
@@ -315,7 +320,6 @@ export default function TradingCalculator({
   ]);
 
   if (!isLoaded) return null;
-
   return (
     <div className="w-full p-4 space-y-4">
       <MarketTicker

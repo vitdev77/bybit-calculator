@@ -60,6 +60,17 @@ interface TradingJournalProps {
   onCoinSelect?: (coin: string) => void;
 }
 
+/**
+ * Динамически вычисляет количество знаков после запятой на основе переданной цены.
+ * Если знаков нет или передан 0, по умолчанию возвращает 2.
+ */
+const detectPriceDecimals = (price: number | string | undefined): number => {
+  if (!price) return 2;
+  const priceStr = String(price);
+  const match = priceStr.match(/\.(\d+)/);
+  if (!match || !match[1]) return 2;
+  return match[1].length < 2 ? 2 : match[1].length;
+};
 export default function TradingJournal({
   onDealsCountChange,
   livePrice = 0,
@@ -76,6 +87,7 @@ export default function TradingJournal({
   const [frozenPnL, setFrozenPnL] = useState<
     Record<number, { pnl: number; roi: number }>
   >({});
+
   const fetchJournal = useCallback(async () => {
     try {
       const res = await fetch("/api/journal", {
@@ -128,7 +140,6 @@ export default function TradingJournal({
     totalDeals > 0
       ? ((profitDeals / (profitDeals + lossDeals || 1)) * 100).toFixed(0)
       : "0";
-
   const handleUpdateStatus = async (
     id: number,
     status: "PROFIT" | "LOSS" | "CLOSED",
@@ -208,7 +219,10 @@ export default function TradingJournal({
   const renderDealRow = (deal: Deal) => {
     const isLong = deal.side === "BUY";
     const isOpen = deal.status === "OPEN";
-    const precision = deal.entry_price >= 500 ? 2 : 4;
+
+    // 🔥 ДИНАМИЧЕСКАЯ ТОЧНОСТЬ: Считаем разрядность под каждую монету индивидуально
+    const precision = detectPriceDecimals(deal.entry_price);
+
     const openFeeRate = deal.order_type === "LIMIT" ? 0.0002 : 0.00055;
     const closeFeeRate = 0.00055;
     const totalFeeRate = openFeeRate + closeFeeRate;
@@ -296,7 +310,6 @@ export default function TradingJournal({
         );
       }
     } else {
-      // ИСПРАВЛЕНО: Жёстко санируем входящие значения, исключая ложные нули из базы
       let targetPrice = 0;
       if (deal.status === "PROFIT") targetPrice = deal.take_profit;
       else if (deal.status === "LOSS") targetPrice = deal.stop_loss;
@@ -322,7 +335,6 @@ export default function TradingJournal({
         ? (targetPrice - breakevenPrice) * cryptoQty
         : (breakevenPrice - targetPrice) * cryptoQty;
 
-      // ИСПРАВЛЕНО: Защита от деления на ноль. Если маржа повреждена, ROI падает в 0, а не в бесконечность
       const finalRoi =
         deal.margin > 0.01 ? (finalPnlUsdt / deal.margin) * 100 : 0;
       const isFinalProfit = finalPnlUsdt >= 0;
@@ -403,7 +415,6 @@ export default function TradingJournal({
             </div>
           </div>
         </TableCell>
-
         <TableCell
           onClick={() => onCoinSelect?.(deal.coin)}
           className="py-3 px-2 font-bold cursor-pointer hover:text-amber-500 transition-colors select-none group/coin whitespace-nowrap text-xs tracking-tight"
@@ -413,7 +424,6 @@ export default function TradingJournal({
             {deal.coin}
           </span>
         </TableCell>
-
         <TableCell className="py-3 px-1.5">
           <span
             className={`px-1 py-0.5 rounded text-[9px] font-extrabold border ${deal.order_type === "LIMIT" ? "bg-violet-500/10 text-violet-500 border-violet-500/20" : "bg-blue-500/10 text-blue-500 border-blue-500/20"}`}
@@ -525,6 +535,7 @@ export default function TradingJournal({
       </TableRow>
     );
   };
+
   const filteredDeals = deals.filter((deal) => {
     const matchesSearch = deal.coin
       .toLowerCase()
@@ -558,7 +569,6 @@ export default function TradingJournal({
               </button>
             )}
           </div>
-
           <Tabs
             value={statusFilter}
             onValueChange={(val) => setStatusFilter(val || "ALL")}
@@ -588,7 +598,6 @@ export default function TradingJournal({
             </TabsList>
           </Tabs>
         </div>
-
         <div className="flex items-center gap-4 text-xs ml-auto shrink-0">
           <div className="text-right">
             <span className="text-muted-foreground block text-[10px] uppercase">
@@ -624,7 +633,6 @@ export default function TradingJournal({
             </span>
             <span className="font-extrabold text-sm">{winRate}%</span>
           </div>
-
           {totalDeals > 0 && (
             <AlertDialog open={isClearOpen} onOpenChange={setIsClearOpen}>
               <AlertDialogTrigger
@@ -663,7 +671,6 @@ export default function TradingJournal({
           )}
         </div>
       </div>
-
       <div className="py-6 pt-4 bg-transparent">
         {loading ? (
           <div className="p-8 text-center text-xs text-muted-foreground font-medium animate-pulse">
