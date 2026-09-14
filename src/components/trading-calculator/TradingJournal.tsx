@@ -486,7 +486,7 @@ export default function TradingJournal({
         {/* ЛЕВАЯ СТОРОНА: Поиск (с крестиком) и Табы управления */}
         <div className="flex flex-row items-center gap-3 flex-1 max-w-xl">
           {/* Поле поиска с иконкой лупы и кнопкой быстрой очистки */}
-          <div className="relative w-full max-w-[220px] flex items-center group">
+          <div className="relative w-full max-w-55 flex items-center group">
             <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground/60 pointer-events-none" />
             <Input
               type="text"
@@ -514,7 +514,7 @@ export default function TradingJournal({
           >
             <TabsList
               variant="default"
-              className="h-8 p-[2px] bg-muted/40 dark:bg-muted/10 border border-border/30 rounded-lg"
+              className="h-8 p-0.5 bg-muted/40 dark:bg-muted/10 border border-border/30 rounded-lg"
             >
               <TabsTrigger
                 value="ALL"
