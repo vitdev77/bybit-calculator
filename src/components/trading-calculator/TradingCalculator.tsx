@@ -64,12 +64,14 @@ interface TradingCalculatorProps {
   selectedCoin: string;
   setSelectedCoin: (coin: string) => void;
   onBalanceChange?: (balance: number) => void;
+  onPriceUpdate?: (price: number) => void;
 }
 
 export default function TradingCalculator({
   selectedCoin,
   setSelectedCoin,
   onBalanceChange,
+  onPriceUpdate,
 }: TradingCalculatorProps) {
   const [balance, setBalance] = useState(100);
   const [riskPercent, setRiskPercent] = useState(2);
@@ -105,22 +107,34 @@ export default function TradingCalculator({
 
   useTabTicker(tickerData?.lastPrice, selectedCoin, currentDecimals);
 
+  // Храним ссылку на последнюю выбранную монету для отслеживания момента переключения
+  const prevCoinRef = useRef(selectedCoin);
+
   const fetchLiveTicker = useCallback(
-    async (coin: string, isFirstInit: boolean) => {
+    async (coin: string, isFirstInit: boolean, isCurrent: () => boolean) => {
       try {
         if (isFirstInit) setTickerLoading(true);
         const res = await fetch(`/api/bybit?symbol=${coin}`);
         if (!res.ok) throw new Error("API error");
         const data: TickerData = await res.json();
+
+        if (!isCurrent()) return;
+
         setTickerData(data);
-        if (isFirstInit && entryPrice === 0) setEntryPrice(data.lastPrice);
+        onPriceUpdate?.(data.lastPrice);
+
+        // ИСПРАВЛЕНО: Инпут заполняется рыночной ценой ТОЛЬКО если это первая загрузка приложения ИЛИ монета сменилась
+        if (isFirstInit || prevCoinRef.current !== coin || entryPrice === 0) {
+          setEntryPrice(data.lastPrice);
+          prevCoinRef.current = coin; // Фиксируем, что цену для новой монеты успешно подставили
+        }
       } catch (err) {
         console.error("Bybit fetch error", err);
       } finally {
-        setTickerLoading(false);
+        if (isCurrent()) setTickerLoading(false);
       }
     },
-    [entryPrice],
+    [entryPrice, onPriceUpdate],
   );
 
   const handlePriceApply = (price: number) => {
@@ -167,8 +181,6 @@ export default function TradingCalculator({
         } catch (e) {
           console.error("Storage error", e);
         }
-      } else {
-        setEntryPrice(0);
       }
       setIsLoaded(true);
     }
@@ -180,22 +192,22 @@ export default function TradingCalculator({
 
   useEffect(() => {
     if (!isLoaded) return;
-    fetchLiveTicker(selectedCoin, tickerData === null);
-    const interval = setInterval(
-      () => fetchLiveTicker(selectedCoin, false),
-      3000,
-    );
-    return () => clearInterval(interval);
-  }, [selectedCoin, isLoaded, fetchLiveTicker]);
 
-  const prevCoinRef = useRef(selectedCoin);
-  useEffect(() => {
-    if (isLoaded && prevCoinRef.current !== selectedCoin) {
-      setEntryPrice(0);
-      setTickerData(null);
-      prevCoinRef.current = selectedCoin;
-    }
-  }, [selectedCoin, isLoaded]);
+    let active = true;
+    const isCurrent = () => active;
+
+    // ИСПРАВЛЕНО: Убрали setEntryPrice(0), ломавший инпут при переключениях
+    fetchLiveTicker(selectedCoin, true, isCurrent);
+
+    const interval = setInterval(() => {
+      fetchLiveTicker(selectedCoin, false, isCurrent);
+    }, 3000);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [selectedCoin, isLoaded, fetchLiveTicker]);
 
   useEffect(() => {
     if (isLoaded && typeof window !== "undefined") {
@@ -265,7 +277,7 @@ export default function TradingCalculator({
       positionSizeCrypto * Math.abs(entryPrice - takeProfitPrice) -
       totalFeeUsdt;
 
-    const MMR = 0.005; // Поддерживающая маржа Bybit 0.5%
+    const MMR = 0.005;
     let liquidationPrice = isLong
       ? entryPrice * (1 - 1 / leverage + MMR + closeFeeRate)
       : entryPrice * (1 + 1 / leverage - MMR - closeFeeRate);

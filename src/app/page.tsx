@@ -15,14 +15,14 @@ export default function Home() {
   const [currentBalance, setCurrentBalance] = useState(100);
   const [dealsSummary, setDealsCount] = useState({ open: 0, closed: 0 });
 
-  // Стейты сворачивания блоков
+  // ДОБАВЛЕНО: Стейт для передачи живой цены из калькулятора в журнал
+  const [currentCoinPrice, setCurrentCoinPrice] = useState(0);
+
   const [isCalcExpanded, setIsCalcExpanded] = useState(true);
   const [isChartExpanded, setIsChartExpanded] = useState(true);
   const [isJournalExpanded, setIsJournalExpanded] = useState(true);
-
   const [isMounted, setIsMounted] = useState(false);
 
-  // Извлекаем настройки лейаута из памяти при монтировании
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedLayout = localStorage.getItem(STORAGE_KEY_LAYOUT);
@@ -43,10 +43,8 @@ export default function Home() {
     }
   }, []);
 
-  // Сохраняем изменения положения блоков в localStorage
   useEffect(() => {
     if (!isMounted) return;
-
     const layoutState = { isCalcExpanded, isChartExpanded, isJournalExpanded };
     localStorage.setItem(STORAGE_KEY_LAYOUT, JSON.stringify(layoutState));
 
@@ -54,7 +52,6 @@ export default function Home() {
       if (condition) document.documentElement.removeAttribute(attr);
       else document.documentElement.setAttribute(attr, "true");
     };
-
     updateAttr("data-hide-calc", isCalcExpanded);
     updateAttr("data-hide-chart", isChartExpanded);
     updateAttr("data-hide-journal", isJournalExpanded);
@@ -90,8 +87,7 @@ export default function Home() {
               Калькулятор Позиций
             </h2>
             <p className="text-xs text-muted-foreground/70">
-              {" "}
-              Расчёт маржи, рисков и параметров ордера{" "}
+              Расчёт маржи, рисков и параметров ордера
             </p>
           </div>
           <div className="p-2 rounded-xl text-muted-foreground group-hover/header:text-foreground group-hover/header:bg-muted/50 dark:group-hover/header:bg-muted/20 transition-all">
@@ -107,10 +103,12 @@ export default function Home() {
           className={`calc-container-grid grid transition-all duration-300 ease-in-out ${isCalcExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0 overflow-hidden"}`}
         >
           <div className="overflow-hidden">
+            {/* ДОБАВЛЕНО: Проп onPriceUpdate для вытягивания живой котировки */}
             <TradingCalculator
               selectedCoin={selectedCoin}
               setSelectedCoin={setSelectedCoin}
               onBalanceChange={setCurrentBalance}
+              onPriceUpdate={setCurrentCoinPrice}
             />
           </div>
         </div>
@@ -127,8 +125,7 @@ export default function Home() {
               Интерактивный Живой График
             </h2>
             <p className="text-xs text-muted-foreground/70">
-              {" "}
-              Поток котировок Bybit для пары {selectedCoin}{" "}
+              Поток котировок Bybit для пары {selectedCoin}
             </p>
           </div>
           <div className="p-2 rounded-xl text-muted-foreground group-hover/header:text-foreground group-hover/header:bg-muted/50 dark:group-hover/header:bg-muted/20 transition-all">
@@ -139,7 +136,6 @@ export default function Home() {
             )}
           </div>
         </div>
-
         <div
           className={`chart-container-grid grid transition-all duration-300 ease-in-out ${isChartExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0 overflow-hidden"}`}
         >
@@ -172,8 +168,7 @@ export default function Home() {
               )}
             </div>
             <p className="text-xs text-muted-foreground/70">
-              {" "}
-              История торгов и статистика WinRate из облачной базы{" "}
+              История торгов и статистика WinRate из облачной базы
             </p>
           </div>
           <div className="p-2 rounded-xl text-muted-foreground group-hover/header:text-foreground group-hover/header:bg-muted/50 dark:group-hover/header:bg-muted/20 transition-all">
@@ -184,12 +179,16 @@ export default function Home() {
             )}
           </div>
         </div>
-
         <div
           className={`journal-container-grid grid transition-all duration-300 ease-in-out ${isJournalExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0 overflow-hidden"}`}
         >
           <div className="overflow-hidden">
-            <TradingJournal onDealsCountChange={setDealsCount} />
+            {/* ДОБАВЛЕНО: Прокидываем живую цену и текущую выбранную монету в журнал */}
+            <TradingJournal
+              onDealsCountChange={setDealsCount}
+              livePrice={currentCoinPrice}
+              activeCoin={selectedCoin}
+            />
           </div>
         </div>
       </div>

@@ -3,8 +3,19 @@
 import { useEffect, useState, useCallback } from "react";
 import { CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { CheckCircle2, XCircle, Trash2, Check, X, LogOut } from "lucide-react";
+import {
+  CheckCircle2,
+  XCircle,
+  Trash2,
+  Check,
+  X,
+  LogOut,
+  Search,
+  Clock,
+} from "lucide-react";
 import { toast } from "@/components/ui/toast";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -42,16 +53,22 @@ interface Deal {
 
 interface TradingJournalProps {
   onDealsCountChange?: (summary: { open: number; closed: number }) => void;
+  livePrice?: number;
+  activeCoin?: string;
 }
 
 export default function TradingJournal({
   onDealsCountChange,
+  livePrice = 0,
+  activeCoin = "",
 }: TradingJournalProps) {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
   const [isClearOpen, setIsClearOpen] = useState(false);
   const [activeDeleteId, setActiveDeleteId] = useState<number | null>(null);
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
   const fetchJournal = useCallback(async () => {
     try {
       const res = await fetch("/api/journal", {
@@ -133,7 +150,7 @@ export default function TradingJournal({
 
       toast.add({
         title: toastTitle,
-        description: `Статус позиции по ${coinName} обновлен.`,
+        description: `Статус позиции по ${coinName} успешно обновлен.`,
         type: toastType,
       });
       fetchJournal();
@@ -182,9 +199,96 @@ export default function TradingJournal({
     const precision = deal.entry_price >= 500 ? 2 : 4;
     const openFeeRate = deal.order_type === "LIMIT" ? 0.0002 : 0.00055;
     const closeFeeRate = 0.00055;
+    const totalFeeRate = openFeeRate + closeFeeRate;
+
     const breakevenPrice = isLong
-      ? deal.entry_price * (1 + (openFeeRate + closeFeeRate))
-      : deal.entry_price * (1 - (openFeeRate + closeFeeRate));
+      ? deal.entry_price * (1 + totalFeeRate)
+      : deal.entry_price * (1 - totalFeeRate);
+
+    let pnlDisplay = null;
+    const isCurrentActiveCoin = activeCoin === deal.coin;
+
+    if (isOpen && isCurrentActiveCoin && livePrice > 0) {
+      const cryptoQty = deal.volume / deal.entry_price;
+      const livePnlUsdt = isLong
+        ? (livePrice - breakevenPrice) * cryptoQty
+        : (breakevenPrice - livePrice) * cryptoQty;
+      const liveRoi = (livePnlUsdt / deal.margin) * 100;
+
+      if (livePnlUsdt > 0) {
+        pnlDisplay = (
+          <div className="flex flex-col text-right">
+            <span className="font-bold text-emerald-600 dark:text-emerald-400">
+              +{livePnlUsdt.toFixed(2)} USDT
+            </span>
+            <span className="text-[10px] font-medium text-emerald-500/80">
+              +{liveRoi.toFixed(2)}%
+            </span>
+          </div>
+        );
+      } else if (livePnlUsdt < 0) {
+        pnlDisplay = (
+          <div className="flex flex-col text-right">
+            <span className="font-bold text-rose-600 dark:text-rose-400">
+              {livePnlUsdt.toFixed(2)} USDT
+            </span>
+            <span className="text-[10px] font-medium text-rose-500/80">
+              {liveRoi.toFixed(2)}%
+            </span>
+          </div>
+        );
+      } else {
+        pnlDisplay = (
+          <div className="flex flex-col text-right">
+            <span className="font-bold text-muted-foreground">0.00 USDT</span>
+            <span className="text-[10px] text-muted-foreground/70">0.00%</span>
+          </div>
+        );
+      }
+    } else {
+      let targetPrice = breakevenPrice;
+      if (deal.status === "PROFIT") targetPrice = deal.take_profit;
+      else if (deal.status === "LOSS") targetPrice = deal.stop_loss;
+      else if (deal.status === "CLOSED" && isCurrentActiveCoin && livePrice > 0)
+        targetPrice = livePrice;
+      else targetPrice = deal.entry_price;
+
+      const cryptoQty = deal.volume / deal.entry_price;
+      const finalPnlUsdt = isLong
+        ? (targetPrice - breakevenPrice) * cryptoQty
+        : (breakevenPrice - targetPrice) * cryptoQty;
+      const finalRoi = (finalPnlUsdt / deal.margin) * 100;
+
+      if (finalPnlUsdt > 0 || deal.status === "PROFIT") {
+        pnlDisplay = (
+          <div className="flex flex-col text-right opacity-65">
+            <span className="font-bold text-emerald-600 dark:text-emerald-400">
+              +{finalPnlUsdt.toFixed(2)} USDT
+            </span>
+            <span className="text-[10px] font-medium text-emerald-500/80">
+              +{finalRoi.toFixed(2)}%
+            </span>
+          </div>
+        );
+      } else if (finalPnlUsdt < 0 || deal.status === "LOSS")
+        pnlDisplay = (
+          <div className="flex flex-col text-right opacity-65">
+            <span className="font-bold text-rose-600 dark:text-rose-400">
+              {finalPnlUsdt.toFixed(2)} USDT
+            </span>
+            <span className="text-[10px] font-medium text-rose-500/80">
+              {finalRoi.toFixed(2)}%
+            </span>
+          </div>
+        );
+      else
+        pnlDisplay = (
+          <div className="flex flex-col text-right opacity-50">
+            <span className="font-bold text-muted-foreground">0.00 USDT</span>
+            <span className="text-[10px] text-muted-foreground/70">0.00%</span>
+          </div>
+        );
+    }
 
     let formattedDateOnly = "--.--.----",
       formattedTimeOnly = "--:--:--";
@@ -196,48 +300,29 @@ export default function TradingJournal({
       } catch (e) {}
     }
 
-    const bBase =
-      "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-black tracking-wider uppercase border transition-all duration-300 select-none shadow-sm ";
-    const statusBadge =
+    const statusIcon =
       deal.status === "PROFIT" ? (
-        <span
-          className={
-            bBase +
-            "bg-emerald-500/15 text-emerald-500 border-emerald-500/30 dark:bg-emerald-500/10 shadow-[0_0_10px_rgba(16,185,129,0.1)]"
-          }
-        >
-          <CheckCircle2 className="size-3 shrink-0" /> PROFIT
+        <span className="shrink-0 mt-0.5 flex" title="Закрыто в Профит">
+          <CheckCircle2 className="size-3.5 text-emerald-500" />
         </span>
       ) : deal.status === "LOSS" ? (
-        <span
-          className={
-            bBase +
-            "bg-rose-500/15 text-rose-500 border-rose-500/30 dark:bg-rose-500/10 shadow-[0_0_10px_rgba(239,68,68,0.1)]"
-          }
-        >
-          <XCircle className="size-3 shrink-0" /> LOSS
+        <span className="shrink-0 mt-0.5 flex" title="Закрыто в Убыток">
+          <XCircle className="size-3.5 text-rose-500" />
         </span>
       ) : deal.status === "CLOSED" ? (
         <span
-          className={
-            bBase +
-            "bg-muted text-muted-foreground border-border/60 shadow-none"
-          }
+          className="shrink-0 mt-0.5 flex opacity-60"
+          title="Закрыто вручную"
         >
-          <XCircle className="size-3 shrink-0" /> CLOSED
+          <Clock className="size-3.5 text-muted-foreground" />
         </span>
       ) : (
         <span
-          className={
-            bBase +
-            "bg-amber-500/15 text-amber-500 border-amber-500/30 dark:bg-amber-500/10 shadow-[0_0_12px_rgba(245,158,11,0.2)]"
-          }
+          className="relative flex h-2 w-2 shrink-0 mt-1.5 mx-0.5"
+          title="Активная позиция"
         >
-          <span className="relative flex h-1.5 w-1.5 shrink-0">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500"></span>
-          </span>{" "}
-          OPEN
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
         </span>
       );
 
@@ -251,16 +336,21 @@ export default function TradingJournal({
             className={`absolute left-0 top-0 bottom-0 w-1 transition-all duration-300 ${isLong ? "bg-emerald-500" : "bg-rose-500"}`}
             title={isLong ? "LONG" : "SHORT"}
           />
-          <div className="flex flex-col space-y-0.5 text-[10px] select-none text-muted-foreground">
-            <span className="font-semibold text-foreground/80">
-              {formattedDateOnly}
-            </span>
-            <span className="opacity-70 text-[9px]">{formattedTimeOnly}</span>
+          <div className="flex items-start gap-2">
+            {statusIcon}
+            <div className="flex flex-col space-y-0.5 text-[10px] select-none text-muted-foreground">
+              <span className="font-semibold text-foreground/80">
+                {formattedDateOnly}
+              </span>
+              <span className="opacity-70 text-[9px]">{formattedTimeOnly}</span>
+            </div>
           </div>
         </TableCell>
         <TableCell className="py-3 px-4 font-bold">
           {deal.coin.replace("USDT", "")}
-          <span className="text-[10px] text-muted-foreground ml-0.5">USDT</span>
+          <span className="text-[10px] text-muted-foreground ml-0.5">
+            /USDT
+          </span>
         </TableCell>
         <TableCell className="py-3 px-2">
           <span
@@ -281,9 +371,11 @@ export default function TradingJournal({
         <TableCell className="py-3 px-3 font-semibold">
           {deal.entry_price.toFixed(precision)}
         </TableCell>
-        <TableCell className="py-3 px-3 font-medium text-amber-600/90 dark:text-amber-400/90">
+
+        <TableCell className="py-3 px-3 font-semibold text-foreground/90 border-none">
           {breakevenPrice.toFixed(precision)}
         </TableCell>
+
         <TableCell className="py-3 px-3">
           <div className="flex flex-col space-y-0.5">
             <span
@@ -300,7 +392,9 @@ export default function TradingJournal({
             </span>
           </div>
         </TableCell>
-        <TableCell className="py-3 px-3 text-center">{statusBadge}</TableCell>
+
+        <TableCell className="py-3 px-3">{pnlDisplay}</TableCell>
+
         <TableCell className="py-3 px-4 text-right whitespace-nowrap">
           <div className="flex items-center justify-end gap-1">
             {isOpen && (
@@ -353,7 +447,7 @@ export default function TradingJournal({
                   <AlertDialogTitle>Удалить сделку?</AlertDialogTitle>
                   <AlertDialogDescription>
                     Вы действительно хотите удалить сделку по паре {deal.coin}{" "}
-                    из журнала? Статистика изменится.
+                    из журнала?
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -375,19 +469,77 @@ export default function TradingJournal({
       </TableRow>
     );
   };
+  const filteredDeals = deals.filter((deal) => {
+    const matchesSearch = deal.coin
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase());
+    if (statusFilter === "OPEN") return matchesSearch && deal.status === "OPEN";
+    if (statusFilter === "CLOSED")
+      return matchesSearch && deal.status !== "OPEN";
+    return matchesSearch;
+  });
+
   return (
     <div className="w-full bg-transparent flex flex-col px-6">
-      <div className="py-4 border-b border-border/40 flex flex-row items-center justify-between space-y-0 gap-4 flex-wrap sm:flex-nowrap bg-transparent">
-        <div className="space-y-0.5 min-w-48">
-          <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Статистика журнала
-          </CardTitle>
-          <p className="text-xs text-muted-foreground select-none">
-            Эффективность торговой стратегии из базы данных
-          </p>
+      {/* Монолитная шапка управления в одну строку */}
+      <div className="py-4 border-b border-border/40 flex flex-row items-center justify-between gap-4 flex-wrap md:flex-nowrap bg-transparent select-none">
+        {/* ЛЕВАЯ СТОРОНА: Поиск (с крестиком) и Табы управления */}
+        <div className="flex flex-row items-center gap-3 flex-1 max-w-xl">
+          {/* Поле поиска с иконкой лупы и кнопкой быстрой очистки */}
+          <div className="relative w-full max-w-[220px] flex items-center group">
+            <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground/60 pointer-events-none" />
+            <Input
+              type="text"
+              placeholder="Поиск монеты..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 pr-7 h-8 text-xs bg-muted/20 dark:bg-muted/5 border-border/40 focus-visible:ring-ring/30 rounded-lg w-full"
+            />
+            {/* ДОБАВЛЕНО: Кнопка-крестик, появляется только при наличии текста */}
+            {searchQuery.length > 0 && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2 h-4 w-4 flex items-center justify-center rounded-md text-muted-foreground/60 hover:bg-muted dark:hover:bg-muted/50 hover:text-foreground transition-all cursor-pointer border-none bg-transparent p-0"
+                title="Очистить поиск"
+              >
+                <X className="size-3" />
+              </button>
+            )}
+          </div>
+
+          {/* Переключатель вкладок статуса */}
+          <Tabs
+            value={statusFilter}
+            onValueChange={(val) => setStatusFilter(val || "ALL")}
+          >
+            <TabsList
+              variant="default"
+              className="h-8 p-[2px] bg-muted/40 dark:bg-muted/10 border border-border/30 rounded-lg"
+            >
+              <TabsTrigger
+                value="ALL"
+                className="text-xs px-2.5 font-semibold rounded-md data-active:bg-background data-active:text-foreground"
+              >
+                Все
+              </TabsTrigger>
+              <TabsTrigger
+                value="OPEN"
+                className="text-xs px-2.5 font-semibold rounded-md data-active:bg-background data-active:text-foreground"
+              >
+                Открытые
+              </TabsTrigger>
+              <TabsTrigger
+                value="CLOSED"
+                className="text-xs px-2.5 font-semibold rounded-md data-active:bg-background data-active:text-foreground"
+              >
+                Закрытые
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
 
-        <div className="flex items-center gap-4 text-xs select-none ml-auto">
+        {/* ПРАВАЯ СТОРОНА: Цифры статистики и WinRate */}
+        <div className="flex items-center gap-4 text-xs ml-auto shrink-0">
           <div className="text-right">
             <span className="text-muted-foreground block text-[10px] uppercase">
               Всего
@@ -408,8 +560,6 @@ export default function TradingJournal({
             </span>
             <span className="font-bold text-rose-600 text-sm">{lossDeals}</span>
           </div>
-
-          {/* ФИОЛЕТОВАЯ ПЛАШКА: Счётчик сделок, закрытых строго руками по рынку */}
           <div className="text-right border-l pl-3 border-border/40">
             <span className="text-violet-500 block text-[10px] uppercase font-medium">
               Ручные
@@ -418,7 +568,6 @@ export default function TradingJournal({
               {manualClosedDeals}
             </span>
           </div>
-
           <div className="text-right border-l pl-3 border-border/40 bg-muted/40 dark:bg-muted/10 px-2 py-0.5 rounded-md border">
             <span className="text-amber-500 block text-[10px] uppercase font-medium">
               WinRate
@@ -441,7 +590,7 @@ export default function TradingJournal({
               </AlertDialogTrigger>
               <AlertDialogContent size="default">
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Очистить весь журнал?</AlertDialogTitle>
+                  <AlertDialogTitle>Уничтожить весь журнал?</AlertDialogTitle>
                   <AlertDialogDescription>
                     Это действие безвозвратно сотрет историю вашей торговли из
                     облачной базы.
@@ -466,14 +615,14 @@ export default function TradingJournal({
       </div>
 
       {/* Контейнер таблицы */}
-      <div className="py-6 pt-5 bg-transparent">
+      <div className="py-6 pt-4 bg-transparent">
         {loading ? (
           <div className="p-8 text-center text-xs text-muted-foreground font-medium animate-pulse">
             Синхронизация с базой данных...
           </div>
-        ) : deals.length === 0 ? (
+        ) : filteredDeals.length === 0 ? (
           <div className="p-12 text-center text-xs text-muted-foreground font-medium select-none">
-            Журнал пуст. Рассчитай позицию выше и нажми «Зафиксировать в журнал»
+            Ничего не найдено. Измените параметры фильтра или поиска
           </div>
         ) : (
           <div className="w-full rounded-2xl border border-border/60 overflow-hidden bg-background">
@@ -481,7 +630,7 @@ export default function TradingJournal({
               <TableHeader>
                 <TableRow className="border-b border-border/30 bg-muted/40 dark:bg-muted/20 text-[10px] uppercase tracking-wider text-muted-foreground font-medium hover:bg-muted/40">
                   <TableHead className="py-2.5 px-4 h-auto text-muted-foreground font-medium pl-5">
-                    Вход
+                    Вход / Статус
                   </TableHead>
                   <TableHead className="py-2.5 px-4 h-auto text-muted-foreground font-medium">
                     Пара
@@ -501,15 +650,15 @@ export default function TradingJournal({
                   <TableHead className="py-2.5 px-3 h-auto text-muted-foreground font-medium">
                     TP / SL
                   </TableHead>
-                  <TableHead className="py-2.5 px-3 text-center text-muted-foreground font-medium">
-                    Статус
+                  <TableHead className="py-2.5 px-3 text-right text-muted-foreground font-medium">
+                    Результат (PnL)
                   </TableHead>
                   <TableHead className="py-2.5 px-4 h-auto text-right text-muted-foreground font-medium">
                     Действия
                   </TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>{deals.map(renderDealRow)}</TableBody>
+              <TableBody>{filteredDeals.map(renderDealRow)}</TableBody>
             </Table>
           </div>
         )}
