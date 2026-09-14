@@ -22,7 +22,7 @@ export default function TradingViewChart({ coin }: TradingViewChartProps) {
 
     const tvScriptUrl =
       process.env.NEXT_PUBLIC_TRADINGVIEW_SCRIPT_URL ||
-      "https://tradingview.com";
+      "https://s3.tradingview.com/tv.js";
 
     // 2. Если скрипт еще не был загружен на страницу глобально, создаем его
     if (!script) {

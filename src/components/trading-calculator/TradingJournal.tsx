@@ -12,6 +12,7 @@ import {
   LogOut,
   Search,
   Clock,
+  Pause,
 } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { Input } from "@/components/ui/input";
@@ -49,18 +50,21 @@ interface Deal {
   margin: number;
   leverage: number;
   status: "OPEN" | "PROFIT" | "LOSS" | "CLOSED";
+  closed_at_price?: number | null;
 }
 
 interface TradingJournalProps {
   onDealsCountChange?: (summary: { open: number; closed: number }) => void;
   livePrice?: number;
   activeCoin?: string;
+  onCoinSelect?: (coin: string) => void;
 }
 
 export default function TradingJournal({
   onDealsCountChange,
   livePrice = 0,
   activeCoin = "",
+  onCoinSelect,
 }: TradingJournalProps) {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,6 +73,9 @@ export default function TradingJournal({
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [frozenPnL, setFrozenPnL] = useState<
+    Record<number, { pnl: number; roi: number }>
+  >({});
   const fetchJournal = useCallback(async () => {
     try {
       const res = await fetch("/api/journal", {
@@ -127,10 +134,15 @@ export default function TradingJournal({
     status: "PROFIT" | "LOSS" | "CLOSED",
   ) => {
     try {
+      const bodyPayload: any = { id, status };
+      if (status === "CLOSED" && livePrice > 0) {
+        bodyPayload.closed_at_price = livePrice;
+      }
+
       const res = await fetch("/api/journal", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status }),
+        body: JSON.stringify(bodyPayload),
       });
       if (!res.ok) throw new Error("Update error");
 
@@ -208,88 +220,133 @@ export default function TradingJournal({
     let pnlDisplay = null;
     const isCurrentActiveCoin = activeCoin === deal.coin;
 
-    if (isOpen && isCurrentActiveCoin && livePrice > 0) {
-      const cryptoQty = deal.volume / deal.entry_price;
-      const livePnlUsdt = isLong
-        ? (livePrice - breakevenPrice) * cryptoQty
-        : (breakevenPrice - livePrice) * cryptoQty;
-      const liveRoi = (livePnlUsdt / deal.margin) * 100;
+    if (isOpen) {
+      const isPriceValidForCoin =
+        (deal.coin === "BTCUSDT" && livePrice > 30000) ||
+        (deal.coin === "ETHUSDT" && livePrice > 1000 && livePrice < 10000) ||
+        (deal.coin !== "BTCUSDT" && deal.coin !== "ETHUSDT" && livePrice < 500);
 
-      if (livePnlUsdt > 0) {
+      if (isCurrentActiveCoin && livePrice > 0 && isPriceValidForCoin) {
+        const cryptoQty = deal.volume / deal.entry_price;
+        const livePnlUsdt = isLong
+          ? (livePrice - breakevenPrice) * cryptoQty
+          : (breakevenPrice - livePrice) * cryptoQty;
+        const liveRoi = deal.margin > 0 ? (livePnlUsdt / deal.margin) * 100 : 0;
+        const isProfit = livePnlUsdt >= 0;
+
+        if (frozenPnL[deal.id]?.pnl !== livePnlUsdt) {
+          setTimeout(() => {
+            setFrozenPnL((prev) => ({
+              ...prev,
+              [deal.id]: { pnl: livePnlUsdt, roi: liveRoi },
+            }));
+          }, 0);
+        }
+
         pnlDisplay = (
-          <div className="flex flex-col text-right">
-            <span className="font-bold text-emerald-600 dark:text-emerald-400">
-              +{livePnlUsdt.toFixed(2)} USDT
+          <div className="flex flex-col text-right select-none relative w-full pl-6">
+            <span className="absolute left-1.5 top-1.5 flex h-1.5 w-1.5">
+              <span
+                className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isProfit ? "bg-emerald-500" : "bg-rose-500"}`}
+              ></span>
+              <span
+                className={`relative inline-flex rounded-full h-1.5 w-1.5 ${isProfit ? "bg-emerald-500" : "bg-rose-500"}`}
+              ></span>
             </span>
-            <span className="text-[10px] font-medium text-emerald-500/80">
-              +{liveRoi.toFixed(2)}%
+            <span
+              className={`font-black text-xs ${isProfit ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
+            >
+              {isProfit ? "+" : ""}
+              {liveRoi.toFixed(1)}%
             </span>
-          </div>
-        );
-      } else if (livePnlUsdt < 0) {
-        pnlDisplay = (
-          <div className="flex flex-col text-right">
-            <span className="font-bold text-rose-600 dark:text-rose-400">
-              {livePnlUsdt.toFixed(2)} USDT
-            </span>
-            <span className="text-[10px] font-medium text-rose-500/80">
-              {liveRoi.toFixed(2)}%
+            <span
+              className={`text-[10px] font-bold ${isProfit ? "text-emerald-500/80" : "text-rose-500/80"}`}
+            >
+              {isProfit ? "+" : ""}
+              {livePnlUsdt.toFixed(2)}{" "}
+              <span className="text-[9px] font-normal opacity-60 text-muted-foreground">
+                USDT
+              </span>
             </span>
           </div>
         );
       } else {
+        const lastKnown = frozenPnL[deal.id] || { pnl: 0, roi: 0 };
+        const isLastProfit = lastKnown.pnl >= 0;
+
         pnlDisplay = (
-          <div className="flex flex-col text-right">
-            <span className="font-bold text-muted-foreground">0.00 USDT</span>
-            <span className="text-[10px] text-muted-foreground/70">0.00%</span>
+          <div className="flex flex-col text-right select-none opacity-45 relative w-full pl-6">
+            <Pause className="size-2.5 text-muted-foreground absolute left-1 top-1.5" />
+            <span
+              className={`text-xs font-bold ${isLastProfit ? "text-emerald-600/80 dark:text-emerald-400/80" : "text-rose-600/80 dark:text-rose-400/80"}`}
+            >
+              {isLastProfit ? "+" : ""}
+              {lastKnown.roi.toFixed(1)}%
+            </span>
+            <span
+              className={`text-[10px] font-bold ${isLastProfit ? "text-emerald-500/60" : "text-rose-500/60"}`}
+            >
+              {isLastProfit ? "+" : ""}
+              {lastKnown.pnl.toFixed(2)}{" "}
+              <span className="text-[9px] font-normal text-muted-foreground opacity-60">
+                USDT
+              </span>
+            </span>
           </div>
         );
       }
     } else {
-      let targetPrice = breakevenPrice;
+      // ИСПРАВЛЕНО: Жёстко санируем входящие значения, исключая ложные нули из базы
+      let targetPrice = 0;
       if (deal.status === "PROFIT") targetPrice = deal.take_profit;
       else if (deal.status === "LOSS") targetPrice = deal.stop_loss;
-      else if (deal.status === "CLOSED" && isCurrentActiveCoin && livePrice > 0)
+      else if (
+        deal.status === "CLOSED" &&
+        deal.closed_at_price &&
+        Number(deal.closed_at_price) > 0
+      ) {
+        targetPrice = Number(deal.closed_at_price);
+      } else if (
+        deal.status === "CLOSED" &&
+        isCurrentActiveCoin &&
+        livePrice > 0
+      ) {
         targetPrice = livePrice;
-      else targetPrice = deal.entry_price;
+      } else {
+        targetPrice = deal.entry_price;
+      }
 
-      const cryptoQty = deal.volume / deal.entry_price;
+      const cryptoQty =
+        deal.entry_price > 0 ? deal.volume / deal.entry_price : 0;
       const finalPnlUsdt = isLong
         ? (targetPrice - breakevenPrice) * cryptoQty
         : (breakevenPrice - targetPrice) * cryptoQty;
-      const finalRoi = (finalPnlUsdt / deal.margin) * 100;
 
-      if (finalPnlUsdt > 0 || deal.status === "PROFIT") {
-        pnlDisplay = (
-          <div className="flex flex-col text-right opacity-65">
-            <span className="font-bold text-emerald-600 dark:text-emerald-400">
-              +{finalPnlUsdt.toFixed(2)} USDT
+      // ИСПРАВЛЕНО: Защита от деления на ноль. Если маржа повреждена, ROI падает в 0, а не в бесконечность
+      const finalRoi =
+        deal.margin > 0.01 ? (finalPnlUsdt / deal.margin) * 100 : 0;
+      const isFinalProfit = finalPnlUsdt >= 0;
+
+      pnlDisplay = (
+        <div className="flex flex-col text-right opacity-65 select-none w-full">
+          <span
+            className={`font-black text-xs ${isFinalProfit ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
+          >
+            {isFinalProfit ? "+" : ""}
+            {finalRoi.toFixed(1)}%
+          </span>
+          <span
+            className={`text-[10px] font-bold ${isFinalProfit ? "text-emerald-500/80" : "text-rose-500/80"}`}
+          >
+            {isFinalProfit ? "+" : ""}
+            {finalPnlUsdt.toFixed(2)}{" "}
+            <span className="text-[9px] font-normal opacity-60 text-muted-foreground">
+              USDT
             </span>
-            <span className="text-[10px] font-medium text-emerald-500/80">
-              +{finalRoi.toFixed(2)}%
-            </span>
-          </div>
-        );
-      } else if (finalPnlUsdt < 0 || deal.status === "LOSS")
-        pnlDisplay = (
-          <div className="flex flex-col text-right opacity-65">
-            <span className="font-bold text-rose-600 dark:text-rose-400">
-              {finalPnlUsdt.toFixed(2)} USDT
-            </span>
-            <span className="text-[10px] font-medium text-rose-500/80">
-              {finalRoi.toFixed(2)}%
-            </span>
-          </div>
-        );
-      else
-        pnlDisplay = (
-          <div className="flex flex-col text-right opacity-50">
-            <span className="font-bold text-muted-foreground">0.00 USDT</span>
-            <span className="text-[10px] text-muted-foreground/70">0.00%</span>
-          </div>
-        );
+          </span>
+        </div>
+      );
     }
-
     let formattedDateOnly = "--.--.----",
       formattedTimeOnly = "--:--:--";
     if (deal.created_at) {
@@ -331,12 +388,12 @@ export default function TradingJournal({
         key={deal.id}
         className={`transition-all border-b border-border/20 ${!isOpen ? "opacity-45 grayscale-20" : ""}`}
       >
-        <TableCell className="py-2 px-4 whitespace-nowrap relative pl-5">
+        <TableCell className="py-2 px-2 whitespace-nowrap relative pl-4">
           <div
             className={`absolute left-0 top-0 bottom-0 w-1 transition-all duration-300 ${isLong ? "bg-emerald-500" : "bg-rose-500"}`}
             title={isLong ? "LONG" : "SHORT"}
           />
-          <div className="flex items-start gap-2">
+          <div className="flex items-start gap-1.5">
             {statusIcon}
             <div className="flex flex-col space-y-0.5 text-[10px] select-none text-muted-foreground">
               <span className="font-semibold text-foreground/80">
@@ -346,37 +403,39 @@ export default function TradingJournal({
             </div>
           </div>
         </TableCell>
-        <TableCell className="py-3 px-4 font-bold">
-          {deal.coin.replace("USDT", "")}
-          <span className="text-[10px] text-muted-foreground ml-0.5">
-            /USDT
+
+        <TableCell
+          onClick={() => onCoinSelect?.(deal.coin)}
+          className="py-3 px-2 font-bold cursor-pointer hover:text-amber-500 transition-colors select-none group/coin whitespace-nowrap text-xs tracking-tight"
+          title="Кликните для переключения калькулятора на эту монету"
+        >
+          <span className="border-b border-dotted border-transparent group-hover/coin:border-amber-500/60 transition-colors duration-150">
+            {deal.coin}
           </span>
         </TableCell>
-        <TableCell className="py-3 px-2">
+
+        <TableCell className="py-3 px-1.5">
           <span
-            className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold border ${deal.order_type === "LIMIT" ? "bg-violet-500/10 text-violet-500 border-violet-500/20" : "bg-blue-500/10 text-blue-500 border-blue-500/20"}`}
+            className={`px-1 py-0.5 rounded text-[9px] font-extrabold border ${deal.order_type === "LIMIT" ? "bg-violet-500/10 text-violet-500 border-violet-500/20" : "bg-blue-500/10 text-blue-500 border-blue-500/20"}`}
           >
             {deal.order_type}
           </span>
         </TableCell>
-        <TableCell className="py-3 px-3 text-muted-foreground">
+        <TableCell className="py-3 px-2 text-muted-foreground">
           <span className="font-semibold text-foreground">
             {deal.volume.toFixed(2)}
-          </span>{" "}
-          USDT
+          </span>
           <div className="text-[10px]">
             Маржа: {deal.margin.toFixed(2)} (x{deal.leverage})
           </div>
         </TableCell>
-        <TableCell className="py-3 px-3 font-semibold">
+        <TableCell className="py-3 px-2 font-semibold">
           {deal.entry_price.toFixed(precision)}
         </TableCell>
-
-        <TableCell className="py-3 px-3 font-semibold text-foreground/90 border-none">
+        <TableCell className="py-3 px-2 font-semibold text-foreground/90 border-none">
           {breakevenPrice.toFixed(precision)}
         </TableCell>
-
-        <TableCell className="py-3 px-3">
+        <TableCell className="py-3 px-2">
           <div className="flex flex-col space-y-0.5">
             <span
               className={`font-semibold ${isOpen ? "text-emerald-600/90" : "text-muted-foreground/60"}`}
@@ -392,10 +451,10 @@ export default function TradingJournal({
             </span>
           </div>
         </TableCell>
-
-        <TableCell className="py-3 px-3">{pnlDisplay}</TableCell>
-
-        <TableCell className="py-3 px-4 text-right whitespace-nowrap">
+        <TableCell className="py-3 px-2 relative min-w-26.25">
+          {pnlDisplay}
+        </TableCell>
+        <TableCell className="py-3 px-2 text-right whitespace-nowrap">
           <div className="flex items-center justify-end gap-1">
             {isOpen && (
               <>
@@ -403,28 +462,25 @@ export default function TradingJournal({
                   size="icon"
                   variant="ghost"
                   onClick={() => handleUpdateStatus(deal.id, "PROFIT")}
-                  className="h-7 w-7 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-md cursor-pointer"
-                  title="Закрыть в Тейк-Профит"
+                  className="h-6 w-6 p-0 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-md cursor-pointer"
                 >
-                  <Check className="size-4" />
+                  <Check className="size-3.5" />
                 </Button>
                 <Button
                   size="icon"
                   variant="ghost"
                   onClick={() => handleUpdateStatus(deal.id, "LOSS")}
-                  className="h-7 w-7 text-rose-600 hover:bg-rose-600 hover:text-white rounded-md cursor-pointer"
-                  title="Закрыть в Стоп-Лосс"
+                  className="h-6 w-6 p-0 text-rose-600 hover:bg-rose-600 hover:text-white rounded-md cursor-pointer"
                 >
-                  <X className="size-4" />
+                  <X className="size-3.5" />
                 </Button>
                 <Button
                   size="icon"
                   variant="ghost"
                   onClick={() => handleUpdateStatus(deal.id, "CLOSED")}
-                  className="h-7 w-7 text-muted-foreground hover:bg-muted hover:text-foreground rounded-md cursor-pointer"
-                  title="Закрыть руками по рынку"
+                  className="h-6 w-6 p-0 text-muted-foreground hover:bg-muted hover:text-foreground rounded-md cursor-pointer"
                 >
-                  <LogOut className="size-3.5" />
+                  <LogOut className="size-3" />
                 </Button>
               </>
             )}
@@ -437,10 +493,10 @@ export default function TradingJournal({
                   variant: "ghost",
                   size: "icon",
                   className:
-                    "h-7 w-7 text-muted-foreground hover:text-rose-500 cursor-pointer p-0",
+                    "h-6 w-6 p-0 text-muted-foreground hover:text-rose-500 cursor-pointer",
                 })}
               >
-                <Trash2 className="size-3.5" />
+                <Trash2 className="size-3" />
               </AlertDialogTrigger>
               <AlertDialogContent size="default">
                 <AlertDialogHeader>
@@ -481,11 +537,8 @@ export default function TradingJournal({
 
   return (
     <div className="w-full bg-transparent flex flex-col px-6">
-      {/* Монолитная шапка управления в одну строку */}
       <div className="py-4 border-b border-border/40 flex flex-row items-center justify-between gap-4 flex-wrap md:flex-nowrap bg-transparent select-none">
-        {/* ЛЕВАЯ СТОРОНА: Поиск (с крестиком) и Табы управления */}
         <div className="flex flex-row items-center gap-3 flex-1 max-w-xl">
-          {/* Поле поиска с иконкой лупы и кнопкой быстрой очистки */}
           <div className="relative w-full max-w-55 flex items-center group">
             <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground/60 pointer-events-none" />
             <Input
@@ -495,7 +548,6 @@ export default function TradingJournal({
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-8 pr-7 h-8 text-xs bg-muted/20 dark:bg-muted/5 border-border/40 focus-visible:ring-ring/30 rounded-lg w-full"
             />
-            {/* ДОБАВЛЕНО: Кнопка-крестик, появляется только при наличии текста */}
             {searchQuery.length > 0 && (
               <button
                 onClick={() => setSearchQuery("")}
@@ -507,7 +559,6 @@ export default function TradingJournal({
             )}
           </div>
 
-          {/* Переключатель вкладок статуса */}
           <Tabs
             value={statusFilter}
             onValueChange={(val) => setStatusFilter(val || "ALL")}
@@ -538,7 +589,6 @@ export default function TradingJournal({
           </Tabs>
         </div>
 
-        {/* ПРАВАЯ СТОРОНА: Цифры статистики и WinRate */}
         <div className="flex items-center gap-4 text-xs ml-auto shrink-0">
           <div className="text-right">
             <span className="text-muted-foreground block text-[10px] uppercase">
@@ -614,7 +664,6 @@ export default function TradingJournal({
         </div>
       </div>
 
-      {/* Контейнер таблицы */}
       <div className="py-6 pt-4 bg-transparent">
         {loading ? (
           <div className="p-8 text-center text-xs text-muted-foreground font-medium animate-pulse">
@@ -629,31 +678,31 @@ export default function TradingJournal({
             <Table className="w-full text-xs">
               <TableHeader>
                 <TableRow className="border-b border-border/30 bg-muted/40 dark:bg-muted/20 text-[10px] uppercase tracking-wider text-muted-foreground font-medium hover:bg-muted/40">
-                  <TableHead className="py-2.5 px-4 h-auto text-muted-foreground font-medium pl-5">
+                  <TableHead className="py-2.5 px-2 h-auto text-muted-foreground font-medium pl-4">
                     Вход / Статус
                   </TableHead>
-                  <TableHead className="py-2.5 px-4 h-auto text-muted-foreground font-medium">
+                  <TableHead className="py-2.5 px-2 h-auto text-muted-foreground font-medium">
                     Пара
                   </TableHead>
-                  <TableHead className="py-2.5 px-2 h-auto text-muted-foreground font-medium">
+                  <TableHead className="py-2.5 px-1.5 h-auto text-muted-foreground font-medium">
                     Тип
                   </TableHead>
-                  <TableHead className="py-2.5 px-3 h-auto text-muted-foreground font-medium">
+                  <TableHead className="py-2.5 px-2 h-auto text-muted-foreground font-medium">
                     Объем / Маржа
                   </TableHead>
-                  <TableHead className="py-2.5 px-3 h-auto text-muted-foreground font-medium">
+                  <TableHead className="py-2.5 px-2 h-auto text-muted-foreground font-medium">
                     Цена Входа
                   </TableHead>
-                  <TableHead className="py-2.5 px-3 h-auto text-muted-foreground font-medium">
+                  <TableHead className="py-2.5 px-2 h-auto text-muted-foreground font-medium">
                     Безубыток
                   </TableHead>
-                  <TableHead className="py-2.5 px-3 h-auto text-muted-foreground font-medium">
+                  <TableHead className="py-2.5 px-2 h-auto text-muted-foreground font-medium">
                     TP / SL
                   </TableHead>
-                  <TableHead className="py-2.5 px-3 text-right text-muted-foreground font-medium">
+                  <TableHead className="py-2.5 px-2 text-right text-muted-foreground font-medium">
                     Результат (PnL)
                   </TableHead>
-                  <TableHead className="py-2.5 px-4 h-auto text-right text-muted-foreground font-medium">
+                  <TableHead className="py-2.5 px-2 h-auto text-right text-muted-foreground font-medium">
                     Действия
                   </TableHead>
                 </TableRow>

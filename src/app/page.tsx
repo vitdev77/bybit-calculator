@@ -15,7 +15,6 @@ export default function Home() {
   const [currentBalance, setCurrentBalance] = useState(100);
   const [dealsSummary, setDealsCount] = useState({ open: 0, closed: 0 });
 
-  // ДОБАВЛЕНО: Стейт для передачи живой цены из калькулятора в журнал
   const [currentCoinPrice, setCurrentCoinPrice] = useState(0);
 
   const [isCalcExpanded, setIsCalcExpanded] = useState(true);
@@ -56,7 +55,6 @@ export default function Home() {
     updateAttr("data-hide-chart", isChartExpanded);
     updateAttr("data-hide-journal", isJournalExpanded);
   }, [isCalcExpanded, isChartExpanded, isJournalExpanded, isMounted]);
-
   return (
     <main className="min-h-screen py-8 space-y-6 max-w-5xl mx-auto px-4">
       {/* --- ГЛОБАЛЬНАЯ ШАПКА ПРИЛОЖЕНИЯ --- */}
@@ -103,7 +101,6 @@ export default function Home() {
           className={`calc-container-grid grid transition-all duration-300 ease-in-out ${isCalcExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0 overflow-hidden"}`}
         >
           <div className="overflow-hidden">
-            {/* ДОБАВЛЕНО: Проп onPriceUpdate для вытягивания живой котировки */}
             <TradingCalculator
               selectedCoin={selectedCoin}
               setSelectedCoin={setSelectedCoin}
@@ -183,11 +180,12 @@ export default function Home() {
           className={`journal-container-grid grid transition-all duration-300 ease-in-out ${isJournalExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0 overflow-hidden"}`}
         >
           <div className="overflow-hidden">
-            {/* ДОБАВЛЕНО: Прокидываем живую цену и текущую выбранную монету в журнал */}
+            {/* ИСПРАВЛЕНО: Добавлен onCoinSelect для переключения пары в один клик */}
             <TradingJournal
               onDealsCountChange={setDealsCount}
               livePrice={currentCoinPrice}
               activeCoin={selectedCoin}
+              onCoinSelect={setSelectedCoin}
             />
           </div>
         </div>

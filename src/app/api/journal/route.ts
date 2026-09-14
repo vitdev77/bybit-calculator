@@ -20,6 +20,11 @@ async function ensureTableExists() {
       status VARCHAR(20) DEFAULT 'OPEN'
     );
   `;
+
+  // АВТОМАТИЧЕСКИЙ АПГРЕЙД: Проверяем и добавляем колонку closed_at_price прямо из кода
+  await sql`
+    ALTER TABLE deals ADD COLUMN IF NOT EXISTS closed_at_price DOUBLE PRECISION;
+  `;
 }
 
 export async function GET() {
@@ -58,7 +63,6 @@ export async function POST(request: Request) {
     const side = String(body.side);
     const order_type = String(body.order_type);
 
-    // Безопасный парсинг чисел с плавающей точкой
     const entry_price = parseFloat(Number(body.entry_price).toFixed(6));
     const stop_loss = parseFloat(Number(body.stop_loss).toFixed(6));
     const take_profit = parseFloat(Number(body.take_profit).toFixed(6));
@@ -66,7 +70,6 @@ export async function POST(request: Request) {
     const margin = parseFloat(Number(body.margin).toFixed(2));
     const leverage = parseInt(body.leverage, 10);
 
-    // Умная проверка дубликатов с учетом погрешности JS-вычислений
     const existingDuplicates = await sql`
       SELECT id FROM deals
       WHERE coin = ${coin} AND side = ${side} AND status = 'OPEN'
@@ -92,7 +95,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
-
 export async function PATCH(request: Request) {
   try {
     if (!process.env.DATABASE_URL)
@@ -101,7 +103,6 @@ export async function PATCH(request: Request) {
         { status: 500 },
       );
 
-    // ДОБАВЛЕНО: Защита от холодного старта Neon
     await ensureTableExists();
 
     const body = await request.json();
@@ -115,9 +116,32 @@ export async function PATCH(request: Request) {
     const targetId = parseInt(body.id, 10);
     const targetStatus = String(body.status);
 
-    const result = await sql`
-      UPDATE deals SET status = ${targetStatus} WHERE id = ${targetId} RETURNING *;
-    `;
+    // Получаем цену ручного закрытия, если она была передана с фронтенда
+    const closedAtPrice =
+      body.closed_at_price !== undefined
+        ? parseFloat(Number(body.closed_at_price).toFixed(6))
+        : null;
+
+    let result;
+
+    // ИСПРАВЛЕНО: Если ордер закрыт руками, сохраняем точную цену выхода
+    if (targetStatus === "CLOSED" && closedAtPrice !== null) {
+      result = await sql`
+        UPDATE deals 
+        SET status = ${targetStatus}, closed_at_price = ${closedAtPrice} 
+        WHERE id = ${targetId} 
+        RETURNING *;
+      `;
+    } else {
+      // Для PROFIT и LOSS обычное обновление статуса
+      result = await sql`
+        UPDATE deals 
+        SET status = ${targetStatus} 
+        WHERE id = ${targetId} 
+        RETURNING *;
+      `;
+    }
+
     return NextResponse.json({ success: true, data: result });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -132,7 +156,6 @@ export async function DELETE(request: Request) {
         { status: 500 },
       );
 
-    // ДОБАВЛЕНО: Защита от холодного старта Neon
     await ensureTableExists();
 
     const { searchParams } = new URL(request.url);
