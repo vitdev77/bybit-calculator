@@ -6,8 +6,7 @@ export async function GET(request: Request) {
 
   try {
     // ЖЕЛЕЗОБЕТОННЫЙ ФИКС: Берем URL зеркала из env, если он не задан — используем запасной вариант
-    const baseUrl =
-      process.env.NEXT_PUBLIC_BYBIT_API_URL || "https://api.bytick.com";
+    const baseUrl = process.env.BYBIT_API_URL || "https://api.bytick.com";
     const endpoint = "/v5/market/tickers";
 
     const queryParams = new URLSearchParams();

@@ -22,7 +22,7 @@ export default function TradingViewChart({ coin }: TradingViewChartProps) {
 
     const tvScriptUrl =
       process.env.NEXT_PUBLIC_TRADINGVIEW_SCRIPT_URL ||
-      "https://s3.tradingview.com/tv.js";
+      "https://tradingview.com";
 
     // 2. Если скрипт еще не был загружен на страницу глобально, создаем его
     if (!script) {
@@ -74,14 +74,12 @@ export default function TradingViewChart({ coin }: TradingViewChartProps) {
   }, [coin, theme]);
 
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 pt-0">
-      <div className="w-full h-125 rounded-[2rem] border border-border/40 shadow-none bg-muted/70 dark:bg-muted/15 backdrop-blur-[2px] p-6">
-        <div
-          id="tradingview_chart_widget"
-          ref={containerRef}
-          className="w-full h-full overflow-hidden"
-        />
-      </div>
+    <div className="w-full h-125 bg-transparent p-4 overflow-hidden">
+      <div
+        id="tradingview_chart_widget"
+        ref={containerRef}
+        className="w-full h-full overflow-hidden border border-border/30 shadow-inner"
+      />
     </div>
   );
 }

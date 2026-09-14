@@ -23,6 +23,7 @@ interface ResultsDisplayProps {
   };
   coin: string;
   entryPrice: number;
+  orderType: string;
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -59,6 +60,7 @@ export default function ResultsDisplay({
   results,
   coin,
   entryPrice,
+  orderType,
 }: ResultsDisplayProps) {
   const assetName = coin.replace("USDT", "");
   const [isSaving, setIsSaveLoading] = useState(false);
@@ -82,16 +84,13 @@ export default function ResultsDisplay({
       : "0.00";
 
   const isLeverageTooLow = results.selectedLeverage < results.maxSafeLeverage;
-
   const tpRoiPcnt =
     results.marginUsed > 0
       ? (results.netProfitUsdt / results.marginUsed) * 100
       : 0;
-
   const slLossUsdt = results.riskAmount;
   const slRoiPcnt =
     results.marginUsed > 0 ? (-slLossUsdt / results.marginUsed) * 100 : 0;
-  // Умная функция отправки с распознаванием дубликатов без страшных алертов
   const handleSaveDeal = async () => {
     if (results.positionSizeUsdt <= 0 || isSaving) return;
     try {
@@ -106,7 +105,7 @@ export default function ResultsDisplay({
         body: JSON.stringify({
           coin: coin,
           side: isLong ? "BUY" : "SELL",
-          order_type: "MARKET",
+          order_type: orderType,
           entry_price: entryPrice,
           stop_loss: results.stopLossPrice,
           take_profit: results.takeProfitPrice,
@@ -151,9 +150,9 @@ export default function ResultsDisplay({
       setIsSaveLoading(false);
     }
   };
+
   return (
     <div className="flex flex-col h-full space-y-4 justify-between">
-      {/* Блок расчётов */}
       <div className="space-y-2.5">
         <div className="flex justify-between items-center text-sm">
           <span className="text-muted-foreground">
@@ -258,7 +257,6 @@ export default function ResultsDisplay({
         </div>
       </div>
 
-      {/* Блок ордеров с ROI */}
       <div className="space-y-3 pt-3 border-t w-full">
         <div className="space-y-0.5">
           <div className="flex justify-between items-center w-full">

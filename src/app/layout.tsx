@@ -26,8 +26,26 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru" suppressHydrationWarning>
+      <head>
+        {/* Инъекция скрипта: мгновенно вешает дата-атрибуты на html до рендера body */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                const saved = localStorage.getItem('bybit_calculator_layout_v1');
+                if (saved) {
+                  const parsed = JSON.parse(saved);
+                  if (parsed.isCalcExpanded === false) document.documentElement.setAttribute('data-hide-calc', 'true');
+                  if (parsed.isChartExpanded === false) document.documentElement.setAttribute('data-hide-chart', 'true');
+                  if (parsed.isJournalExpanded === false) document.documentElement.setAttribute('data-hide-journal', 'true');
+                }
+              } catch (e) {}
+            `,
+          }}
+        />
+      </head>
       <body
-        className={`${geistSans.className} ${geistMono.variable} antialiased`}
+        className={`${geistSans.className} ${geistMono.variable} font-sans antialiased`}
       >
         <ThemeProvider
           attribute="class"

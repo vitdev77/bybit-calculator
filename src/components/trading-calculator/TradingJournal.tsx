@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { CheckCircle2, XCircle, Trash2, Check, X, LogOut } from "lucide-react";
 import { toast } from "@/components/ui/toast";
@@ -40,12 +40,18 @@ interface Deal {
   status: "OPEN" | "PROFIT" | "LOSS" | "CLOSED";
 }
 
-export default function TradingJournal() {
+interface TradingJournalProps {
+  onDealsCountChange?: (summary: { open: number; closed: number }) => void;
+}
+
+export default function TradingJournal({
+  onDealsCountChange,
+}: TradingJournalProps) {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
   const [isClearOpen, setIsClearOpen] = useState(false);
   const [activeDeleteId, setActiveDeleteId] = useState<number | null>(null);
-  // Функция загрузки всей истории сделок из базы данных без кэширования
+
   const fetchJournal = useCallback(async () => {
     try {
       const res = await fetch("/api/journal", {
@@ -61,6 +67,15 @@ export default function TradingJournal() {
           ? data.data
           : [];
       setDeals(cleanArray);
+
+      const openCount = cleanArray.filter(
+        (d: Deal) => d.status === "OPEN",
+      ).length;
+      const closedCount = cleanArray.filter(
+        (d: Deal) => d.status !== "OPEN",
+      ).length;
+
+      onDealsCountChange?.({ open: openCount, closed: closedCount });
     } catch (err) {
       console.error("Не удалось подгрузить журнал сделок:", err);
       toast.add({
@@ -71,9 +86,8 @@ export default function TradingJournal() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onDealsCountChange]);
 
-  // Авто-синхронизация с калькулятором рисков при фиксации новых ордеров
   useEffect(() => {
     fetchJournal();
     window.addEventListener("refresh-trading-journal", fetchJournal);
@@ -81,20 +95,16 @@ export default function TradingJournal() {
       window.removeEventListener("refresh-trading-journal", fetchJournal);
   }, [fetchJournal]);
 
-  useEffect(() => {
-    fetchJournal();
-  }, []);
-
-  // Панель быстрой аналитики торговой стратегии
   const totalDeals = deals.length;
   const profitDeals = deals.filter((d) => d.status === "PROFIT").length;
   const lossDeals = deals.filter((d) => d.status === "LOSS").length;
+  const manualClosedDeals = deals.filter((d) => d.status === "CLOSED").length;
+
   const winRate =
     totalDeals > 0
       ? ((profitDeals / (profitDeals + lossDeals || 1)) * 100).toFixed(0)
       : "0";
 
-  // Смена статуса (Тейк / Стоп / Ручное закрытие) в базе данных
   const handleUpdateStatus = async (
     id: number,
     status: "PROFIT" | "LOSS" | "CLOSED",
@@ -123,107 +133,71 @@ export default function TradingJournal() {
 
       toast.add({
         title: toastTitle,
-        description: `Статус позиции по ${coinName} успешно обновлен в базе данных.`,
+        description: `Статус позиции по ${coinName} обновлен.`,
         type: toastType,
       });
-
       fetchJournal();
     } catch (err) {
       console.error("Ошибка при изменении статуса:", err);
-      toast.add({
-        title: "Ошибка обновления",
-        description: "Не удалось изменить статус сделки.",
-        type: "error",
-      });
     }
   };
-  // Удаление одной строчки из базы данных и ручное закрытие её модалки
+
   const handleDeleteDeal = async (id: number) => {
     try {
       const targetDeal = deals.find((d) => d.id === id);
       const coinName = targetDeal ? targetDeal.coin.replace("USDT", "") : "";
-
       const res = await fetch(`/api/journal?id=${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete error");
 
       toast.add({
         title: "Запись удалена",
-        description: `Трейд по паре ${coinName} стерт из журнала.`,
+        description: `Трейд по паре ${coinName}USDT успешно удален.`,
         type: "info",
       });
-
       await fetchJournal();
       setActiveDeleteId(null);
     } catch (err) {
       console.error("Ошибка при удалении трейда:", err);
-      toast.add({
-        title: "Ошибка удаления",
-        description: "Не удалось стереть запись из облачной базы.",
-        type: "error",
-      });
     }
   };
 
-  // Полное уничтожение истории в базе данных и ручное закрытие модалки
   const handleClearAllDeals = async () => {
     try {
       const res = await fetch("/api/journal", { method: "DELETE" });
       if (!res.ok) throw new Error("Clear all error");
-
       toast.add({
         title: "Журнал зачищен",
-        description: "Все записи были успешно удалены из базы данных.",
+        description: "Все записи были успешно удалены.",
         type: "success",
       });
-
       await fetchJournal();
       setIsClearOpen(false);
     } catch (err) {
       console.error("Ошибка при полной очистке журнала:", err);
-      toast.add({
-        title: "Ошибка очистки",
-        description: "Критическая ошибка при удалении истории журнала.",
-        type: "error",
-      });
     }
   };
-
-  // Функция рендеринга строки сделки с железобетонным маркером направления
   const renderDealRow = (deal: Deal) => {
     const isLong = deal.side === "BUY";
     const isOpen = deal.status === "OPEN";
     const precision = deal.entry_price >= 500 ? 2 : 4;
-
     const openFeeRate = deal.order_type === "LIMIT" ? 0.0002 : 0.00055;
     const closeFeeRate = 0.00055;
-    const totalFeeRate = openFeeRate + closeFeeRate;
-
     const breakevenPrice = isLong
-      ? deal.entry_price * (1 + totalFeeRate)
-      : deal.entry_price * (1 - totalFeeRate);
+      ? deal.entry_price * (1 + (openFeeRate + closeFeeRate))
+      : deal.entry_price * (1 - (openFeeRate + closeFeeRate));
 
-    let formattedDateOnly = "--.--.----";
-    let formattedTimeOnly = "--:--:--";
+    let formattedDateOnly = "--.--.----",
+      formattedTimeOnly = "--:--:--";
     if (deal.created_at) {
       try {
         const d = new Date(deal.created_at);
-        const day = String(d.getDate()).padStart(2, "0");
-        const month = String(d.getMonth() + 1).padStart(2, "0");
-        const year = d.getFullYear();
-        const hours = String(d.getHours()).padStart(2, "0");
-        const minutes = String(d.getMinutes()).padStart(2, "0");
-        const seconds = String(d.getSeconds()).padStart(2, "0");
-
-        formattedDateOnly = `${day}.${month}.${year}`;
-        formattedTimeOnly = `${hours}:${minutes}:${seconds}`;
-      } catch (e) {
-        console.error("Date parse error", e);
-      }
+        formattedDateOnly = `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}`;
+        formattedTimeOnly = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+      } catch (e) {}
     }
 
     const bBase =
       "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-black tracking-wider uppercase border transition-all duration-300 select-none shadow-sm ";
-
     const statusBadge =
       deal.status === "PROFIT" ? (
         <span
@@ -284,12 +258,9 @@ export default function TradingJournal() {
             <span className="opacity-70 text-[9px]">{formattedTimeOnly}</span>
           </div>
         </TableCell>
-
         <TableCell className="py-3 px-4 font-bold">
           {deal.coin.replace("USDT", "")}
-          <span className="text-[10px] text-muted-foreground ml-0.5">
-            /USDT
-          </span>
+          <span className="text-[10px] text-muted-foreground ml-0.5">USDT</span>
         </TableCell>
         <TableCell className="py-3 px-2">
           <span
@@ -313,7 +284,6 @@ export default function TradingJournal() {
         <TableCell className="py-3 px-3 font-medium text-amber-600/90 dark:text-amber-400/90">
           {breakevenPrice.toFixed(precision)}
         </TableCell>
-
         <TableCell className="py-3 px-3">
           <div className="flex flex-col space-y-0.5">
             <span
@@ -330,7 +300,6 @@ export default function TradingJournal() {
             </span>
           </div>
         </TableCell>
-
         <TableCell className="py-3 px-3 text-center">{statusBadge}</TableCell>
         <TableCell className="py-3 px-4 text-right whitespace-nowrap">
           <div className="flex items-center justify-end gap-1">
@@ -340,7 +309,7 @@ export default function TradingJournal() {
                   size="icon"
                   variant="ghost"
                   onClick={() => handleUpdateStatus(deal.id, "PROFIT")}
-                  className="h-7 w-7 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-md cursor-pointer shadow-none flex items-center justify-center"
+                  className="h-7 w-7 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-md cursor-pointer"
                   title="Закрыть в Тейк-Профит"
                 >
                   <Check className="size-4" />
@@ -349,7 +318,7 @@ export default function TradingJournal() {
                   size="icon"
                   variant="ghost"
                   onClick={() => handleUpdateStatus(deal.id, "LOSS")}
-                  className="h-7 w-7 text-rose-600 hover:bg-rose-600 hover:text-white rounded-md cursor-pointer shadow-none flex items-center justify-center"
+                  className="h-7 w-7 text-rose-600 hover:bg-rose-600 hover:text-white rounded-md cursor-pointer"
                   title="Закрыть в Стоп-Лосс"
                 >
                   <X className="size-4" />
@@ -358,7 +327,7 @@ export default function TradingJournal() {
                   size="icon"
                   variant="ghost"
                   onClick={() => handleUpdateStatus(deal.id, "CLOSED")}
-                  className="h-7 w-7 text-muted-foreground hover:bg-muted hover:text-foreground rounded-md cursor-pointer shadow-none flex items-center justify-center"
+                  className="h-7 w-7 text-muted-foreground hover:bg-muted hover:text-foreground rounded-md cursor-pointer"
                   title="Закрыть руками по рынку"
                 >
                   <LogOut className="size-3.5" />
@@ -374,7 +343,7 @@ export default function TradingJournal() {
                   variant: "ghost",
                   size: "icon",
                   className:
-                    "h-7 w-7 text-muted-foreground hover:text-rose-500 cursor-pointer shadow-none flex items-center justify-center p-0",
+                    "h-7 w-7 text-muted-foreground hover:text-rose-500 cursor-pointer p-0",
                 })}
               >
                 <Trash2 className="size-3.5" />
@@ -383,8 +352,8 @@ export default function TradingJournal() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Удалить сделку?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Вы действительно хотите убрать трейд по{" "}
-                    {deal.coin.replace("USDT", "")}? Статистика изменится.
+                    Вы действительно хотите удалить сделку по паре {deal.coin}{" "}
+                    из журнала? Статистика изменится.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -407,136 +376,144 @@ export default function TradingJournal() {
     );
   };
   return (
-    <div className="w-full max-w-5xl mx-auto p-4 pt-0">
-      <Card className="w-full shadow-sm border border-border/40 bg-background rounded-[2rem] overflow-hidden">
-        <CardHeader className="py-4 px-6 border-b border-border/40 flex flex-row items-center justify-between space-y-0 gap-4 flex-wrap sm:flex-nowrap">
-          <div className="space-y-0.5 min-w-48">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Журнал сделок
-            </CardTitle>
-            <p className="text-xs text-muted-foreground select-none">
-              Статистика торговой стратегии из базы данных
-            </p>
+    <div className="w-full bg-transparent flex flex-col px-6">
+      <div className="py-4 border-b border-border/40 flex flex-row items-center justify-between space-y-0 gap-4 flex-wrap sm:flex-nowrap bg-transparent">
+        <div className="space-y-0.5 min-w-48">
+          <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Статистика журнала
+          </CardTitle>
+          <p className="text-xs text-muted-foreground select-none">
+            Эффективность торговой стратегии из базы данных
+          </p>
+        </div>
+
+        <div className="flex items-center gap-4 text-xs select-none ml-auto">
+          <div className="text-right">
+            <span className="text-muted-foreground block text-[10px] uppercase">
+              Всего
+            </span>
+            <span className="font-bold text-sm">{totalDeals}</span>
+          </div>
+          <div className="text-right border-l pl-3 border-border/40">
+            <span className="text-emerald-500 block text-[10px] uppercase">
+              Тейки
+            </span>
+            <span className="font-bold text-emerald-600 text-sm">
+              {profitDeals}
+            </span>
+          </div>
+          <div className="text-right border-l pl-3 border-border/40">
+            <span className="text-rose-500 block text-[10px] uppercase">
+              Стопы
+            </span>
+            <span className="font-bold text-rose-600 text-sm">{lossDeals}</span>
           </div>
 
-          <div className="flex items-center gap-4 text-xs select-none ml-auto">
-            <div className="text-right">
-              <span className="text-muted-foreground block text-[10px] uppercase">
-                Всего
-              </span>
-              <span className="font-bold text-sm">{totalDeals}</span>
-            </div>
-            <div className="text-right border-l pl-3 border-border/40">
-              <span className="text-emerald-500 block text-[10px] uppercase">
-                Тейки
-              </span>
-              <span className="font-bold text-emerald-600 text-sm">
-                {profitDeals}
-              </span>
-            </div>
-            <div className="text-right border-l pl-3 border-border/40">
-              <span className="text-rose-500 block text-[10px] uppercase">
-                Стопы
-              </span>
-              <span className="font-bold text-rose-600 text-sm">
-                {lossDeals}
-              </span>
-            </div>
-            <div className="text-right border-l pl-3 border-border/40 bg-muted/40 dark:bg-muted/10 px-2 py-0.5 rounded-md border">
-              <span className="text-amber-500 block text-[10px] uppercase font-medium">
-                WinRate
-              </span>
-              <span className="font-extrabold text-sm">{winRate}%</span>
-            </div>
-
-            {totalDeals > 0 && (
-              <AlertDialog open={isClearOpen} onOpenChange={setIsClearOpen}>
-                <AlertDialogTrigger
-                  className={buttonVariants({
-                    variant: "outline",
-                    size: "icon",
-                    className:
-                      "h-8 w-8 ml-2 text-rose-600 border-rose-500/20 hover:bg-rose-600 hover:text-white rounded-xl cursor-pointer shadow-none flex items-center justify-center p-0",
-                  })}
-                  title="Очистить весь журнал сделок"
-                >
-                  <Trash2 className="size-4 shrink-0" />
-                </AlertDialogTrigger>
-                <AlertDialogContent size="default">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Уничтожить весь журнал?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Это действие безвозвратно сотрет историю ваших сделок из
-                      базы данных.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel className="rounded-xl text-xs h-9 cursor-pointer">
-                      Отмена
-                    </AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleClearAllDeals}
-                      variant="destructive"
-                      className="rounded-xl text-xs h-9 bg-rose-600 hover:bg-rose-700 text-white cursor-pointer border-none"
-                    >
-                      Удалить всё
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
+          {/* ФИОЛЕТОВАЯ ПЛАШКА: Счётчик сделок, закрытых строго руками по рынку */}
+          <div className="text-right border-l pl-3 border-border/40">
+            <span className="text-violet-500 block text-[10px] uppercase font-medium">
+              Ручные
+            </span>
+            <span className="font-bold text-violet-600 text-sm">
+              {manualClosedDeals}
+            </span>
           </div>
-        </CardHeader>
-        <CardContent className="p-6 pt-0">
-          {loading ? (
-            <div className="p-8 text-center text-xs text-muted-foreground font-medium animate-pulse">
-              Синхронизация с базой данных...
-            </div>
-          ) : deals.length === 0 ? (
-            <div className="p-12 text-center text-xs text-muted-foreground font-medium select-none">
-              Журнал пуст. Рассчитай позицию выше и нажми «Зафиксировать в
-              журнал»
-            </div>
-          ) : (
-            <div className="w-full rounded-2xl border border-border/60 overflow-hidden bg-background">
-              <Table className="w-full text-xs">
-                <TableHeader>
-                  <TableRow className="border-b border-border/30 bg-muted/40 dark:bg-muted/20 text-[10px] uppercase tracking-wider text-muted-foreground font-medium hover:bg-muted/40">
-                    <TableHead className="py-2.5 px-4 h-auto text-muted-foreground font-medium pl-5">
-                      Вход
-                    </TableHead>
-                    <TableHead className="py-2.5 px-4 h-auto text-muted-foreground font-medium">
-                      Пара
-                    </TableHead>
-                    <TableHead className="py-2.5 px-2 h-auto text-muted-foreground font-medium">
-                      Тип
-                    </TableHead>
-                    <TableHead className="py-2.5 px-3 h-auto text-muted-foreground font-medium">
-                      Объем / Маржа
-                    </TableHead>
-                    <TableHead className="py-2.5 px-3 h-auto text-muted-foreground font-medium">
-                      Цена Входа
-                    </TableHead>
-                    <TableHead className="py-2.5 px-3 h-auto text-muted-foreground font-medium">
-                      Безубыток
-                    </TableHead>
-                    <TableHead className="py-2.5 px-3 h-auto text-muted-foreground font-medium">
-                      TP / SL
-                    </TableHead>
-                    <TableHead className="py-2.5 px-3 text-center text-muted-foreground font-medium">
-                      Статус
-                    </TableHead>
-                    <TableHead className="py-2.5 px-4 h-auto text-right text-muted-foreground font-medium">
-                      Действия
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>{deals.map(renderDealRow)}</TableBody>
-              </Table>
-            </div>
+
+          <div className="text-right border-l pl-3 border-border/40 bg-muted/40 dark:bg-muted/10 px-2 py-0.5 rounded-md border">
+            <span className="text-amber-500 block text-[10px] uppercase font-medium">
+              WinRate
+            </span>
+            <span className="font-extrabold text-sm">{winRate}%</span>
+          </div>
+
+          {totalDeals > 0 && (
+            <AlertDialog open={isClearOpen} onOpenChange={setIsClearOpen}>
+              <AlertDialogTrigger
+                className={buttonVariants({
+                  variant: "outline",
+                  size: "icon",
+                  className:
+                    "h-8 w-8 ml-2 text-rose-600 border-rose-500/20 hover:bg-rose-600 hover:text-white rounded-xl cursor-pointer p-0",
+                })}
+                title="Очистить весь журнал сделок"
+              >
+                <Trash2 className="size-4 shrink-0" />
+              </AlertDialogTrigger>
+              <AlertDialogContent size="default">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Очистить весь журнал?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Это действие безвозвратно сотрет историю вашей торговли из
+                    облачной базы.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="rounded-xl text-xs h-9 cursor-pointer">
+                    Отмена
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleClearAllDeals}
+                    variant="destructive"
+                    className="rounded-xl text-xs h-9 bg-rose-600 hover:bg-rose-700 text-white cursor-pointer border-none"
+                  >
+                    Удалить всё
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+
+      {/* Контейнер таблицы */}
+      <div className="py-6 pt-5 bg-transparent">
+        {loading ? (
+          <div className="p-8 text-center text-xs text-muted-foreground font-medium animate-pulse">
+            Синхронизация с базой данных...
+          </div>
+        ) : deals.length === 0 ? (
+          <div className="p-12 text-center text-xs text-muted-foreground font-medium select-none">
+            Журнал пуст. Рассчитай позицию выше и нажми «Зафиксировать в журнал»
+          </div>
+        ) : (
+          <div className="w-full rounded-2xl border border-border/60 overflow-hidden bg-background">
+            <Table className="w-full text-xs">
+              <TableHeader>
+                <TableRow className="border-b border-border/30 bg-muted/40 dark:bg-muted/20 text-[10px] uppercase tracking-wider text-muted-foreground font-medium hover:bg-muted/40">
+                  <TableHead className="py-2.5 px-4 h-auto text-muted-foreground font-medium pl-5">
+                    Вход
+                  </TableHead>
+                  <TableHead className="py-2.5 px-4 h-auto text-muted-foreground font-medium">
+                    Пара
+                  </TableHead>
+                  <TableHead className="py-2.5 px-2 h-auto text-muted-foreground font-medium">
+                    Тип
+                  </TableHead>
+                  <TableHead className="py-2.5 px-3 h-auto text-muted-foreground font-medium">
+                    Объем / Маржа
+                  </TableHead>
+                  <TableHead className="py-2.5 px-3 h-auto text-muted-foreground font-medium">
+                    Цена Входа
+                  </TableHead>
+                  <TableHead className="py-2.5 px-3 h-auto text-muted-foreground font-medium">
+                    Безубыток
+                  </TableHead>
+                  <TableHead className="py-2.5 px-3 h-auto text-muted-foreground font-medium">
+                    TP / SL
+                  </TableHead>
+                  <TableHead className="py-2.5 px-3 text-center text-muted-foreground font-medium">
+                    Статус
+                  </TableHead>
+                  <TableHead className="py-2.5 px-4 h-auto text-right text-muted-foreground font-medium">
+                    Действия
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>{deals.map(renderDealRow)}</TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

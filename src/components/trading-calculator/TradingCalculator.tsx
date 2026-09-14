@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ModeToggle } from "@/components/ModeToggle";
 import CoinSelector from "./CoinSelector";
 import BalanceRiskForm from "./BalanceRiskForm";
 import PriceLevelsForm from "./PriceLevelsForm";
@@ -18,8 +17,7 @@ const detectDecimals = (price: number | string | undefined): number => {
   const priceStr = String(price);
   const match = priceStr.match(/\.(\d+)/);
   if (!match || !match[1]) return 2;
-  const length = match[1].length;
-  return length < 2 ? 2 : length;
+  return match[1].length < 2 ? 2 : match[1].length;
 };
 
 interface TickerData {
@@ -40,27 +38,20 @@ function useTabTicker(
 
   useEffect(() => {
     if (!price) {
-      if (document.title !== "Bybit Calculator") {
+      if (document.title !== "Bybit Calculator")
         document.title = "Bybit Calculator";
-      }
       return;
     }
-
     const formattedPrice = price.toFixed(decimals);
-
     let triangle = "•";
     if (prevPriceRef.current !== null) {
       if (price > prevPriceRef.current) triangle = "▲";
       else if (price < prevPriceRef.current) triangle = "▼";
       else return;
     }
-
     prevPriceRef.current = price;
-
     const nextTitle = `${triangle} ${formattedPrice} | Трейдинг ${coin} | Bybit Calculator`;
-    if (document.title !== nextTitle) {
-      document.title = nextTitle;
-    }
+    if (document.title !== nextTitle) document.title = nextTitle;
   }, [price, coin, decimals]);
 
   useEffect(() => {
@@ -69,15 +60,16 @@ function useTabTicker(
   }, [coin]);
 }
 
-// ДОБАВЛЕНО: Интерфейс пропсов для связи стейта монеты с графиком на уровне page.tsx
 interface TradingCalculatorProps {
   selectedCoin: string;
   setSelectedCoin: (coin: string) => void;
+  onBalanceChange?: (balance: number) => void;
 }
 
 export default function TradingCalculator({
   selectedCoin,
   setSelectedCoin,
+  onBalanceChange,
 }: TradingCalculatorProps) {
   const [balance, setBalance] = useState(100);
   const [riskPercent, setRiskPercent] = useState(2);
@@ -158,7 +150,10 @@ export default function TradingCalculator({
       if (savedState) {
         try {
           const parsed = JSON.parse(savedState);
-          if (parsed.balance) setBalance(parsed.balance);
+          if (parsed.balance) {
+            setBalance(parsed.balance);
+            onBalanceChange?.(parsed.balance);
+          }
           if (parsed.riskPercent) setRiskPercent(parsed.riskPercent);
           if (parsed.riskRewardRatio)
             setRiskRewardRatio(parsed.riskRewardRatio);
@@ -178,6 +173,10 @@ export default function TradingCalculator({
       setIsLoaded(true);
     }
   }, [setSelectedCoin]);
+
+  useEffect(() => {
+    if (isLoaded) onBalanceChange?.(balance);
+  }, [balance, isLoaded, onBalanceChange]);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -232,7 +231,6 @@ export default function TradingCalculator({
     const baseRiskAmount = (balance * riskPercent) / 100;
     const allocatedMarginMax = balance / PARTS_COUNT;
 
-    // 1. Точный расчет цен ордеров
     const stopLossPrice =
       entryPrice *
       (isLong ? 1 - stopLossPercent / 100 : 1 + stopLossPercent / 100);
@@ -242,47 +240,35 @@ export default function TradingCalculator({
         ? 1 + (stopLossPercent * riskRewardRatio) / 100
         : 1 - (stopLossPercent * riskRewardRatio) / 100);
 
-    // 2. Ставки комиссий Bybit
     const openFeeRate = orderType === "MARKET" ? 0.00055 : 0.0002;
     const closeFeeRate = 0.00055;
     const totalFeeRate = openFeeRate + closeFeeRate;
 
-    // 3. Честный расчет объема позиции по чистой дистанции стопа
     const priceLossFactor = stopLossPercent / 100;
-    let positionSizeUsdt = baseRiskAmount / priceLossFactor;
+    let positionSizeUsdt = baseRiskAmount / (priceLossFactor + totalFeeRate);
     let marginUsed = positionSizeUsdt / leverage;
 
-    // Ограничение по максимальной марже на 1 позицию (1/5 депозита)
     if (marginUsed > allocatedMarginMax) {
       marginUsed = allocatedMarginMax;
       positionSizeUsdt = marginUsed * leverage;
     }
 
     const positionSizeCrypto = positionSizeUsdt / entryPrice;
-
-    // 4. Прозрачный расчет комиссий Bybit поверх объема
     const openFee = positionSizeUsdt * openFeeRate;
     const closeFee = positionSizeUsdt * closeFeeRate;
     const totalFeeUsdt = openFee + closeFee;
 
-    // Итоговый риск — это чистый убыток по стопу плюс комиссия за вход и выход
     const rawLossUsdt =
       positionSizeCrypto * Math.abs(entryPrice - stopLossPrice);
     const actualRiskAmount = rawLossUsdt + totalFeeUsdt;
-
-    // Чистая прибыль — это грязный профит по тейку минус комиссии за круг
     const netProfitUsdt =
       positionSizeCrypto * Math.abs(entryPrice - takeProfitPrice) -
       totalFeeUsdt;
 
-    // 5. Расчет цены ликвидации (Формула изолированной маржи Bybit)
-    const MMR = 0.005; // Поддерживающая маржа 0.5%
-    let liquidationPrice = 0;
-    if (isLong) {
-      liquidationPrice = entryPrice * (1 - 1 / leverage + MMR);
-    } else {
-      liquidationPrice = entryPrice * (1 + 1 / leverage - MMR);
-    }
+    const MMR = 0.005; // Поддерживающая маржа Bybit 0.5%
+    let liquidationPrice = isLong
+      ? entryPrice * (1 - 1 / leverage + MMR + closeFeeRate)
+      : entryPrice * (1 + 1 / leverage - MMR - closeFeeRate);
     if (liquidationPrice < 0) liquidationPrice = 0;
 
     const maxSafeLeverage = Math.ceil(positionSizeUsdt / allocatedMarginMax);
@@ -316,91 +302,69 @@ export default function TradingCalculator({
     isLoaded,
   ]);
 
-  if (!isLoaded)
-    return (
-      <div className="w-full max-w-4xl mx-auto p-4 text-center text-sm text-muted-foreground">
-        Загрузка конфигурации...
-      </div>
-    );
+  if (!isLoaded) return null;
 
   return (
-    <div className="w-full max-w-5xl mx-auto p-4 pb-0">
-      <div className="p-6 rounded-[2rem] bg-muted/70 dark:bg-muted/15 shadow-none backdrop-blur-[2px] space-y-4">
-        <div className="flex items-center justify-between px-1">
-          <div className="space-y-0.5">
-            <h1 className="text-xl font-bold tracking-tight text-foreground">
-              Bybit Futures{" "}
-              <span className="text-muted-foreground font-normal">
-                / Calculator
-              </span>
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              Изолированная маржа 1/{PARTS_COUNT} •{" "}
-              {(balance / PARTS_COUNT).toFixed(2)} USDT на позицию
-            </p>
-          </div>
-          <ModeToggle />
-        </div>
+    <div className="w-full p-4 space-y-4">
+      <MarketTicker
+        data={tickerData}
+        loading={tickerLoading}
+        decimals={currentDecimals}
+        onPriceClick={handlePriceApply}
+        selectedCoin={selectedCoin}
+      />
 
-        <MarketTicker
-          data={tickerData}
-          loading={tickerLoading}
-          decimals={currentDecimals}
-          onPriceClick={handlePriceApply}
-          selectedCoin={selectedCoin}
-        />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
+        <Card className="shadow-sm border border-border/40 bg-background flex flex-col rounded-2xl">
+          <CardHeader className="py-2.5 px-4 border-b border-border/40">
+            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Панель параметров
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 p-4 flex-1">
+            <CoinSelector
+              selectedCoin={selectedCoin}
+              onCoinChange={setSelectedCoin}
+              orderType={orderType}
+              setOrderType={setOrderType}
+            />
+            <BalanceRiskForm
+              balance={balance}
+              setBalance={setBalance}
+              riskPercent={riskPercent}
+              setRiskPercent={setRiskPercent}
+              leverage={leverage}
+              setLeverage={setLeverage}
+              side={side}
+              setSide={setSide}
+            />
+            <PriceLevelsForm
+              entryPrice={entryPrice}
+              setEntryPrice={setEntryPrice}
+              stopLossPercent={stopLossPercent}
+              setStopLossPercent={setStopLossPercent}
+              riskRewardRatio={riskRewardRatio}
+              setRiskRewardRatio={setRiskRewardRatio}
+              onReset={handleReset}
+            />
+          </CardContent>
+        </Card>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
-          <Card className="shadow-sm border border-border/40 bg-background flex flex-col rounded-2xl">
-            <CardHeader className="py-2.5 px-4 border-b border-border/40">
-              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Панель параметров
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 p-4 flex-1">
-              <CoinSelector
-                selectedCoin={selectedCoin}
-                onCoinChange={setSelectedCoin}
-                orderType={orderType}
-                setOrderType={setOrderType}
-              />
-              <BalanceRiskForm
-                balance={balance}
-                setBalance={setBalance}
-                riskPercent={riskPercent}
-                setRiskPercent={setRiskPercent}
-                leverage={leverage}
-                setLeverage={setLeverage}
-                side={side}
-                setSide={setSide}
-              />
-              <PriceLevelsForm
-                entryPrice={entryPrice}
-                setEntryPrice={setEntryPrice}
-                stopLossPercent={stopLossPercent}
-                setStopLossPercent={setStopLossPercent}
-                riskRewardRatio={riskRewardRatio}
-                setRiskRewardRatio={setRiskRewardRatio}
-                onReset={handleReset}
-              />
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-sm border border-border/40 bg-background flex flex-col rounded-2xl">
-            <CardHeader className="py-2.5 px-4 border-b border-border/40">
-              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Торговый отчёт
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 flex-1 flex flex-col justify-between">
-              <ResultsDisplay
-                results={results}
-                coin={selectedCoin}
-                entryPrice={entryPrice}
-              />
-            </CardContent>
-          </Card>
-        </div>
+        <Card className="shadow-sm border border-border/40 bg-background flex flex-col rounded-2xl">
+          <CardHeader className="py-2.5 px-4 border-b border-border/40">
+            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Торговый отчёт
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 flex-1 flex flex-col justify-between">
+            <ResultsDisplay
+              results={results}
+              coin={selectedCoin}
+              entryPrice={entryPrice}
+              orderType={orderType}
+            />
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
