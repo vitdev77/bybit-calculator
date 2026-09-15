@@ -8,14 +8,15 @@ import TradingJournal from "@/components/trading-calculator/TradingJournal";
 import { ModeToggle } from "@/components/ModeToggle";
 
 const STORAGE_KEY_LAYOUT = "bybit_calculator_layout_v1";
-const PARTS_COUNT = 5;
 
 export default function Home() {
   const [selectedCoin, setSelectedCoin] = useState("BTCUSDT");
   const [currentBalance, setCurrentBalance] = useState(100);
   const [dealsSummary, setDealsCount] = useState({ open: 0, closed: 0 });
-
   const [currentCoinPrice, setCurrentCoinPrice] = useState(0);
+
+  // Динамическое состояние разделения депозита, поднятое в родительский хаб
+  const [partsCount, setPartsCount] = useState(5);
 
   const [isCalcExpanded, setIsCalcExpanded] = useState(true);
   const [isChartExpanded, setIsChartExpanded] = useState(true);
@@ -41,7 +42,6 @@ export default function Home() {
       setIsMounted(true);
     }
   }, []);
-
   useEffect(() => {
     if (!isMounted) return;
     const layoutState = { isCalcExpanded, isChartExpanded, isJournalExpanded };
@@ -55,10 +55,10 @@ export default function Home() {
     updateAttr("data-hide-chart", isChartExpanded);
     updateAttr("data-hide-journal", isJournalExpanded);
   }, [isCalcExpanded, isChartExpanded, isJournalExpanded, isMounted]);
+
   return (
     <main className="min-h-screen py-4 sm:py-8 space-y-4 sm:space-y-6 max-w-5xl mx-auto px-2 sm:px-4">
-      {/* --- ГЛОБАЛЬНАЯ ШАПКА ПРИЛОЖЕНИЯ --- */}
-      {/* Адаптивная структура: на мобилках элементы выстраиваются в колонку, на планшетах - в ряд */}
+      {/* --- ГЛОБАЛЬНАЯ ШАПКА ПРИЛОЖЕНИЯ С ДИНАМИЧЕСКИМ PARTS_COUNT --- */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-2 select-none border-b border-border/20 pb-4">
         <div className="space-y-1">
           <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
@@ -68,9 +68,9 @@ export default function Home() {
             </span>
           </h1>
           <p className="text-[11px] sm:text-xs text-muted-foreground leading-normal">
-            Изолированная маржа 1/{PARTS_COUNT} •{" "}
+            Изолированная маржа 1/{partsCount} •{" "}
             <span className="font-semibold text-foreground/90">
-              {(currentBalance / PARTS_COUNT).toFixed(2)} USDT
+              {(currentBalance / partsCount).toFixed(2)} USDT
             </span>{" "}
             на позицию
           </p>
@@ -79,9 +79,7 @@ export default function Home() {
           <ModeToggle />
         </div>
       </div>
-
       {/* --- БЛОК 1: КАЛЬКУЛЯТОР ПАРАМЕТРОВ --- */}
-      {/* Адаптивные скругления: на мобильных экранах закругления становятся меньше (rounded-2xl) */}
       <div className="border border-border/40 bg-muted/30 dark:bg-muted/10 rounded-2xl sm:rounded-[2rem] p-1 sm:p-2 transition-all duration-300">
         <div
           onClick={() => setIsCalcExpanded(!isCalcExpanded)}
@@ -113,10 +111,13 @@ export default function Home() {
               setSelectedCoin={setSelectedCoin}
               onBalanceChange={setCurrentBalance}
               onPriceUpdate={setCurrentCoinPrice}
+              externalPartsCount={partsCount}
+              setExternalPartsCount={setPartsCount}
             />
           </div>
         </div>
       </div>
+
       {/* --- БЛОК 2: ЖИВОЙ ГРАФИК TRADINGVIEW --- */}
       <div className="border border-border/40 bg-background rounded-2xl sm:rounded-[2rem] p-1 sm:p-2 transition-all duration-300">
         <div
@@ -147,6 +148,7 @@ export default function Home() {
           </div>
         </div>
       </div>
+
       {/* --- БЛОК 3: ОБЛАЧНЫЙ ЖУРНАЛ СДЕЛОК --- */}
       <div className="border border-border/40 bg-background rounded-2xl sm:rounded-[2rem] p-1 sm:p-2 transition-all duration-300">
         <div

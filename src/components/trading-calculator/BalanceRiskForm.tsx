@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -25,9 +26,12 @@ interface BalanceRiskProps {
   setSide: (v: PositionSide) => void;
   maxSafeLeverage: number;
   selectedCoin: string;
+  partsCount: number;
+  setPartsCount: (v: number) => void;
 }
 
 const ALL_LEVERAGE_OPTIONS = [1, 2, 5, 10, 15, 20, 25, 30, 50, 75, 100];
+const PARTS_OPTIONS = [2, 3, 4, 5, 10];
 
 export default function BalanceRiskForm({
   balance,
@@ -40,6 +44,8 @@ export default function BalanceRiskForm({
   setSide,
   maxSafeLeverage,
   selectedCoin,
+  partsCount,
+  setPartsCount,
 }: BalanceRiskProps) {
   const allowedOptions = ALL_LEVERAGE_OPTIONS.filter(
     (opt) => opt <= maxSafeLeverage,
@@ -53,6 +59,7 @@ export default function BalanceRiskForm({
 
   return (
     <div className="space-y-3.5">
+      {/* Направление позиции */}
       <ButtonGroup className="w-full h-10 sm:h-11 flex">
         <Button
           type="button"
@@ -80,6 +87,36 @@ export default function BalanceRiskForm({
         </Button>
       </ButtonGroup>
 
+      {/* Выбор количества частей депозита (Управление плечом маржи) */}
+      <div className="space-y-1">
+        <div className="flex justify-between items-center">
+          <Label className="text-xs sm:text-sm">
+            Разделение депозита (Долей маржи)
+          </Label>
+          <span className="text-[10px] sm:text-xs font-bold text-muted-foreground">
+            1/{partsCount} • {(balance / partsCount).toFixed(1)} USDT на трейд
+          </span>
+        </div>
+        <Tabs
+          value={String(partsCount)}
+          onValueChange={(val) => setPartsCount(Number(val))}
+          className="w-full"
+        >
+          <TabsList className="w-full h-8 bg-muted/40 dark:bg-muted/10 border border-border/30 rounded-lg flex p-0.5">
+            {PARTS_OPTIONS.map((opt) => (
+              <TabsTrigger
+                key={`part-opt-${opt}`}
+                value={String(opt)}
+                className="flex-1 text-xs font-bold rounded-md data-active:bg-background data-active:text-foreground"
+              >
+                {opt}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      </div>
+
+      {/* Основная сетка параметров */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="space-y-1">
           <Label htmlFor="balance" className="text-xs sm:text-sm">

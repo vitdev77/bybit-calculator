@@ -10,7 +10,6 @@ import MarketTicker from "./MarketTicker";
 
 export type OrderType = "MARKET" | "LIMIT";
 export type PositionSide = "BUY" | "SELL";
-const PARTS_COUNT = 5;
 const STORAGE_KEY = "bybit_calculator_state_v14";
 
 const COIN_PRECISION_MAP: Record<string, number> = {
@@ -74,12 +73,16 @@ interface TradingCalculatorProps {
   setSelectedCoin: (coin: string) => void;
   onBalanceChange?: (balance: number) => void;
   onPriceUpdate?: (price: number) => void;
+  externalPartsCount: number;
+  setExternalPartsCount: (v: number) => void;
 }
 export default function TradingCalculator({
   selectedCoin,
   setSelectedCoin,
   onBalanceChange,
   onPriceUpdate,
+  externalPartsCount,
+  setExternalPartsCount,
 }: TradingCalculatorProps) {
   const [balance, setBalance] = useState(100);
   const [riskPercent, setRiskPercent] = useState(2);
@@ -92,6 +95,10 @@ export default function TradingCalculator({
   const [isLoaded, setIsLoaded] = useState(false);
   const [tickerData, setTickerData] = useState<TickerData | null>(null);
   const [tickerLoading, setTickerLoading] = useState(false);
+
+  // Связываем внутренний контекст расчётов с глобальным пропсом шапки сайта
+  const partsCount = externalPartsCount;
+  const setPartsCount = setExternalPartsCount;
 
   const currentDecimals =
     COIN_PRECISION_MAP[selectedCoin] !== undefined
@@ -147,6 +154,7 @@ export default function TradingCalculator({
             setStopLossPercent(parsed.stopLossPercent);
           if (parsed.leverage) setLeverage(Number(parsed.leverage));
           if (parsed.side) setSide(parsed.side);
+          if (parsed.partsCount) setPartsCount(Number(parsed.partsCount));
         } catch (e) {
           console.error("Storage error", e);
         }
@@ -206,6 +214,7 @@ export default function TradingCalculator({
     setStopLossPercent(1);
     setLeverage(10);
     setSide("BUY");
+    setPartsCount(5);
     setEntryPrice(
       tickerData && selectedCoin === "BTCUSDT"
         ? tickerData.lastPrice
@@ -243,6 +252,7 @@ export default function TradingCalculator({
         stopLossPercent,
         leverage,
         side,
+        partsCount,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     }
@@ -256,13 +266,15 @@ export default function TradingCalculator({
     stopLossPercent,
     leverage,
     side,
+    partsCount,
     isLoaded,
   ]);
+  // Автоподбор кредитного плеча на основе динамического partsCount и актуальных стейтов
   useEffect(() => {
     if (!isLoaded) return;
 
     const baseRiskAmount = (balance * riskPercent) / 100;
-    const allocatedMarginMax = balance / PARTS_COUNT;
+    const allocatedMarginMax = balance / partsCount;
     const openFeeRate = orderType === "MARKET" ? 0.00055 : 0.0002;
     const totalFeeRate = openFeeRate + 0.00055;
     const priceLossFactor = stopLossPercent / 100;
@@ -288,14 +300,15 @@ export default function TradingCalculator({
     }
 
     setLeverage(finalRecLeverage);
-  }, [selectedCoin, isLoaded, maxSafeLeverage]);
+  }, [selectedCoin, isLoaded, maxSafeLeverage, partsCount]);
 
+  // Главное математическое ядро калькулятора с исправленной ценой ликвидации линейных контрактов Bybit
   useEffect(() => {
     if (entryPrice <= 0 || stopLossPercent <= 0 || balance <= 0) return;
 
     const isLong = side === "BUY";
     const baseRiskAmount = (balance * riskPercent) / 100;
-    const allocatedMarginMax = balance / PARTS_COUNT;
+    const allocatedMarginMax = balance / partsCount;
 
     const stopLossPrice =
       entryPrice *
@@ -366,6 +379,7 @@ export default function TradingCalculator({
     isLoaded,
     selectedCoin,
     maxSafeLeverage,
+    partsCount,
   ]);
 
   if (!isLoaded) return null;
@@ -404,6 +418,8 @@ export default function TradingCalculator({
               setSide={setSide}
               maxSafeLeverage={maxSafeLeverage}
               selectedCoin={selectedCoin}
+              partsCount={partsCount}
+              setPartsCount={setPartsCount}
             />
             <PriceLevelsForm
               entryPrice={entryPrice}

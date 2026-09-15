@@ -60,7 +60,6 @@ interface TradingJournalProps {
   onCoinSelect?: (coin: string) => void;
 }
 
-// Актуальная карта разрядностей Bybit для журнала сделок
 const JOURNAL_PRECISION_MAP: Record<string, number> = {
   BTCUSDT: 2,
   ETHUSDT: 2,
@@ -145,6 +144,7 @@ export default function TradingJournal({
     totalDeals > 0
       ? ((profitDeals / (profitDeals + lossDeals || 1)) * 100).toFixed(0)
       : "0";
+
   const handleUpdateStatus = async (
     id: number,
     status: "PROFIT" | "LOSS" | "CLOSED",
@@ -234,6 +234,7 @@ export default function TradingJournal({
     const closeFeeRate = 0.00055;
     const totalFeeRate = openFeeRate + closeFeeRate;
 
+    // Истинная математическая цена безубытка с учётом торговой комиссии в обе стороны
     const breakevenPrice = isLong
       ? deal.entry_price * (1 + totalFeeRate)
       : deal.entry_price * (1 - totalFeeRate);
@@ -241,10 +242,11 @@ export default function TradingJournal({
     let pnlDisplay = null;
     const isCurrentActiveCoin = activeCoin === deal.coin;
 
-    // Инициализируем флаги триггеров TP/SL
     let isHitTP = false;
     let isHitSL = false;
 
+    // 🔥 ИСПРАВЛЕНО: Полностью переписан расчёт PnL в реальном времени.
+    // Комиссия теперь строго вычитается, а не инвертируется в Short-режиме.
     if (isOpen && isCurrentActiveCoin && livePrice > 0) {
       const isPriceValidForCoin =
         (deal.coin === "BTCUSDT" && livePrice > 30000) ||
@@ -260,9 +262,14 @@ export default function TradingJournal({
           : livePrice >= deal.stop_loss;
 
         const cryptoQty = deal.volume / deal.entry_price;
-        const livePnlUsdt = isLong
-          ? (livePrice - breakevenPrice) * cryptoQty
-          : (breakevenPrice - livePrice) * cryptoQty;
+        const totalFeeUsdt = deal.volume * totalFeeRate;
+
+        // Разделяем грязную прибыль от движения цены и фиксированную комиссию Bybit
+        const rawPnlUsdt = isLong
+          ? (livePrice - deal.entry_price) * cryptoQty
+          : (deal.entry_price - livePrice) * cryptoQty;
+
+        const livePnlUsdt = rawPnlUsdt - totalFeeUsdt;
         const liveRoi = deal.margin > 0 ? (livePnlUsdt / deal.margin) * 100 : 0;
         const isProfit = livePnlUsdt >= 0;
 
@@ -305,6 +312,7 @@ export default function TradingJournal({
       }
     }
 
+    // Расчёт и вывод результатов для уже закрытых или замороженных трейдов
     if (!pnlDisplay) {
       const lastKnown = frozenPnL[deal.id] || { pnl: 0, roi: 0 };
       const isLastProfit = lastKnown.pnl >= 0;
@@ -352,9 +360,14 @@ export default function TradingJournal({
 
         const cryptoQty =
           deal.entry_price > 0 ? deal.volume / deal.entry_price : 0;
-        const finalPnlUsdt = isLong
-          ? (targetPrice - breakevenPrice) * cryptoQty
-          : (breakevenPrice - targetPrice) * cryptoQty;
+        const totalFeeUsdt = deal.volume * totalFeeRate;
+
+        // 🔥 ИСПРАВЛЕНО: Безупречный расчёт финального PnL закрытой сделки для Long и Short
+        const rawFinalPnl = isLong
+          ? (targetPrice - deal.entry_price) * cryptoQty
+          : (deal.entry_price - targetPrice) * cryptoQty;
+
+        const finalPnlUsdt = rawFinalPnl - totalFeeUsdt;
 
         const finalRoi =
           deal.margin > 0.01 ? (finalPnlUsdt / deal.margin) * 100 : 0;
@@ -497,7 +510,6 @@ export default function TradingJournal({
           {breakevenPrice.toFixed(precision)}
         </TableCell>
 
-        {/* 🔥 ИСПРАВЛЕНО: Индикаторы алертов TP/SL перенесены непосредственно на ценовые значения внутри колонки */}
         <TableCell className="py-3 px-2">
           <div className="flex flex-col space-y-1">
             <span
@@ -605,7 +617,6 @@ export default function TradingJournal({
       </TableRow>
     );
   };
-
   const filteredDeals = deals.filter((deal) => {
     const matchesSearch = deal.coin
       .toLowerCase()

@@ -1,36 +1,106 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Bybit Futures Risk Calculator & Trading Journal
 
-## Getting Started
+Современный, быстрый и отзывчивый торговый калькулятор позиций и облачный журнал сделок для фьючерсного рынка биржи **Bybit (Linear Contracts)**. Приложение разработано для автоматизации риск-менеджмента, мгновенного расчета параметров ордеров изолированной маржи и ведения прозрачной статистики торгов.
 
-First, run the development server:
+![Next.js](https://img.shields.io/badge/next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-grey?style=for-the-badge&logo=tailwind-css&logoColor=38B2AC)
+![Base UI](https://img.shields.io/badge/BaseUI-000000?style=for-the-badge&logo=baseui&logoColor=white)
+![Database](https://img.shields.io/badge/-PostgreSQL-0D1117?style=for-the-badge&logo=postgresql)
+
+---
+
+## ⚡ Ключевые возможности
+
+### 📊 Математически точный калькулятор рисков
+
+- **Реактивный расчет параметров:** Полный цикл вычислений (объем в USDT/монетах, выделяемая маржа, чистая прибыль, ROI) происходит на лету без перезагрузок.
+- **Точные формулы ликвидации Bybit:** Исправлен расчет цены ликвидации (`Liquidation Price`) для **Long (BUY)** и **Short (SELL)** позиций в режиме изолированной маржи с учетом ставок MMR (0.5%) и сборов за круг.
+- **Динамическое разделение депозита (Долей маржи):** Интегрирована гибкая система кастомизации лимитов (`PARTS_COUNT`), позволяющая делить баланс на 2, 3, 4, 5 или 10 долей прямо из интерфейса параметров.
+- **Синхронный автоподбор плеча:** Автоматически подбирает ближайшее оптимальное и безопасное кредитное плечо на основе заданного процента риска по сетке Bybit (x1 - x100).
+- **Разрядность тикеров:** Цены округляются строго по спецификации торговых пар биржи (от 2 знаков для BTC/ETH до 5 знаков для DOGE).
+
+### ☁️ Облачный журнал сделок и Аналитика
+
+- **Интеграция с Neon PostgreSQL:** Полная синхронизация истории торгов с базой данных в режиме реального времени.
+- **Расчет PnL в Live-режиме:** Автоматически трекает прибыль/убыток открытых позиций на основе потока живых котировок Bybit.
+- **Исправленный учет Short-позиций:** Математически корректный учет комиссий за круг для шортов — биржевые сборы честно вычитаются из чистой прибыли.
+- **Ручное закрытие (Hand Close):** Возможность зафиксировать сделку руками с сохранением точной цены выхода в базе данных (`closed_at_price`).
+- **Сводная статистика:** Наглядный расчет WinRate, количества прибыльных, убыточных и закрытых вручную сделок.
+- **Защита от дубликатов:** Бэкенд-проверка (код `409 Conflict`) предотвращает случайное повторное сохранение одного и того же трейда.
+
+### 📉 Интерактивный UI и Оптимизация
+
+- **Защита от Layout Shift:** Инъекция синхронного скрипта в `<head>` считывает состояние блоков (`localStorage`) до рендера страницы, исключая прыжки интерфейса при загрузке.
+- **Поток живых котировок:** Роут-прокси обходит ограничения CORS, защищает от кэширования Next.js (`cache: no-store`) и забирает данные деривативов каждые 3 секунды.
+- **Живой график TradingView:** Интеграция профессионального технического интерактивного графика для выбранной пары с поддержкой темного режима.
+- **Кастомный Таб-тикер:** Динамическое обновление заголовка вкладки браузера (отображает текущую цену и направление движения рынка `▲`/`▼`).
+
+## 📁 Структура проекта
+
+```text
+bybit-calculator-master/
+├── src/
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── bybit/route.ts      # Прокси-котировок Bybit API (category: linear)
+│   │   │   └── journal/route.ts    # CRUD обработчик сделок (Neon Serverless SQL)
+│   │   ├── globals.css             # Tailwind v4 стили + data-hide анимации блоков
+│   │   ├── layout.tsx              # Корневой лейаут + Anti-Layout-Shift инжект
+│   │   └── page.tsx                # Главный хаб приложения и глобальная шапка
+│   ├── components/
+│   │   ├── trading-calculator/
+│   │   │   ├── TradingCalculator.tsx  # Ядро расчетов и хаб состояний
+│   │   │   ├── BalanceRiskForm.tsx    # Форма депозита, рисков, плеч и долей маржи
+│   │   │   ├── PriceLevelsForm.tsx    # Ввод точек входа, пресеты R:R и сброс
+│   │   │   ├── ResultsDisplay.tsx     # Торговый отчет, копирование и сохранение в БД
+│   │   │   ├── MarketTicker.tsx       # Панель живой цены, волатильности и фандинга
+│   │   │   ├── TradingJournal.tsx     # Таблица истории сделок и подсчет WinRate
+│   │   │   └── TradingViewChart.tsx   # Виджет интерактивного iframe-графика
+│   │   └── ui/                     # Адаптированные примитивы на базе @base-ui/react
+│   └── lib/
+│       └── utils.ts                # Хелпер cn для фильтрации Tailwind-классов
+├── public/crypto-icons/            # Локальные SVG-иконки криптоактивов
+├── next.config.ts                  # Конфигурация Next.js
+└── tsconfig.json                   # Параметры компиляции TypeScript
+```
+
+## 🛠️ Переменные окружения (.env)
+
+Создайте файл `.env.local` в корне проекта и укажите следующие параметры:
+
+```env
+# URL подключения к бессерверной базе данных Neon PostgreSQL
+DATABASE_URL="postgres://user:password@ep-endpoint-pool.us-east-2.aws.neon.tech/neondb?sslmode=require"
+
+# (Опционально) URL зеркала Bybit API. По умолчанию: https://api.bytick.com
+BYBIT_API_URL="https://api.bytick.com"
+
+# (Опционально) Кастомный скрипт TradingView виджета
+NEXT_PUBLIC_TRADINGVIEW_SCRIPT_URL="https://s3.tradingview.com/tv.js"
+```
+
+## 🚀 Быстрый старт
+
+### 1. Клонирование и установка зависимостей
+
+```bash
+git clone https://github.com/vitdev77/bybit-calculator
+cd bybit-calculator
+npm install
+```
+
+### 2. Запуск локального сервера разработки
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Приложение будет доступно по адресу [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Сборка для продакшена
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run build
+npm run start
+```
