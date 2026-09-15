@@ -1,38 +1,23 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React from "react";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { ButtonGroup } from "@/components/ui/button-group";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { PositionSide } from "./TradingCalculator";
 
-interface BalanceRiskProps {
+interface BalanceRiskFormProps {
   balance: number;
   setBalance: (v: number) => void;
   riskPercent: number;
   setRiskPercent: (v: number) => void;
   leverage: number;
   setLeverage: (v: number) => void;
-  side: PositionSide;
-  setSide: (v: PositionSide) => void;
+  side: "BUY" | "SELL";
+  setSide: (v: "BUY" | "SELL") => void;
   maxSafeLeverage: number;
   selectedCoin: string;
   partsCount: number;
   setPartsCount: (v: number) => void;
 }
-
-const ALL_LEVERAGE_OPTIONS = [1, 2, 5, 10, 15, 20, 25, 30, 50, 75, 100];
-const PARTS_OPTIONS = [2, 3, 4, 5, 10];
-
 export default function BalanceRiskForm({
   balance,
   setBalance,
@@ -46,137 +31,102 @@ export default function BalanceRiskForm({
   selectedCoin,
   partsCount,
   setPartsCount,
-}: BalanceRiskProps) {
-  const allowedOptions = ALL_LEVERAGE_OPTIONS.filter(
-    (opt) => opt <= maxSafeLeverage,
-  );
-
-  useEffect(() => {
-    if (leverage > maxSafeLeverage) {
-      setLeverage(maxSafeLeverage);
-    }
-  }, [maxSafeLeverage, leverage, setLeverage]);
-
+}: BalanceRiskFormProps) {
   return (
-    <div className="space-y-3 sm:space-y-3.5">
-      {/* Направление позиции - Крупные адаптивные кнопки тапа */}
-      <ButtonGroup className="w-full h-9 sm:h-11 flex">
+    <div className="space-y-3.5 sm:space-y-4">
+      {/* Кнопки переключения направления BUY/SELL */}
+      <div className="grid grid-cols-2 gap-2 select-none">
         <Button
           type="button"
-          variant={side === "BUY" ? "default" : "outline"}
-          className={`flex-1 h-full text-xs sm:text-sm font-extrabold tracking-wider uppercase transition-all shadow-none ${
-            side === "BUY"
-              ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
           onClick={() => setSide("BUY")}
+          className={`h-8 sm:h-9 font-bold text-xs rounded-lg transition-all border ${side === "BUY" ? "bg-emerald-500 hover:bg-emerald-600 text-white border-transparent" : "bg-transparent text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/5"}`}
         >
-          Long (Buy)
+          LONG (BUY)
         </Button>
         <Button
           type="button"
-          variant={side === "SELL" ? "default" : "outline"}
-          className={`flex-1 h-full text-xs sm:text-sm font-extrabold tracking-wider uppercase transition-all shadow-none ${
-            side === "SELL"
-              ? "bg-rose-600 hover:bg-rose-700 text-white border-rose-600"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
           onClick={() => setSide("SELL")}
+          className={`h-8 sm:h-9 font-bold text-xs rounded-lg transition-all border ${side === "SELL" ? "bg-rose-500 hover:bg-rose-600 text-white border-transparent" : "bg-transparent text-rose-500 border-rose-500/20 hover:bg-rose-500/5"}`}
         >
-          Short (Sell)
+          SHORT (SELL)
         </Button>
-      </ButtonGroup>
-
-      {/* Выбор количества частей депозита */}
-      <div className="space-y-1">
-        <div className="flex justify-between items-center px-0.5">
-          <Label className="text-[11px] sm:text-sm">Разделение депозита</Label>
-          <span className="text-[9px] sm:text-xs font-bold text-muted-foreground">
-            1/{partsCount} • {(balance / partsCount).toFixed(1)} USDT
-          </span>
-        </div>
-        <Tabs
-          value={String(partsCount)}
-          onValueChange={(val) => setPartsCount(Number(val))}
-          className="w-full"
-        >
-          {/* Адаптированная высота h-7.5 на мобильных устройствах */}
-          <TabsList className="w-full h-7.5 sm:h-8 bg-muted/40 dark:bg-muted/10 border border-border/30 rounded-lg flex p-0.5">
-            {PARTS_OPTIONS.map((opt) => (
-              <TabsTrigger
-                key={`part-opt-${opt}`}
-                value={String(opt)}
-                className="flex-1 text-[11px] sm:text-xs font-bold rounded-md"
-              >
-                {opt}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
       </div>
-      {/* ФИКС АДАПТИВНОСТИ: 2 колонки на мобилках, перестроение в 3 колонки со sm брейкпоинта */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3">
-        <div className="space-y-1">
-          <Label htmlFor="balance" className="text-[11px] sm:text-sm px-0.5">
-            Депозит (USDT)
-          </Label>
-          <Input
-            id="balance"
-            type="number"
-            value={balance}
-            className="h-8.5 sm:h-9 text-xs sm:text-sm rounded-lg px-2"
-            onChange={(e) => setBalance(Number(e.target.value))}
-          />
+
+      {/* МOБИЛЬНЫЙ ФИКС: Депозит, Риск и Плечо жестко зафиксированы в одну строчку через grid-cols-3 */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="flex flex-col space-y-1">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground select-none">
+            Депозит
+          </label>
+          <div className="relative flex items-center">
+            <Input
+              type="number"
+              value={balance || ""}
+              onChange={(e) => setBalance(parseFloat(e.target.value) || 0)}
+              className="h-8.5 text-xs bg-muted/20 border-border/40 focus-visible:ring-ring/30 rounded-lg pr-7 font-semibold"
+            />
+            <span className="absolute right-2 text-[9px] font-bold text-muted-foreground/60 select-none">
+              $
+            </span>
+          </div>
         </div>
 
-        <div className="space-y-1">
-          <Label
-            htmlFor="riskPercent"
-            className="text-[11px] sm:text-sm px-0.5"
-          >
-            Риск (%)
-          </Label>
-          <Input
-            id="riskPercent"
-            type="number"
-            step="0.5"
-            value={riskPercent}
-            className="h-8.5 sm:h-9 text-xs sm:text-sm rounded-lg px-2"
-            onChange={(e) => setRiskPercent(Number(e.target.value))}
-          />
+        <div className="flex flex-col space-y-1">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground select-none">
+            Риск
+          </label>
+          <div className="relative flex items-center">
+            <Input
+              type="number"
+              value={riskPercent || ""}
+              onChange={(e) => setRiskPercent(parseFloat(e.target.value) || 0)}
+              className="h-8.5 text-xs bg-muted/20 border-border/40 focus-visible:ring-ring/30 rounded-lg pr-7 font-semibold"
+            />
+            <span className="absolute right-2 text-[9px] font-bold text-muted-foreground/60 select-none">
+              %
+            </span>
+          </div>
         </div>
 
-        {/* На мобильных плечо занимает всю ширину под депозитом и риском (col-span-2) */}
-        <div className="space-y-1 col-span-2 sm:col-span-1">
-          <Label
-            htmlFor="leverage-select"
-            className="text-[11px] sm:text-sm px-0.5"
-          >
-            Кредитное плечо
-          </Label>
-          <Select
-            key={`${selectedCoin}-${maxSafeLeverage}-${leverage}`}
-            value={String(leverage)}
-            onValueChange={(val) => setLeverage(Number(val))}
-          >
-            <SelectTrigger
-              id="leverage-select"
-              className="w-full h-8.5! sm:h-9! m-0! text-xs sm:text-sm bg-transparent rounded-lg"
+        <div className="flex flex-col space-y-1">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground select-none">
+            Плечо
+          </label>
+          <div className="relative flex items-center">
+            <Input
+              type="number"
+              value={leverage || ""}
+              max={maxSafeLeverage}
+              onChange={(e) => {
+                let val = parseInt(e.target.value) || 1;
+                if (val > maxSafeLeverage) val = maxSafeLeverage;
+                setLeverage(val);
+              }}
+              className="h-8.5 text-xs bg-muted/20 border-border/40 focus-visible:ring-ring/30 rounded-lg pr-7 font-semibold"
+            />
+            <span className="absolute right-1 text-[9px] font-bold text-muted-foreground/60 select-none">
+              x{maxSafeLeverage}
+            </span>
+          </div>
+        </div>
+      </div>
+      {/* Выбор количества частей капитала */}
+      <div className="flex flex-col space-y-1">
+        <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground select-none">
+          Разделение депо (Долей: {partsCount})
+        </label>
+        <div className="grid grid-cols-5 gap-1 select-none">
+          {[2, 3, 4, 5, 10].map((num) => (
+            <Button
+              key={num}
+              type="button"
+              variant="outline"
+              onClick={() => setPartsCount(num)}
+              className={`h-7 text-[10px] font-black rounded-md transition-all ${partsCount === num ? "bg-amber-500/10 text-amber-500 border-amber-500/30 hover:bg-amber-500/15" : "bg-muted/10 border-border/30 hover:bg-muted/30 text-muted-foreground"}`}
             >
-              <SelectValue placeholder="x10" />
-            </SelectTrigger>
-            <SelectContent>
-              {allowedOptions.map((lev) => (
-                <SelectItem
-                  key={`lev-${lev}`}
-                  value={String(lev)}
-                  className="text-xs sm:text-sm"
-                >
-                  x{lev}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+              1/{num}
+            </Button>
+          ))}
         </div>
       </div>
     </div>

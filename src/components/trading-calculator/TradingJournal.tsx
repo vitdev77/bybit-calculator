@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
-import { CardTitle } from "@/components/ui/card";
+import React, { useEffect, useState, useCallback } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   CheckCircle2,
@@ -14,22 +13,10 @@ import {
   Clock,
   Pause,
   Download,
-  TrendingUp,
-  ChevronUp,
-  ChevronDown,
 } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-} from "recharts";
 import {
   Table,
   TableBody,
@@ -63,7 +50,7 @@ interface Deal {
   margin: number;
   leverage: number;
   status: "OPEN" | "PROFIT" | "LOSS" | "CLOSED";
-  closed_at_price?: number | null;
+  closed_at_price?: number | string | null;
 }
 
 interface TradingJournalProps {
@@ -104,20 +91,6 @@ export default function TradingJournal({
   const [frozenPnL, setFrozenPnL] = useState<
     Record<number, { pnl: number; roi: number }>
   >({});
-
-  // ФИКС: Дефолтное значение стейта теперь false (график свернут на старте)
-  const [isChartVisible, setIsChartVisible] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem(
-        "bybit_calculator_journal_chart_visible",
-      );
-      return saved !== null ? saved === "true" : false;
-    }
-    return false;
-  });
-
-  const [renderChart, setRenderChart] = useState(isChartVisible);
-
   const fetchJournal = useCallback(async () => {
     try {
       const res = await fetch("/api/journal", {
@@ -135,10 +108,10 @@ export default function TradingJournal({
       setDeals(cleanArray);
 
       const openCount = cleanArray.filter(
-        (d: Deal) => d.status === "OPEN",
+        (d: Deal) => d.status?.toUpperCase() === "OPEN",
       ).length;
       const closedCount = cleanArray.filter(
-        (d: Deal) => d.status !== "OPEN",
+        (d: Deal) => d.status?.toUpperCase() !== "OPEN",
       ).length;
 
       onDealsCountChange?.({ open: openCount, closed: closedCount });
@@ -155,81 +128,12 @@ export default function TradingJournal({
     return () =>
       window.removeEventListener("refresh-trading-journal", fetchJournal);
   }, [fetchJournal]);
-
-  useEffect(() => {
-    localStorage.setItem(
-      "bybit_calculator_journal_chart_visible",
-      String(isChartVisible),
-    );
-    if (isChartVisible) {
-      setRenderChart(true);
-    } else {
-      const timer = setTimeout(() => setRenderChart(false), 300);
-      return () => clearTimeout(timer);
-    }
-  }, [isChartVisible]);
-  // Магическое ядро графика: Считаем общую прибыль по дням и суммарный итог
-  const { chartData, totalNetPnL } = useMemo(() => {
-    if (!deals || deals.length === 0) return { chartData: [], totalNetPnL: 0 };
-
-    const closedDeals = [...deals]
-      .filter((d) => d.status !== "OPEN")
-      .sort(
-        (a, b) =>
-          new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-      );
-
-    let runningTotalPnL = 0;
-    const pnlByDate: Record<string, number> = {};
-
-    closedDeals.forEach((deal) => {
-      const date = new Date(deal.created_at).toLocaleDateString("ru-RU", {
-        day: "2-digit",
-        month: "2-digit",
-      });
-
-      const isLong = deal.side === "BUY";
-      const openFeeRate = deal.order_type === "LIMIT" ? 0.0002 : 0.00055;
-      const totalFeeRate = openFeeRate + 0.00055;
-
-      let targetPrice = deal.entry_price;
-      if (deal.status === "PROFIT") targetPrice = deal.take_profit;
-      else if (deal.status === "LOSS") targetPrice = deal.stop_loss;
-      else if (deal.status === "CLOSED" && deal.closed_at_price)
-        targetPrice = Number(deal.closed_at_price);
-
-      const cryptoQty =
-        deal.entry_price > 0 ? deal.volume / deal.entry_price : 0;
-      const totalFeeUsdt = deal.volume * totalFeeRate;
-      const rawFinalPnl = isLong
-        ? (targetPrice - deal.entry_price) * cryptoQty
-        : (deal.entry_price - targetPrice) * cryptoQty;
-      const finalPnlUsdt = rawFinalPnl - totalFeeUsdt;
-
-      pnlByDate[date] = (pnlByDate[date] || 0) + finalPnlUsdt;
-      runningTotalPnL += finalPnlUsdt;
-    });
-
-    let cumulativePnL = 0;
-    const formattedChartData = Object.keys(pnlByDate).map((date) => {
-      cumulativePnL += pnlByDate[date];
-      return {
-        name: date,
-        "Чистый PnL": parseFloat(pnlByDate[date].toFixed(2)),
-        Баланс: parseFloat(cumulativePnL.toFixed(2)),
-      };
-    });
-
-    return { chartData: formattedChartData, totalNetPnL: runningTotalPnL };
-  }, [deals]);
   const exportToCSV = () => {
     if (!deals || deals.length === 0) return;
-
     const headers = [
       "ID",
       "Дата создания",
       "Торговая пара",
-      "Направление",
       "Тип ордера",
       "Объем (USDT)",
       "Маржа (USDT)",
@@ -239,14 +143,12 @@ export default function TradingJournal({
       "Take Profit",
       "Статус",
     ];
-
     const rows = deals.map((d) => [
       String(d.id || ""),
       d.created_at
         ? String(new Date(d.created_at).toLocaleString("ru-RU"))
         : "",
       String(d.coin || ""),
-      d.side === "BUY" ? "LONG" : "SHORT",
       String(d.order_type || ""),
       String(d.volume || 0),
       String(d.margin || 0),
@@ -256,7 +158,6 @@ export default function TradingJournal({
       String(d.take_profit ?? 0),
       String(d.status || ""),
     ]);
-
     const csvContent = [
       headers.join(","),
       ...rows.map((row) => row.join(",")),
@@ -277,128 +178,81 @@ export default function TradingJournal({
   };
 
   const totalDeals = deals.length;
-  const profitDeals = deals.filter((d) => d.status === "PROFIT").length;
-  const lossDeals = deals.filter((d) => d.status === "LOSS").length;
-  const manualClosedDeals = deals.filter((d) => d.status === "CLOSED").length;
-
-  const winRate =
-    totalDeals > 0
-      ? ((profitDeals / (profitDeals + lossDeals || 1)) * 100).toFixed(0)
-      : "0";
+  const profitDeals = deals.filter(
+    (d) => d.status?.toUpperCase() === "PROFIT",
+  ).length;
+  const lossDeals = deals.filter(
+    (d) => d.status?.toUpperCase() === "LOSS",
+  ).length;
+  const manualClosedDeals = deals.filter(
+    (d) => d.status?.toUpperCase() === "CLOSED",
+  ).length;
   const handleUpdateStatus = async (
     id: number,
     status: "PROFIT" | "LOSS" | "CLOSED",
   ) => {
     try {
       const bodyPayload: any = { id, status };
-      if (status === "CLOSED" && livePrice > 0) {
+      if (status === "CLOSED" && livePrice > 0)
         bodyPayload.closed_at_price = livePrice;
-      }
-
-      const res = await fetch("/api/journal", {
+      await fetch("/api/journal", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(bodyPayload),
       });
-      if (!res.ok) throw new Error("Update error");
-
-      const targetDeal = deals.find((d) => d.id === id);
-      const coinName = targetDeal ? targetDeal.coin.replace("USDT", "") : "";
-      let toastTitle = "Сделка закрыта руками ✋";
-      let toastType: "success" | "warning" | "info" = "info";
-
-      if (status === "PROFIT") {
-        toastTitle = "Сделка закрыта в ПЛЮС! 🎉";
-        toastType = "success";
-      } else if (status === "LOSS") {
-        toastTitle = "Сделка закрыта в стоп 📉";
-        toastType = "warning";
-      }
-
-      toast.add({
-        title: toastTitle,
-        description: `Статус по ${coinName} обновлен.`,
-        type: toastType,
-      });
       fetchJournal();
-    } catch (err) {
-      console.error("Ошибка при изменении статуса:", err);
+    } catch (e) {
+      console.error(e);
     }
   };
 
   const handleDeleteDeal = async (id: number) => {
     try {
-      const targetDeal = deals.find((d) => d.id === id);
-      const coinName = targetDeal ? targetDeal.coin.replace("USDT", "") : "";
-      const res = await fetch(`/api/journal?id=${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Delete error");
-
-      toast.add({
-        title: "Запись удалена",
-        description: `Трейд по паре ${coinName}USDT удален.`,
-        type: "info",
-      });
-      await fetchJournal();
+      await fetch(`/api/journal?id=${id}`, { method: "DELETE" });
+      fetchJournal();
       setActiveDeleteId(null);
-    } catch (err) {
-      console.error("Ошибка при удалении трейда:", err);
+    } catch (e) {
+      console.error(e);
     }
   };
 
   const handleClearAllDeals = async () => {
     try {
-      const res = await fetch("/api/journal", { method: "DELETE" });
-      if (!res.ok) throw new Error("Clear all error");
-      toast.add({
-        title: "Журнал зачищен",
-        description: "Все записи были успешно удалены.",
-        type: "success",
-      });
-      await fetchJournal();
+      await fetch("/api/journal", { method: "DELETE" });
+      fetchJournal();
       setIsClearOpen(false);
-    } catch (err) {
-      console.error("Ошибка при полной очистке журнала:", err);
+    } catch (e) {
+      console.error(e);
     }
   };
   const renderDealRow = (deal: Deal) => {
     const isLong = deal.side === "BUY";
-    const isOpen = deal.status === "OPEN";
+    const isOpen = deal.status?.toUpperCase() === "OPEN";
     const precision =
       JOURNAL_PRECISION_MAP[deal.coin] !== undefined
         ? JOURNAL_PRECISION_MAP[deal.coin]
         : 4;
-    const openFeeRate = deal.order_type === "LIMIT" ? 0.0002 : 0.00055;
-    const closeFeeRate = 0.00055;
-    const totalFeeRate = openFeeRate + closeFeeRate;
-
+    const totalFeeRate =
+      (deal.order_type === "LIMIT" ? 0.0002 : 0.00055) + 0.00055;
     const breakevenPrice = isLong
       ? deal.entry_price * (1 + totalFeeRate)
       : deal.entry_price * (1 - totalFeeRate);
     let pnlDisplay = null;
     const isCurrentActiveCoin = activeCoin === deal.coin;
-    let isHitTP = false;
-    let isHitSL = false;
 
     if (isOpen && isCurrentActiveCoin && livePrice > 0) {
-      const isPriceValidForCoin =
+      const isPriceValid =
         (deal.coin === "BTCUSDT" && livePrice > 30000) ||
         (deal.coin === "ETHUSDT" && livePrice > 1000 && livePrice < 10000) ||
         (deal.coin !== "BTCUSDT" && deal.coin !== "ETHUSDT" && livePrice < 500);
-
-      if (isPriceValidForCoin) {
-        isHitTP = isLong
-          ? livePrice >= (deal.take_profit ?? 0)
-          : livePrice <= (deal.take_profit ?? 0);
-        isHitSL = isLong
-          ? livePrice <= (deal.stop_loss ?? 0)
-          : livePrice >= (deal.stop_loss ?? 0);
-
+      if (isPriceValid) {
         const cryptoQty = deal.volume / deal.entry_price;
-        const totalFeeUsdt = deal.volume * totalFeeRate;
-        const rawPnlUsdt = isLong
-          ? (livePrice - deal.entry_price) * cryptoQty
-          : (deal.entry_price - livePrice) * cryptoQty;
-        const livePnlUsdt = rawPnlUsdt - totalFeeUsdt;
+        const livePnlUsdt =
+          (isLong
+            ? livePrice - deal.entry_price
+            : deal.entry_price - livePrice) *
+            cryptoQty -
+          deal.volume * totalFeeRate;
         const liveRoi = deal.margin > 0 ? (livePnlUsdt / deal.margin) * 100 : 0;
         const isProfit = livePnlUsdt >= 0;
 
@@ -410,7 +264,6 @@ export default function TradingJournal({
             }));
           }, 0);
         }
-
         pnlDisplay = (
           <div className="flex flex-col text-right select-none relative w-full pl-5 sm:pl-6">
             <span className="absolute left-1 top-1.5 flex h-1.5 w-1.5">
@@ -442,22 +295,20 @@ export default function TradingJournal({
     }
     if (!pnlDisplay) {
       const lastKnown = frozenPnL[deal.id] || { pnl: 0, roi: 0 };
-      const isLastProfit = lastKnown.pnl >= 0;
-
       if (isOpen) {
         pnlDisplay = (
           <div className="flex flex-col text-right select-none opacity-45 relative w-full pl-5 sm:pl-6">
             <Pause className="size-2 text-muted-foreground absolute left-0.5 top-1.5" />
             <span
-              className={`text-[11px] sm:text-xs font-bold ${isLastProfit ? "text-emerald-600/80 dark:text-emerald-400/80" : "text-rose-600/80 dark:text-rose-400/80"}`}
+              className={`text-[11px] sm:text-xs font-bold ${lastKnown.pnl >= 0 ? "text-emerald-600/80 dark:text-emerald-400/80" : "text-rose-600/80 dark:text-rose-400/80"}`}
             >
-              {isLastProfit ? "+" : ""}
+              {lastKnown.pnl >= 0 ? "+" : ""}
               {lastKnown.roi.toFixed(2)}%
             </span>
             <span
-              className={`text-[10px] font-bold ${isLastProfit ? "text-emerald-500/60" : "text-rose-500/60"}`}
+              className={`text-[10px] font-bold ${lastKnown.pnl >= 0 ? "text-emerald-500/60" : "text-rose-500/60"}`}
             >
-              {isLastProfit ? "+" : ""}
+              {lastKnown.pnl >= 0 ? "+" : ""}
               {lastKnown.pnl.toFixed(3)}{" "}
               <span className="text-[8px] font-normal text-muted-foreground opacity-60">
                 USDT
@@ -466,39 +317,49 @@ export default function TradingJournal({
           </div>
         );
       } else {
+        const statusUpper = deal.status?.toUpperCase();
         let targetPrice =
-          deal.status === "PROFIT"
+          statusUpper === "PROFIT"
             ? deal.take_profit
-            : deal.status === "LOSS"
+            : statusUpper === "LOSS"
               ? deal.stop_loss
-              : deal.closed_at_price && Number(deal.closed_at_price) > 0
-                ? Number(deal.closed_at_price)
-                : isCurrentActiveCoin && livePrice > 0
-                  ? livePrice
-                  : deal.entry_price;
+              : deal.entry_price;
+
+        if (statusUpper === "CLOSED") {
+          const parsedPrice = deal.closed_at_price
+            ? parseFloat(String(deal.closed_at_price))
+            : 0;
+          targetPrice =
+            parsedPrice > 0
+              ? parsedPrice
+              : livePrice > 0
+                ? livePrice
+                : deal.entry_price;
+        }
+
         const cryptoQty =
           deal.entry_price > 0 ? deal.volume / deal.entry_price : 0;
-        const totalFeeUsdt = deal.volume * totalFeeRate;
-        const rawFinalPnl = isLong
-          ? (targetPrice - deal.entry_price) * cryptoQty
-          : (deal.entry_price - targetPrice) * cryptoQty;
-        const finalPnlUsdt = rawFinalPnl - totalFeeUsdt;
+        const finalPnlUsdt =
+          (isLong
+            ? targetPrice - deal.entry_price
+            : deal.entry_price - targetPrice) *
+            cryptoQty -
+          deal.volume * totalFeeRate;
         const finalRoi =
           deal.margin > 0.01 ? (finalPnlUsdt / deal.margin) * 100 : 0;
-        const isFinalProfit = finalPnlUsdt >= 0;
 
         pnlDisplay = (
           <div className="flex flex-col text-right opacity-65 select-none w-full">
             <span
-              className={`font-black text-[11px] sm:text-xs ${isFinalProfit ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
+              className={`font-black text-[11px] sm:text-xs ${finalPnlUsdt >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
             >
-              {isFinalProfit ? "+" : ""}
+              {finalPnlUsdt >= 0 ? "+" : ""}
               {finalRoi.toFixed(2)}%
             </span>
             <span
-              className={`text-[9px] sm:text-[10px] font-bold ${isFinalProfit ? "text-emerald-500/80" : "text-rose-500/80"}`}
+              className={`text-[9px] sm:text-[10px] font-bold ${finalPnlUsdt >= 0 ? "text-emerald-500/80" : "text-rose-500/80"}`}
             >
-              {isFinalProfit ? "+" : ""}
+              {finalPnlUsdt >= 0 ? "+" : ""}
               {finalPnlUsdt.toFixed(3)}{" "}
               <span className="text-[8px] font-normal opacity-60 text-muted-foreground">
                 USDT
@@ -509,74 +370,50 @@ export default function TradingJournal({
       }
     }
 
-    let formattedDateOnly = "--.--.----",
-      formattedTimeOnly = "--:--";
+    let dStr = "--.--.--",
+      tStr = "--:--";
     if (deal.created_at) {
       try {
         const d = new Date(deal.created_at);
-        formattedDateOnly = `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getFullYear()).slice(-2)}`;
-        formattedTimeOnly = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+        dStr = `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getFullYear()).slice(-2)}`;
+        tStr = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
       } catch (e) {}
     }
-
-    const statusIcon =
-      deal.status === "PROFIT" ? (
-        <span className="shrink-0 mt-0.5 flex" title="Профит">
-          <CheckCircle2 className="size-3 text-emerald-500" />
-        </span>
-      ) : deal.status === "LOSS" ? (
-        <span className="shrink-0 mt-0.5 flex" title="Стоп">
-          <XCircle className="size-3 text-rose-500" />
-        </span>
-      ) : deal.status === "CLOSED" ? (
-        <span className="shrink-0 mt-0.5 flex opacity-60" title="Руками">
-          <Clock className="size-3 text-muted-foreground" />
-        </span>
-      ) : (
-        <span
-          className="relative flex h-1.5 w-1.5 shrink-0 mt-1.5 mx-0.5"
-          title="Активная"
-        >
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500"></span>
-        </span>
-      );
-
     return (
       <TableRow
         key={deal.id}
         className={`transition-all border-b border-border/10 ${isCurrentActiveCoin ? "bg-amber-500/5 dark:bg-amber-500/10" : !isOpen ? "opacity-45" : ""}`}
       >
-        <TableCell className="py-2 px-1.5 sm:px-3 whitespace-nowrap relative pl-3.5 sm:pl-5">
+        <TableCell className="py-2 px-1.5 sm:px-3 relative pl-3.5 sm:pl-5">
           <div
             className={`absolute left-0 top-0 bottom-0 transition-all duration-300 ${isLong ? "w-1 bg-emerald-500" : "w-1 bg-rose-500"} ${isCurrentActiveCoin ? "w-1.5" : ""}`}
           />
           <div className="flex items-start gap-1">
-            {statusIcon}
-            <div className="flex flex-col space-y-0.5 text-[9px] sm:text-[10px] select-none text-muted-foreground">
-              <span className="font-semibold text-foreground/80">
-                {formattedDateOnly}
+            {deal.status?.toUpperCase() === "PROFIT" ? (
+              <CheckCircle2 className="size-3 text-emerald-500 mt-0.5" />
+            ) : deal.status?.toUpperCase() === "LOSS" ? (
+              <XCircle className="size-3 text-rose-500 mt-0.5" />
+            ) : deal.status?.toUpperCase() === "CLOSED" ? (
+              <Clock className="size-3 text-muted-foreground mt-0.5 opacity-60" />
+            ) : (
+              <span className="relative flex h-1.5 w-1.5 mt-1.5 mx-0.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500"></span>
               </span>
-              <span className="opacity-60 text-[8px] sm:text-[9px]">
-                {formattedTimeOnly}
-              </span>
+            )}
+            <div className="flex flex-col text-[9px] sm:text-[10px] text-muted-foreground">
+              <span className="font-semibold text-foreground/80">{dStr}</span>
+              <span className="opacity-60">{tStr}</span>
             </div>
           </div>
         </TableCell>
         <TableCell
           onClick={() => onCoinSelect?.(deal.coin)}
-          className="py-2 px-1.5 sm:px-3 font-bold cursor-pointer transition-colors select-none group/coin whitespace-nowrap text-[11px] sm:text-xs tracking-tight"
+          className="py-2 px-1.5 sm:px-3 font-bold cursor-pointer select-none group/coin text-[11px] sm:text-xs"
         >
-          <div className="flex flex-col space-y-0.5">
-            <span className="border-b border-dotted border-transparent group-hover/coin:border-amber-500/60 text-foreground">
-              {deal.coin}
-            </span>
-            <span
-              className={`text-[8px] font-black w-fit leading-none ${isLong ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
-            >
-              {isLong ? "LONG" : "SHORT"}
-            </span>
-          </div>
+          <span className="border-b border-dotted border-muted-foreground/40 group-hover/coin:border-amber-500/80 transition-colors text-foreground">
+            {deal.coin}
+          </span>
         </TableCell>
         <TableCell className="py-2 px-1 sm:px-2">
           <span
@@ -600,13 +437,11 @@ export default function TradingJournal({
           {breakevenPrice.toFixed(precision)}
         </TableCell>
         <TableCell className="py-2 px-1.5 sm:px-3">
-          <div className="flex flex-col space-y-0.5 text-[11px] sm:text-xs">
+          <div className="flex flex-col text-[11px] sm:text-xs">
             <span
               className={
                 isOpen
-                  ? isHitTP
-                    ? "text-emerald-500 font-black"
-                    : "text-emerald-600/90 font-medium"
+                  ? "text-emerald-600/90 font-medium"
                   : "text-muted-foreground/60"
               }
             >
@@ -615,9 +450,7 @@ export default function TradingJournal({
             <span
               className={
                 isOpen
-                  ? isHitSL
-                    ? "text-rose-500 font-black"
-                    : "text-rose-600/90 font-medium"
+                  ? "text-rose-600/90 font-medium"
                   : "text-muted-foreground/60"
               }
             >
@@ -629,14 +462,14 @@ export default function TradingJournal({
           {pnlDisplay}
         </TableCell>
         <TableCell className="py-2 px-1.5 sm:px-3 text-right whitespace-nowrap">
-          <div className="flex items-center justify-end gap-0.5 sm:gap-1">
+          <div className="flex items-center justify-end gap-0.5">
             {isOpen && (
               <>
                 <Button
                   size="icon"
                   variant="ghost"
                   onClick={() => handleUpdateStatus(deal.id, "PROFIT")}
-                  className="h-7 w-7 p-0 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-md"
+                  className="h-7 w-7 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-md"
                 >
                   <Check className="size-3.5" />
                 </Button>
@@ -644,7 +477,7 @@ export default function TradingJournal({
                   size="icon"
                   variant="ghost"
                   onClick={() => handleUpdateStatus(deal.id, "LOSS")}
-                  className="h-7 w-7 p-0 text-rose-600 hover:bg-rose-600 hover:text-white rounded-md"
+                  className="h-7 w-7 text-rose-600 hover:bg-rose-600 hover:text-white rounded-md"
                 >
                   <X className="size-3.5" />
                 </Button>
@@ -652,7 +485,7 @@ export default function TradingJournal({
                   size="icon"
                   variant="ghost"
                   onClick={() => handleUpdateStatus(deal.id, "CLOSED")}
-                  className="h-7 w-7 p-0 text-muted-foreground hover:bg-muted hover:text-foreground rounded-md"
+                  className="h-7 w-7 text-muted-foreground hover:bg-muted hover:text-foreground rounded-md"
                 >
                   <LogOut className="size-3" />
                 </Button>
@@ -660,14 +493,14 @@ export default function TradingJournal({
             )}
             <AlertDialog
               open={activeDeleteId === deal.id}
-              onOpenChange={(open) => setActiveDeleteId(open ? deal.id : null)}
+              onOpenChange={(o) => setActiveDeleteId(o ? deal.id : null)}
             >
               <AlertDialogTrigger
                 className={buttonVariants({
                   variant: "ghost",
                   size: "icon",
                   className:
-                    "h-7 w-7 p-0 text-muted-foreground hover:text-rose-500",
+                    "h-7 w-7 text-muted-foreground hover:text-rose-500",
                 })}
               >
                 <Trash2 className="size-3" />
@@ -687,7 +520,7 @@ export default function TradingJournal({
                   <AlertDialogAction
                     onClick={() => handleDeleteDeal(deal.id)}
                     variant="destructive"
-                    className="rounded-xl text-xs h-9 bg-rose-600 hover:bg-rose-700 text-white border-none"
+                    className="rounded-xl text-white bg-rose-600 border-none text-xs h-9"
                   >
                     Удалить
                   </AlertDialogAction>
@@ -699,100 +532,17 @@ export default function TradingJournal({
       </TableRow>
     );
   };
-  const filteredDeals = deals.filter((deal) => {
-    const matchesSearch = deal.coin
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
-    if (statusFilter === "OPEN") return matchesSearch && deal.status === "OPEN";
-    if (statusFilter === "CLOSED")
-      return matchesSearch && deal.status !== "OPEN";
-    return matchesSearch;
-  });
 
+  const filteredDeals = deals.filter(
+    (d) =>
+      d.coin.toLowerCase().includes(searchQuery.toLowerCase()) &&
+      (statusFilter === "ALL" ||
+        (statusFilter === "OPEN"
+          ? d.status?.toUpperCase() === "OPEN"
+          : d.status?.toUpperCase() !== "OPEN")),
+  );
   return (
     <div className="w-full bg-transparent flex flex-col px-0.5 sm:px-6">
-      {/* ИНТЕГРАЦИЯ СВОРAЧИВАЕМОГО ГРАФИКА С ВЫВОДОМ ТЕКУЩЕЙ СИТУАЦИИ */}
-      {chartData.length > 0 && (
-        <div className="mb-4 sm:mb-6 border border-border/40 rounded-xl sm:rounded-2xl bg-muted/20 dark:bg-black/20 overflow-hidden select-none mx-1 sm:mx-0">
-          <div
-            onClick={() => setIsChartVisible(!isChartVisible)}
-            className="flex items-center justify-between p-3 sm:p-4 select-none cursor-pointer group/chart-header hover:opacity-90"
-          >
-            <div className="flex items-center gap-2">
-              <TrendingUp className="size-3.5 sm:size-4 text-emerald-500" />
-              <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-muted-foreground group-hover/chart-header:text-foreground transition-colors flex items-center gap-1.5">
-                Кривая доходности
-                {/* ФИКС: Живой вывод финансового итога по закрытым сделкам прямо в заголовок шторки */}
-                <span
-                  className={`font-black normal-case text-[10px] sm:text-xs ${totalNetPnL >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
-                >
-                  ({totalNetPnL >= 0 ? "+" : ""}
-                  {totalNetPnL.toFixed(2)} USDT)
-                </span>
-              </span>
-            </div>
-            <div className="text-muted-foreground group-hover/chart-header:text-foreground transition-colors">
-              {isChartVisible ? (
-                <ChevronUp className="size-3.5" />
-              ) : (
-                <ChevronDown className="size-3.5" />
-              )}
-            </div>
-          </div>
-
-          <div
-            className={`transition-all duration-300 ease-in-out w-full text-[9px] sm:text-[10px] ${isChartVisible ? "max-h-56 opacity-100 p-3 sm:p-4 pt-0 visible" : "max-h-0 opacity-0 p-0 overflow-hidden invisible"}`}
-          >
-            {renderChart && (
-              <div className="w-full h-32 sm:h-44">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    data={chartData}
-                    margin={{ top: 5, right: 5, left: -30, bottom: 0 }}
-                  >
-                    <defs>
-                      <linearGradient id="colorPnL" x1="0" y1="0" x2="0" y2="1">
-                        <stop
-                          offset="5%"
-                          stopColor="var(--color-primary, #10b981)"
-                          stopOpacity={0.2}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor="var(--color-primary, #10b981)"
-                          stopOpacity={0}
-                        />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke="rgba(128,128,128,0.08)"
-                    />
-                    <XAxis dataKey="name" stroke="#888888" tickLine={false} />
-                    <YAxis stroke="#888888" tickLine={false} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "var(--card, #1e1e24)",
-                        borderRadius: "10px",
-                        borderColor: "var(--border, rgba(128,128,128,0.15))",
-                        fontSize: "10px",
-                      }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="Баланс"
-                      stroke="var(--color-primary, #10b981)"
-                      strokeWidth={1.5}
-                      fillOpacity={1}
-                      fill="url(#colorPnL)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
       <div className="py-3 sm:py-4 border-b border-border/40 flex flex-col gap-3 sm:flex-row sm:items-center justify-between bg-transparent select-none mx-1 sm:mx-0">
         <div className="flex flex-row items-center gap-2 flex-1 w-full sm:max-w-xl">
           <div className="relative w-full sm:max-w-55 flex items-center group">
@@ -802,12 +552,12 @@ export default function TradingJournal({
               placeholder="Поиск пары..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-7 pr-7 h-7.5 text-xs bg-muted/20 dark:bg-muted/5 border-border/40 focus-visible:ring-ring/30 rounded-lg w-full"
+              className="pl-7 pr-7 h-7.5 text-xs bg-muted/20 border-border/40 rounded-lg w-full"
             />
             {searchQuery.length > 0 && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-2 h-4 w-4 flex items-center justify-center rounded-md text-muted-foreground/60 hover:text-foreground transition-all p-0 border-none bg-transparent"
+                className="absolute right-2 text-muted-foreground/60 hover:text-foreground bg-transparent border-none p-0"
               >
                 <X className="size-3" />
               </button>
@@ -817,40 +567,36 @@ export default function TradingJournal({
             value={statusFilter}
             onValueChange={(val) => setStatusFilter(val || "ALL")}
           >
-            <TabsList
-              variant="default"
-              className="h-7.5 p-0.5 bg-muted/40 dark:bg-muted/10 border border-border/30 rounded-lg"
-            >
+            <TabsList className="h-7.5 p-0.5 bg-muted/40 border border-border/30 rounded-lg">
               <TabsTrigger
                 value="ALL"
-                className="text-[11px] px-2 font-semibold rounded-md"
+                className="text-[11px] px-2 font-semibold"
               >
                 Все
               </TabsTrigger>
               <TabsTrigger
                 value="OPEN"
-                className="text-[11px] px-2 font-semibold rounded-md"
+                className="text-[11px] px-2 font-semibold"
               >
                 Откр.
               </TabsTrigger>
               <TabsTrigger
                 value="CLOSED"
-                className="text-[11px] px-2 font-semibold rounded-md"
+                className="text-[11px] px-2 font-semibold"
               >
                 Закр.
               </TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
-
-        <div className="flex items-center gap-2.5 sm:gap-4 text-[11px] sm:text-xs justify-between sm:justify-end w-full sm:w-auto overflow-x-auto sm:overflow-visible pb-1 sm:pb-0 scrollbar-none">
-          <div className="text-center sm:text-right whitespace-nowrap">
+        <div className="flex items-center gap-2.5 sm:gap-4 text-[11px] sm:text-xs justify-between sm:justify-end w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+          <div className="text-center">
             <span className="text-muted-foreground block text-[9px] uppercase">
               Всего
             </span>
             <span className="font-bold text-xs sm:text-sm">{totalDeals}</span>
           </div>
-          <div className="text-center sm:text-right border-l pl-2 sm:pl-3 border-border/40 whitespace-nowrap">
+          <div className="text-center border-l pl-2 border-border/40">
             <span className="text-emerald-500 block text-[9px] uppercase">
               Тейки
             </span>
@@ -858,7 +604,7 @@ export default function TradingJournal({
               {profitDeals}
             </span>
           </div>
-          <div className="text-center sm:text-right border-l pl-2 sm:pl-3 border-border/40 whitespace-nowrap">
+          <div className="text-center border-l pl-2 border-border/40">
             <span className="text-rose-500 block text-[9px] uppercase">
               Стопы
             </span>
@@ -866,33 +612,23 @@ export default function TradingJournal({
               {lossDeals}
             </span>
           </div>
-          <div className="text-center sm:text-right border-l pl-2 sm:pl-3 border-border/40 whitespace-nowrap">
-            <span className="text-violet-500 block text-[9px] uppercase font-medium">
+          <div className="text-center border-l pl-2 border-border/40">
+            <span className="text-violet-500 block text-[9px] uppercase">
               Ручные
             </span>
             <span className="font-bold text-violet-600 text-sm">
               {manualClosedDeals}
             </span>
           </div>
-          <div className="text-center sm:text-right border-l pl-2 sm:pl-3 border-border/40 bg-muted/40 dark:bg-muted/10 px-1.5 py-0.5 rounded-md border whitespace-nowrap">
-            <span className="text-amber-500 block text-[9px] uppercase font-medium">
-              WinRate
-            </span>
-            <span className="font-extrabold text-xs sm:text-sm">
-              {winRate}%
-            </span>
-          </div>
-
           <div className="flex items-center gap-1 pl-1 border-l border-border/40 shrink-0">
             {totalDeals > 0 && (
               <Button
                 onClick={exportToCSV}
                 variant="outline"
-                size="icon-xs"
-                className="size-7.5 rounded-lg text-muted-foreground border-border/60 hover:text-foreground"
-                title="Экспорт в CSV"
+                size="icon-sm"
+                className="size-8 rounded-xl text-muted-foreground border-border/60 hover:text-foreground"
               >
-                <Download className="size-3.5" />
+                <Download className="size-4" />
               </Button>
             )}
             {totalDeals > 0 && (
@@ -902,7 +638,7 @@ export default function TradingJournal({
                     variant: "outline",
                     size: "icon-xs",
                     className:
-                      "h-7.5 w-7.5 text-rose-600 border-rose-500/20 hover:bg-rose-600 hover:text-white rounded-lg p-0",
+                      "h-7.5 w-7.5 text-rose-600 border-rose-500/20 hover:bg-rose-600 rounded-lg p-0",
                   })}
                 >
                   <Trash2 className="size-3.5 shrink-0" />
@@ -922,7 +658,7 @@ export default function TradingJournal({
                     <AlertDialogAction
                       onClick={handleClearAllDeals}
                       variant="destructive"
-                      className="rounded-xl text-xs h-9 bg-rose-600 hover:bg-rose-700 text-white border-none"
+                      className="rounded-xl text-xs h-9 bg-rose-600 text-white border-none"
                     >
                       Удалить всё
                     </AlertDialogAction>
@@ -933,42 +669,35 @@ export default function TradingJournal({
           </div>
         </div>
       </div>
-
-      <div className="py-3 sm:py-6 bg-transparent overflow-hidden">
+      <div className="py-3 sm:py-6 overflow-hidden">
         {filteredDeals.length === 0 ? (
-          <div className="p-8 text-center text-xs text-muted-foreground font-medium select-none">
+          <div className="p-8 text-center text-xs text-muted-foreground font-medium">
             Ничего не найдено.
           </div>
         ) : (
-          <div className="w-full rounded-xl sm:rounded-2xl border border-border/50 overflow-x-auto bg-background shadow-sm scrollbar-thin">
+          <div className="w-full rounded-xl border border-border/50 overflow-x-auto bg-background shadow-sm scrollbar-thin">
             <Table className="w-full text-xs min-w-180">
               <TableHeader>
-                <TableRow className="border-b border-border/20 bg-muted/30 dark:bg-muted/10 text-[9px] sm:text-[10px] uppercase tracking-wider text-muted-foreground font-medium hover:bg-muted/30">
-                  <TableHead className="py-2 px-1.5 sm:px-3 h-auto text-muted-foreground font-medium pl-3.5 sm:pl-5">
+                <TableRow className="border-b border-border/20 bg-muted/30 text-[9px] sm:text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                  <TableHead className="py-2 px-1.5 h-auto pl-3.5 sm:pl-5">
                     Вход / Status
                   </TableHead>
-                  <TableHead className="py-2 px-1.5 sm:px-3 h-auto text-muted-foreground font-medium">
-                    Пара
-                  </TableHead>
-                  <TableHead className="py-2 px-1 sm:px-2 h-auto text-muted-foreground font-medium">
-                    Тип
-                  </TableHead>
-                  <TableHead className="py-2 px-1.5 sm:px-3 h-auto text-muted-foreground font-medium">
+                  <TableHead className="py-2 px-1.5 h-auto">Пара</TableHead>
+                  <TableHead className="py-2 px-1 h-auto">Тип</TableHead>
+                  <TableHead className="py-2 px-1.5 h-auto">
                     Объем / Маржа
                   </TableHead>
-                  <TableHead className="py-2 px-1.5 sm:px-3 h-auto text-muted-foreground font-medium">
+                  <TableHead className="py-2 px-1.5 h-auto">
                     Цена Входа
                   </TableHead>
-                  <TableHead className="py-2 px-1.5 sm:px-3 h-auto text-muted-foreground font-medium">
+                  <TableHead className="py-2 px-1.5 h-auto">
                     Безубыток
                   </TableHead>
-                  <TableHead className="py-2 px-1.5 sm:px-3 h-auto text-muted-foreground font-medium">
-                    TP / SL
-                  </TableHead>
-                  <TableHead className="py-2.5 px-2 text-right text-muted-foreground font-medium">
+                  <TableHead className="py-2 px-1.5 h-auto">TP / SL</TableHead>
+                  <TableHead className="py-2.5 px-2 text-right">
                     Результат (PnL)
                   </TableHead>
-                  <TableHead className="py-2 px-1.5 sm:px-3 h-auto text-right text-muted-foreground font-medium">
+                  <TableHead className="py-2 px-1.5 h-auto text-right">
                     Действия
                   </TableHead>
                 </TableRow>
