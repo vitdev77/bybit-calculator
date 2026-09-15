@@ -73,11 +73,11 @@ export default function MarketTicker({
   if (!data) {
     return (
       <div className="p-3 sm:p-4 border border-border/40 dark:border-black/40 rounded-xl bg-muted/30 dark:bg-black/40 shadow-inner grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 w-full items-center min-h-20 sm:min-h-22.5">
-        <div className="flex items-center gap-2 sm:gap-3 p-0.5 md:col-span-1 border-r border-border/30 pr-1 sm:pr-2 h-10 sm:h-11 min-w-0">
-          <Skeleton className="size-5 sm:size-6 rounded-full bg-muted-foreground/20 dark:bg-muted/20 shrink-0" />
+        <div className="flex items-center gap-3 sm:gap-4 p-0.5 md:col-span-1 border-r border-border/30 pr-1 sm:pr-2 h-12 flex-row shrink-0 min-w-fit">
+          <Skeleton className="size-9 sm:size-10 min-w-9 sm:min-w-10 max-w-none rounded-full bg-muted-foreground/20 dark:bg-muted/20 shrink-0" />
           <div className="space-y-1 sm:space-y-1.5 flex-1 min-w-0">
-            <Skeleton className="h-3 w-10 sm:w-12 bg-muted-foreground/20 dark:bg-muted/20" />
-            <Skeleton className="h-2 w-14 sm:w-16 bg-muted-foreground/10 dark:bg-muted/10" />
+            <Skeleton className="h-3.5 w-12 sm:w-14 bg-muted-foreground/20 dark:bg-muted/20" />
+            <Skeleton className="h-2 w-16 sm:w-20 bg-muted-foreground/10 dark:bg-muted/10" />
           </div>
         </div>
 
@@ -123,7 +123,6 @@ export default function MarketTicker({
         )
       : 50;
 
-  // ФИКС: Базовое состояние цены теперь по умолчанию имеет плотный шрифт font-black
   let priceColor = "text-foreground font-black";
   if (tickDirection === "up")
     priceColor = "text-emerald-600 dark:text-emerald-400 font-black";
@@ -136,31 +135,32 @@ export default function MarketTicker({
 
   return (
     <div className="p-3 sm:p-4 border border-border/40 dark:border-black/40 rounded-xl bg-muted/30 dark:bg-black/40 shadow-inner grid grid-cols-2 md:grid-cols-6 gap-3 sm:gap-4 w-full items-center min-h-20 sm:min-h-22.5">
-      {/* 1. Название монеты */}
-      <div className="flex items-center gap-2 sm:gap-3 p-0.5 md:col-span-1 select-none border-r border-border/30 pr-1 sm:pr-2 h-10 sm:h-11 min-w-0">
+      {/* 1. Название монеты с крупной плоской иконкой */}
+      <div className="flex items-center gap-3 sm:gap-4 p-0.5 md:col-span-1 select-none border-r border-border/30 pr-1 sm:pr-3 h-12 min-w-fit shrink-0">
         {!iconError ? (
           <img
             src={localIconUrl}
             alt={coinBaseName}
-            className="size-5 sm:size-6 rounded-full shrink-0"
+            /* ФИКС: Оставлено только чистое увеличение размера size-9 на мобилках и size-10 на ПК, убрана тень shadow-sm */
+            className="size-9 sm:size-10 min-w-9 sm:min-w-10 max-w-none rounded-full shrink-0 block object-contain"
             onError={() => setIconError(true)}
           />
         ) : (
-          <div className="size-5 sm:size-6 rounded-full bg-emerald-600/10 dark:bg-emerald-400/10 flex items-center justify-center text-[10px] font-black text-emerald-600 dark:text-emerald-400 shrink-0 uppercase">
+          <div className="size-9 sm:size-10 min-w-9 sm:min-w-10 max-w-none rounded-full bg-emerald-600/10 dark:bg-emerald-400/10 flex items-center justify-center text-sm sm:text-base font-black text-emerald-600 dark:text-emerald-400 shrink-0 uppercase">
             {coinBaseName.charAt(0)}
           </div>
         )}
-        <div className="flex flex-col min-w-0">
+        <div className="flex flex-col min-w-0 pr-1 ml-0.5 space-y-0.5">
           <span className="text-xs sm:text-sm font-black tracking-tight text-foreground leading-none">
             {coinBaseName}
           </span>
-          <span className="text-[9px] sm:text-[10px] font-medium text-muted-foreground/70 truncate mt-0.5 sm:mt-1 leading-none">
+          <span className="text-[9px] sm:text-[10px] font-semibold text-muted-foreground/70 truncate leading-none">
             {fullName}
           </span>
         </div>
       </div>
 
-      {/* 2. Живая цена с фиксированным font-black */}
+      {/* 2. Живая цена */}
       <div className="p-0.5 w-full overflow-hidden bg-transparent md:col-span-2 h-10 sm:h-11 flex flex-col justify-center">
         <span className="text-[8px] sm:text-[9px] font-medium uppercase tracking-wider text-muted-foreground block pl-5 sm:pl-7 select-none leading-none mb-0.5 sm:mb-1">
           Live Price
@@ -186,7 +186,6 @@ export default function MarketTicker({
                 <div className="w-1 sm:w-1.5 h-1 sm:h-1.5 bg-muted-foreground/40 rounded-full" />
               )}
             </div>
-            {/* Шрифт теперь всегда монолитно-жирный с первой миллисекунды */}
             <span
               className={`text-lg sm:text-2xl tracking-tight transition-all duration-300 group-hover:opacity-80 ${priceColor} leading-none`}
             >
