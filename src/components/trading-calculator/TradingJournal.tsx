@@ -15,12 +15,12 @@ import {
   Pause,
   Download,
   TrendingUp,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-// Импортируем компоненты для построения профессионального графика
 import {
   ResponsiveContainer,
   AreaChart,
@@ -30,6 +30,7 @@ import {
   Tooltip,
   CartesianGrid,
 } from "recharts";
+
 import {
   Table,
   TableBody,
@@ -72,6 +73,7 @@ interface TradingJournalProps {
   activeCoin?: string;
   onCoinSelect?: (coin: string) => void;
 }
+
 const JOURNAL_PRECISION_MAP: Record<string, number> = {
   BTCUSDT: 2,
   ETHUSDT: 2,
@@ -103,6 +105,20 @@ export default function TradingJournal({
   const [frozenPnL, setFrozenPnL] = useState<
     Record<number, { pnl: number; roi: number }>
   >({});
+
+  // Стейт анимационного скрытия инфографики
+  const [isChartVisible, setIsChartVisible] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(
+        "bybit_calculator_journal_chart_visible",
+      );
+      return saved !== null ? saved === "true" : true;
+    }
+    return true;
+  });
+
+  // Дополнительный стейт для полной остановки рендера Recharts после закрытия шторки
+  const [renderChart, setRenderChart] = useState(isChartVisible);
 
   const fetchJournal = useCallback(async () => {
     try {
@@ -141,11 +157,23 @@ export default function TradingJournal({
     return () =>
       window.removeEventListener("refresh-trading-journal", fetchJournal);
   }, [fetchJournal]);
-  // Магическое ядро графика: Группируем сделки по датам и считаем баланс
+
+  // Эффект плавного переключения рендера графиков под анимацию шторки
+  useEffect(() => {
+    localStorage.setItem(
+      "bybit_calculator_journal_chart_visible",
+      String(isChartVisible),
+    );
+    if (isChartVisible) {
+      setRenderChart(true);
+    } else {
+      const timer = setTimeout(() => setRenderChart(false), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [isChartVisible]);
   const chartData = useMemo(() => {
     if (!deals || deals.length === 0) return [];
 
-    // Отбираем только закрытые трейды, где финансовый результат зафиксирован
     const closedDeals = [...deals]
       .filter((d) => d.status !== "OPEN")
       .sort(
@@ -682,63 +710,87 @@ export default function TradingJournal({
 
   return (
     <div className="w-full bg-transparent flex flex-col px-1 sm:px-6">
-      {/* ИНТЕГРАЦИЯ ГРАФИКА: Отображаем аналитику кумулятивной прибыли, если есть закрытые сделки */}
+      {/* ФИКС: Внедрен плавный CSS-переход max-height под каноны Tailwind CSS */}
       {chartData.length > 0 && (
-        <div className="mb-6 p-4 border border-border/40 rounded-2xl bg-muted/20 dark:bg-black/20 select-none">
-          <div className="flex items-center gap-2 mb-3">
-            <TrendingUp className="size-4 text-emerald-500" />
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Кривая доходности (Cumulative Equity PnL)
-            </span>
+        <div className="mb-6 border border-border/40 rounded-2xl bg-muted/20 dark:bg-black/20 overflow-hidden select-none">
+          <div
+            onClick={() => setIsChartVisible(!isChartVisible)}
+            className="flex items-center justify-between p-4 select-none cursor-pointer group/chart-header hover:opacity-90"
+          >
+            <div className="flex items-center gap-2">
+              <TrendingUp className="size-4 text-emerald-500" />
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground group-hover/chart-header:text-foreground transition-colors">
+                Кривая доходности (Cumulative Equity PnL)
+              </span>
+            </div>
+            <div className="text-muted-foreground group-hover/chart-header:text-foreground transition-colors">
+              {isChartVisible ? (
+                <ChevronUp className="size-4" />
+              ) : (
+                <ChevronDown className="size-4" />
+              )}
+            </div>
           </div>
-          <div className="w-full h-44 text-[10px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart
-                data={chartData}
-                margin={{ top: 5, right: 5, left: -25, bottom: 0 }}
-              >
-                <defs>
-                  <linearGradient id="colorPnL" x1="0" y1="0" x2="0" y2="1">
-                    <stop
-                      offset="5%"
-                      stopColor="var(--color-primary, #10b981)"
-                      stopOpacity={0.2}
+
+          {/* Схлопывание через плавное изменение max-height, opacity и padding */}
+          <div
+            className={`transition-all duration-300 ease-in-out w-full text-[10px] ${
+              isChartVisible
+                ? "max-h-56 opacity-100 p-4 pt-0 visible"
+                : "max-h-0 opacity-0 p-0 overflow-hidden invisible"
+            }`}
+          >
+            {/* Рендерим Recharts только когда шторка открыта, чтобы не ломать ResponsiveContainer */}
+            {renderChart && (
+              <div className="w-full h-44">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={chartData}
+                    margin={{ top: 5, right: 5, left: -25, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient id="colorPnL" x1="0" y1="0" x2="0" y2="1">
+                        <stop
+                          offset="5%"
+                          stopColor="var(--color-primary, #10b981)"
+                          stopOpacity={0.2}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor="var(--color-primary, #10b981)"
+                          stopOpacity={0}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="rgba(128,128,128,0.1)"
                     />
-                    <stop
-                      offset="95%"
-                      stopColor="var(--color-primary, #10b981)"
-                      stopOpacity={0}
+                    <XAxis dataKey="name" stroke="#888888" tickLine={false} />
+                    <YAxis stroke="#888888" tickLine={false} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "var(--card, #1e1e24)",
+                        borderRadius: "12px",
+                        borderColor: "var(--border, rgba(128,128,128,0.2))",
+                        fontSize: "11px",
+                      }}
                     />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="rgba(128,128,128,0.1)"
-                />
-                <XAxis dataKey="name" stroke="#888888" tickLine={false} />
-                <YAxis stroke="#888888" tickLine={false} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "var(--card, #1e1e24)",
-                    borderRadius: "12px",
-                    borderColor: "var(--border, rgba(128,128,128,0.2))",
-                    fontSize: "11px",
-                  }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="Баланс"
-                  stroke="var(--color-primary, #10b981)"
-                  strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#colorPnL)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+                    <Area
+                      type="monotone"
+                      dataKey="Баланс"
+                      stroke="var(--color-primary, #10b981)"
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#colorPnL)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </div>
         </div>
       )}
-
       <div className="py-4 border-b border-border/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-transparent select-none">
         <div className="flex flex-row items-center gap-3 flex-1 max-w-xl">
           <div className="relative w-full max-w-55 flex items-center group">
