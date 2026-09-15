@@ -42,7 +42,6 @@ function formatCompactNumber(num: number): string {
   if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;
   return num.toFixed(0);
 }
-
 export default function MarketTicker({
   data,
   loading,
@@ -73,54 +72,48 @@ export default function MarketTicker({
 
   if (!data) {
     return (
-      <div className="p-4 border border-border/40 dark:border-black/40 rounded-xl bg-muted/30 dark:bg-black/40 shadow-inner grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 w-full items-center min-h-22.5">
-        {/* Скелетон 1. Блок названия монеты (Аватарка + две строчки текста) */}
-        <div className="flex items-center gap-3 p-1 md:col-span-1 border-r border-border/30 pr-2 h-11">
-          <Skeleton className="size-6 rounded-full bg-muted-foreground/20 dark:bg-muted/20 shrink-0" />
-          <div className="space-y-1.5 flex-1 min-w-0">
-            <Skeleton className="h-3.5 w-12 bg-muted-foreground/20 dark:bg-muted/20" />
-            <Skeleton className="h-2.5 w-16 bg-muted-foreground/10 dark:bg-muted/10" />
+      <div className="p-3 sm:p-4 border border-border/40 dark:border-black/40 rounded-xl bg-muted/30 dark:bg-black/40 shadow-inner grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 w-full items-center min-h-20 sm:min-h-22.5">
+        <div className="flex items-center gap-2 sm:gap-3 p-0.5 md:col-span-1 border-r border-border/30 pr-1 sm:pr-2 h-10 sm:h-11 min-w-0">
+          <Skeleton className="size-5 sm:size-6 rounded-full bg-muted-foreground/20 dark:bg-muted/20 shrink-0" />
+          <div className="space-y-1 sm:space-y-1.5 flex-1 min-w-0">
+            <Skeleton className="h-3 w-10 sm:w-12 bg-muted-foreground/20 dark:bg-muted/20" />
+            <Skeleton className="h-2 w-14 sm:w-16 bg-muted-foreground/10 dark:bg-muted/10" />
           </div>
         </div>
 
-        {/* Скелетон 2. Живая цена (Лейбл + большой прайс) */}
-        <div className="p-1 w-full md:col-span-2 h-11 flex flex-col justify-center space-y-1.5">
-          <Skeleton className="h-2 w-14 bg-muted-foreground/20 dark:bg-muted/20 ml-7" />
-          <Skeleton className="h-6 w-36 bg-muted-foreground/20 dark:bg-muted/20 ml-7" />
+        <div className="p-0.5 w-full md:col-span-2 h-10 sm:h-11 flex flex-col justify-center space-y-1">
+          <Skeleton className="h-2 w-12 sm:w-14 bg-muted-foreground/20 dark:bg-muted/20 ml-5 sm:ml-7" />
+          <Skeleton className="h-5 sm:h-6 w-28 sm:w-36 bg-muted-foreground/20 dark:bg-muted/20 ml-5 sm:ml-7" />
         </div>
 
-        {/* Скелетон 3. Изменение за 24ч */}
-        <div className="p-1 md:col-span-1 h-11 flex flex-col justify-center space-y-1.5">
-          <Skeleton className="h-2 w-16 bg-muted-foreground/20 dark:bg-muted/20" />
-          <Skeleton className="h-4 w-12 bg-muted-foreground/20 dark:bg-muted/20" />
+        <div className="p-0.5 md:col-span-1 h-10 sm:h-11 flex flex-col justify-center space-y-1">
+          <Skeleton className="h-2 w-14 sm:w-16 bg-muted-foreground/20 dark:bg-muted/20" />
+          <Skeleton className="h-3.5 w-10 sm:w-12 bg-muted-foreground/20 dark:bg-muted/20" />
         </div>
 
-        {/* Скелетон 4. Шкала волатильности */}
-        <div className="p-1 flex flex-col justify-center min-w-27.5 md:col-span-1 h-11 space-y-2">
-          <Skeleton className="h-2 w-14 bg-muted-foreground/20 dark:bg-muted/20" />
+        <div className="p-0.5 hidden sm:flex flex-col justify-center min-w-24 md:col-span-1 h-10 sm:h-11 space-y-1.5">
+          <Skeleton className="h-2 w-12 bg-muted-foreground/20 dark:bg-muted/20" />
           <Skeleton className="h-1 w-full bg-muted-foreground/20 dark:bg-muted/20 rounded-full" />
           <div className="flex justify-between">
-            <Skeleton className="h-1.5 w-8 bg-muted-foreground/10 dark:bg-muted/10" />
-            <Skeleton className="h-1.5 w-8 bg-muted-foreground/10 dark:bg-muted/10" />
+            <Skeleton className="h-1 w-6 bg-muted-foreground/10 dark:bg-muted/10" />
+            <Skeleton className="h-1 w-6 bg-muted-foreground/10 dark:bg-muted/10" />
           </div>
         </div>
 
-        {/* Скелетон 5. Оборот и Фандинг (Две строчки) */}
-        <div className="p-1 md:col-span-1 h-11 flex flex-col justify-between py-0.5">
-          <div className="space-y-1">
-            <Skeleton className="h-1.5 w-12 bg-muted-foreground/20 dark:bg-muted/20" />
-            <Skeleton className="h-3 w-16 bg-muted-foreground/20 dark:bg-muted/20" />
+        <div className="p-0.5 md:col-span-1 h-10 sm:h-11 flex flex-col justify-between py-0.5">
+          <div className="space-y-0.5 sm:space-y-1">
+            <Skeleton className="h-1.5 w-10 bg-muted-foreground/20 dark:bg-muted/20" />
+            <Skeleton className="h-2.5 w-14 bg-muted-foreground/20 dark:bg-muted/20" />
           </div>
           <div className="flex items-center gap-1">
-            <Skeleton className="h-1.5 w-10 bg-muted-foreground/20 dark:bg-muted/20" />
-            <Skeleton className="h-2.5 w-12 bg-muted-foreground/20 dark:bg-muted/20" />
+            <Skeleton className="h-1.5 w-8 bg-muted-foreground/20 dark:bg-muted/20" />
+            <Skeleton className="h-2 w-10 bg-muted-foreground/20 dark:bg-muted/20" />
           </div>
         </div>
       </div>
     );
   }
   const is24hPositive = data.price24hPcnt >= 0;
-
   const priceRange = data.highPrice24h - data.lowPrice24h;
   const currentPositionPercent =
     priceRange > 0
@@ -130,7 +123,8 @@ export default function MarketTicker({
         )
       : 50;
 
-  let priceColor = "text-foreground";
+  // ФИКС: Базовое состояние цены теперь по умолчанию имеет плотный шрифт font-black
+  let priceColor = "text-foreground font-black";
   if (tickDirection === "up")
     priceColor = "text-emerald-600 dark:text-emerald-400 font-black";
   if (tickDirection === "down")
@@ -141,59 +135,60 @@ export default function MarketTicker({
   const fullName = COIN_NAMES[coinBaseName] || "Crypto Asset";
 
   return (
-    <div className="p-4 border border-border/40 dark:border-black/40 rounded-xl bg-muted/30 dark:bg-black/40 shadow-inner grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 w-full items-center min-h-22.5">
-      {/* 1. Блок названия монеты */}
-      <div className="flex items-center gap-3 p-1 md:col-span-1 select-none border-r border-border/30 pr-2 h-11">
+    <div className="p-3 sm:p-4 border border-border/40 dark:border-black/40 rounded-xl bg-muted/30 dark:bg-black/40 shadow-inner grid grid-cols-2 md:grid-cols-6 gap-3 sm:gap-4 w-full items-center min-h-20 sm:min-h-22.5">
+      {/* 1. Название монеты */}
+      <div className="flex items-center gap-2 sm:gap-3 p-0.5 md:col-span-1 select-none border-r border-border/30 pr-1 sm:pr-2 h-10 sm:h-11 min-w-0">
         {!iconError ? (
           <img
             src={localIconUrl}
             alt={coinBaseName}
-            className="size-6 rounded-full shrink-0"
+            className="size-5 sm:size-6 rounded-full shrink-0"
             onError={() => setIconError(true)}
           />
         ) : (
-          <div className="size-6 rounded-full bg-emerald-600/10 dark:bg-emerald-400/10 flex items-center justify-center text-xs font-black text-emerald-600 dark:text-emerald-400 shrink-0 uppercase">
+          <div className="size-5 sm:size-6 rounded-full bg-emerald-600/10 dark:bg-emerald-400/10 flex items-center justify-center text-[10px] font-black text-emerald-600 dark:text-emerald-400 shrink-0 uppercase">
             {coinBaseName.charAt(0)}
           </div>
         )}
         <div className="flex flex-col min-w-0">
-          <span className="text-sm font-black tracking-tight text-foreground leading-none">
+          <span className="text-xs sm:text-sm font-black tracking-tight text-foreground leading-none">
             {coinBaseName}
           </span>
-          <span className="text-[10px] font-medium text-muted-foreground/70 truncate mt-0.5 leading-none">
+          <span className="text-[9px] sm:text-[10px] font-medium text-muted-foreground/70 truncate mt-0.5 sm:mt-1 leading-none">
             {fullName}
           </span>
         </div>
       </div>
 
-      {/* 2. Живая цена с треугольником */}
-      <div className="p-1 w-full overflow-hidden bg-transparent md:col-span-2 h-11 flex flex-col justify-center">
-        <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground block pl-7 select-none leading-none mb-0.5">
+      {/* 2. Живая цена с фиксированным font-black */}
+      <div className="p-0.5 w-full overflow-hidden bg-transparent md:col-span-2 h-10 sm:h-11 flex flex-col justify-center">
+        <span className="text-[8px] sm:text-[9px] font-medium uppercase tracking-wider text-muted-foreground block pl-5 sm:pl-7 select-none leading-none mb-0.5 sm:mb-1">
           Live Price
         </span>
         <div className="flex items-center">
           <div
-            className="relative pl-7 flex items-center cursor-copy group select-none w-full whitespace-nowrap"
+            className="relative pl-5 sm:pl-7 flex items-center cursor-copy group select-none w-full whitespace-nowrap"
             onClick={() => onPriceClick?.(data.lastPrice)}
             title="Добавить цену в калькулятор"
           >
-            <div className="absolute left-0 flex items-center justify-center w-6 h-full top-0">
+            <div className="absolute left-0 flex items-center justify-center w-4 sm:w-6 h-full top-0">
               {tickDirection === "up" && (
-                <span className="text-2xl text-emerald-600 dark:text-emerald-400 animate-in fade-in duration-100 leading-none">
+                <span className="text-lg sm:text-2xl text-emerald-600 dark:text-emerald-400 animate-in fade-in duration-100 leading-none">
                   ▲
                 </span>
               )}
               {tickDirection === "down" && (
-                <span className="text-2xl text-rose-600 dark:text-rose-400 animate-in fade-in duration-100 leading-none">
+                <span className="text-lg sm:text-2xl text-rose-600 dark:text-rose-400 animate-in fade-in duration-100 leading-none">
                   ▼
                 </span>
               )}
               {tickDirection === "stable" && (
-                <div className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full" />
+                <div className="w-1 sm:w-1.5 h-1 sm:h-1.5 bg-muted-foreground/40 rounded-full" />
               )}
             </div>
+            {/* Шрифт теперь всегда монолитно-жирный с первой миллисекунды */}
             <span
-              className={`text-2xl font-black tracking-tight transition-all duration-300 group-hover:opacity-80 ${priceColor} leading-none`}
+              className={`text-lg sm:text-2xl tracking-tight transition-all duration-300 group-hover:opacity-80 ${priceColor} leading-none`}
             >
               {data.lastPrice.toFixed(decimals)}
             </span>
@@ -202,28 +197,26 @@ export default function MarketTicker({
       </div>
 
       {/* 3. Изменение за 24ч */}
-      <div className="space-y-0.5 p-1 md:col-span-1 h-11 flex flex-col justify-center">
-        <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground block select-none leading-none">
+      <div className="space-y-0.5 p-0.5 md:col-span-1 h-10 sm:h-11 flex flex-col justify-center">
+        <span className="text-[8px] sm:text-[9px] font-medium uppercase tracking-wider text-muted-foreground block select-none leading-none">
           24h Change
         </span>
         <span
-          className={`text-base font-bold block tracking-tight whitespace-nowrap mt-0.5 leading-none ${is24hPositive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
+          className={`text-sm sm:text-base font-bold block tracking-tight whitespace-nowrap mt-0.5 sm:mt-1 leading-none ${is24hPositive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
         >
           {is24hPositive ? "+" : ""}
           {data.price24hPcnt.toFixed(2)}%
         </span>
       </div>
 
-      {/* 4. Шкала волатильности (24h Range) */}
-      <div className="p-1 flex flex-col justify-center min-w-27.5 md:col-span-1 h-11">
-        <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground block select-none leading-none mb-1">
+      {/* 4. Шкала волатильности */}
+      <div className="p-0.5 hidden sm:flex flex-col justify-center min-w-24 md:col-span-1 h-10 sm:h-11">
+        <span className="text-[8px] sm:text-[9px] font-medium uppercase tracking-wider text-muted-foreground block select-none leading-none mb-1">
           24h Range
         </span>
         <div className="relative w-full h-1 bg-muted-foreground/20 rounded-full">
           <div
-            className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full border border-background shadow-sm transition-all duration-500 ${
-              is24hPositive ? "bg-emerald-500" : "bg-rose-500"
-            }`}
+            className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full border border-background shadow-sm transition-all duration-500 ${is24hPositive ? "bg-emerald-500" : "bg-rose-500"}`}
             style={{ left: `${currentPositionPercent}%` }}
           />
         </div>
@@ -234,7 +227,7 @@ export default function MarketTicker({
       </div>
 
       {/* 5. Суточный торговый оборот и Фандинг */}
-      <div className="p-1 md:col-span-1 h-11 flex flex-col justify-between overflow-hidden">
+      <div className="p-0.5 md:col-span-1 h-10 sm:h-11 flex flex-col justify-between overflow-hidden">
         <div>
           <span className="text-[8px] font-medium uppercase tracking-wider text-muted-foreground block select-none leading-none">
             Turnover
@@ -251,7 +244,7 @@ export default function MarketTicker({
             Funding:
           </span>
           <span
-            className={`text-[10px] font-bold block whitespace-nowrap leading-none ${data.fundingRate >= 0 ? "text-amber-600 dark:text-amber-400" : "text-violet-600 dark:text-violet-400"}`}
+            className={`text-[9px] sm:text-[10px] font-bold block whitespace-nowrap leading-none ${data.fundingRate >= 0 ? "text-amber-600 dark:text-amber-400" : "text-violet-600 dark:text-violet-400"}`}
           >
             {data.fundingRate.toFixed(4)}%
           </span>

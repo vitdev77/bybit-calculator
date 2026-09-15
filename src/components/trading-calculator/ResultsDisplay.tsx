@@ -25,7 +25,7 @@ interface ResultsDisplayProps {
   coin: string;
   entryPrice: number;
   orderType: OrderType;
-  side: PositionSide; // Принимаем строго типизированный стейт направления ордера
+  side: PositionSide;
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -65,7 +65,7 @@ export default function ResultsDisplay({
   side,
 }: ResultsDisplayProps) {
   const assetName = coin.replace("USDT", "");
-  const [isSaving, setIsSaveLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState(false);
 
@@ -98,7 +98,7 @@ export default function ResultsDisplay({
   const handleSaveDeal = async () => {
     if (results.positionSizeUsdt <= 0 || isSaving || isLeverageTooHigh) return;
     try {
-      setIsSaveLoading(true);
+      setIsSaving(true);
       setDuplicateWarning(false);
 
       const response = await fetch("/api/journal", {
@@ -106,7 +106,7 @@ export default function ResultsDisplay({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           coin: coin,
-          side: side, // Отправляем на бэкенд прямое значение стейта (BUY/SELL)
+          side: side,
           order_type: orderType,
           entry_price: entryPrice,
           stop_loss: results.stopLossPrice,
@@ -149,31 +149,29 @@ export default function ResultsDisplay({
         type: "error",
       });
     } finally {
-      setIsSaveLoading(false);
+      setIsSaving(false);
     }
   };
   return (
-    <div className="flex flex-col h-full space-y-4 justify-between">
+    <div className="flex flex-col h-full space-y-3.5 sm:space-y-4 justify-between">
       <div className="space-y-2.5">
-        <div className="flex justify-between items-center text-sm">
-          <span className="text-muted-foreground">
-            Итоговый Риск (with fees):
-          </span>
-          <div className="w-45 flex items-center justify-end gap-1.5 text-right">
-            <span className="text-base font-semibold text-rose-500">
+        <div className="flex justify-between items-center text-xs sm:text-sm">
+          <span className="text-muted-foreground">Итоговый Риск:</span>
+          <div className="flex items-center justify-end gap-1.5 text-right">
+            <span className="text-sm sm:text-base font-semibold text-rose-500">
               {results.riskAmount.toFixed(2)}{" "}
-              <span className="text-xs font-normal">USDT</span>
+              <span className="text-[10px] sm:text-xs font-normal">USDT</span>
             </span>
             <div className="w-7 shrink-0" />
           </div>
         </div>
 
-        <div className="flex justify-between items-center text-sm">
+        <div className="flex justify-between items-center text-xs sm:text-sm">
           <span className="text-muted-foreground">Объем позиции:</span>
-          <div className="w-45 flex items-center justify-end gap-1.5 text-right">
-            <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">
+          <div className="flex items-center justify-end gap-1.5 text-right">
+            <span className="text-sm sm:text-base font-bold text-emerald-600 dark:text-emerald-400">
               {formattedVolUsdt}{" "}
-              <span className="text-xs font-normal text-muted-foreground">
+              <span className="text-[10px] sm:text-xs font-normal text-muted-foreground">
                 USDT
               </span>
             </span>
@@ -184,12 +182,12 @@ export default function ResultsDisplay({
           </div>
         </div>
 
-        <div className="flex justify-between items-center text-sm">
+        <div className="flex justify-between items-center text-xs sm:text-sm">
           <span className="text-muted-foreground">Размер позиции:</span>
-          <div className="w-45 flex items-center justify-end gap-1.5 text-right">
-            <span className="text-base font-semibold text-muted-foreground">
+          <div className="flex items-center justify-end gap-1.5 text-right">
+            <span className="text-sm sm:text-base font-semibold text-muted-foreground">
               {formattedCryptoQty}{" "}
-              <span className="text-xs font-normal text-muted-foreground">
+              <span className="text-[10px] sm:text-xs font-normal text-muted-foreground">
                 {assetName}
               </span>
             </span>
@@ -198,9 +196,9 @@ export default function ResultsDisplay({
         </div>
 
         <div
-          className={`transition-all duration-300 rounded-lg ${isLeverageTooHigh ? "bg-red-500/10 border border-red-500/30 p-2 -mx-2 space-y-1" : ""}`}
+          className={`transition-all duration-300 rounded-lg ${isLeverageTooHigh ? "bg-red-500/10 border border-red-500/30 p-2 -mx-1 space-y-1" : ""}`}
         >
-          <div className="flex justify-between items-center text-sm">
+          <div className="flex justify-between items-center text-xs sm:text-sm">
             <span
               className={
                 isLeverageTooHigh
@@ -210,13 +208,13 @@ export default function ResultsDisplay({
             >
               Плечо (выбр. / макс):
             </span>
-            <div className="w-45 flex items-center justify-end gap-1.5 text-right">
+            <div className="flex items-center justify-end gap-1.5 text-right">
               <span
-                className={`text-sm font-bold transition-colors ${isLeverageTooHigh ? "text-red-500 dark:text-red-400 font-black" : "text-foreground"}`}
+                className={`text-xs sm:text-sm font-bold transition-colors ${isLeverageTooHigh ? "text-red-500 dark:text-red-400 font-black" : "text-foreground"}`}
               >
                 x{results.selectedLeverage}
                 <span
-                  className={`text-xs font-medium ml-1 ${isLeverageTooHigh ? "text-red-500/70 dark:text-red-400/70" : "text-muted-foreground"}`}
+                  className={`text-[10px] sm:text-xs font-medium ml-1 ${isLeverageTooHigh ? "text-red-500/70" : "text-muted-foreground"}`}
                 >
                   (max: x{results.maxSafeLeverage})
                 </span>
@@ -224,139 +222,134 @@ export default function ResultsDisplay({
               <div className="w-7 shrink-0" />
             </div>
           </div>
-          {isLeverageTooHigh && (
-            <span className="text-[10px] font-semibold text-red-500 dark:text-red-400 block text-right pr-8 animate-pulse leading-none">
-              Выбранное плечо недоступно для {coin.replace("USDT", "")} на Bybit
-            </span>
-          )}
         </div>
 
-        <div className="flex justify-between items-center text-sm">
+        <div className="flex justify-between items-center text-xs sm:text-sm">
           <span className="text-muted-foreground">Выделяемая маржа:</span>
-          <div className="w-45 flex items-center justify-end gap-1.5 text-right">
-            <span className="text-base font-semibold text-muted-foreground">
+          <div className="flex items-center justify-end gap-1.5 text-right">
+            <span className="text-sm sm:text-base font-semibold text-muted-foreground">
               {formattedMargin}{" "}
-              <span className="text-xs font-normal">USDT</span>
+              <span className="text-[10px] sm:text-xs font-normal">USDT</span>
             </span>
             <div className="w-7 shrink-0" />
           </div>
         </div>
 
-        <div className="flex justify-between items-center text-sm text-amber-600 dark:text-amber-400">
+        <div className="flex justify-between items-center text-xs sm:text-sm text-amber-600 dark:text-amber-400">
           <span className="font-medium">Цена Liquidation:</span>
-          <div className="w-45 flex items-center justify-end gap-1.5 text-right">
-            <span className="text-base font-black">
-              {formattedLiq} <span className="text-xs font-normal">USDT</span>
+          <div className="flex items-center justify-end gap-1.5 text-right">
+            <span className="text-sm sm:text-base font-black">
+              {formattedLiq}{" "}
+              <span className="text-[10px] sm:text-xs font-normal">USDT</span>
             </span>
             <CopyButton key={`liq-${formattedLiq}`} text={formattedLiq} />
           </div>
         </div>
 
-        <div className="flex justify-between items-center text-sm border-t pt-2 mt-1">
-          <span className="text-muted-foreground">Комиссия Bybit (круг):</span>
-          <div className="w-45 flex items-center justify-end gap-1.5 text-right">
-            <span className="text-xs font-medium text-muted-foreground">
+        <div className="flex justify-between items-center text-xs sm:text-sm border-t pt-2 mt-1">
+          <span className="text-muted-foreground">Комиссия Bybit:</span>
+          <div className="flex items-center justify-end gap-1.5 text-right">
+            <span className="text-[11px] sm:text-xs font-medium text-muted-foreground">
               {results.totalFeeUsdt.toFixed(3)}{" "}
-              <span className="text-xs">USDT</span>
+              <span className="text-[9px] sm:text-xs">USDT</span>
             </span>
             <div className="w-7 shrink-0" />
           </div>
         </div>
 
-        <div className="flex justify-between items-center text-sm">
-          <span className="text-muted-foreground">
-            Чистая прибыль (1:{results.riskRewardRatio}):
-          </span>
-          <div className="w-45 flex items-center justify-end gap-1.5 text-right">
-            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+        <div className="flex justify-between items-center text-xs sm:text-sm">
+          <span className="text-muted-foreground">Чистая прибыль:</span>
+          <div className="flex items-center justify-end gap-1.5 text-right">
+            <span className="text-xs sm:text-sm font-bold text-emerald-600 dark:text-emerald-400">
               +{results.netProfitUsdt.toFixed(2)}{" "}
-              <span className="text-xs font-normal">USDT</span>
+              <span className="text-[10px] sm:text-xs font-normal">USDT</span>
             </span>
             <div className="w-7 shrink-0" />
           </div>
         </div>
       </div>
+
       <div className="space-y-3 pt-3 border-t w-full">
         <div className="space-y-0.5">
           <div className="flex justify-between items-center w-full">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            <span className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Take Profit (1:{results.riskRewardRatio})
             </span>
-            <div className="w-45 flex items-center justify-end gap-1.5 text-right">
-              <span className="text-xl font-extrabold tracking-tight text-emerald-600 dark:text-emerald-400">
+            <div className="flex items-center justify-end gap-1.5 text-right">
+              <span className="text-lg sm:text-xl font-extrabold tracking-tight text-emerald-600 dark:text-emerald-400">
                 {formattedTP}{" "}
-                <span className="text-xs font-normal text-muted-foreground">
+                <span className="text-[10px] sm:text-xs font-normal text-muted-foreground">
                   USDT
                 </span>
               </span>
               <CopyButton key={`tp-${formattedTP}`} text={formattedTP} />
             </div>
           </div>
-          <div className="flex justify-between items-center text-[11px]">
+          <div className="flex justify-between items-center text-[10px] sm:text-[11px]">
             <span className="text-muted-foreground">Ожидаемый Net ROI:</span>
             <span className="font-semibold text-emerald-600 dark:text-emerald-400 mr-8.5">
-              +{tpRoiPcnt.toFixed(2)}% (+{results.netProfitUsdt.toFixed(2)}{" "}
-              USDT)
+              +{tpRoiPcnt.toFixed(1)}% (+{results.netProfitUsdt.toFixed(1)} U)
             </span>
           </div>
         </div>
 
         <div className="space-y-0.5">
           <div className="flex justify-between items-center w-full">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            <span className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Stop Loss
             </span>
-            <div className="w-45 flex items-center justify-end gap-1.5 text-right">
-              <span className="text-xl font-extrabold tracking-tight text-rose-600 dark:text-rose-400">
+            <div className="flex items-center justify-end gap-1.5 text-right">
+              <span className="text-lg sm:text-xl font-extrabold tracking-tight text-rose-600 dark:text-rose-400">
                 {formattedSL}{" "}
-                <span className="text-xs font-normal text-muted-foreground">
+                <span className="text-[10px] sm:text-xs font-normal text-muted-foreground">
                   USDT
                 </span>
               </span>
               <CopyButton key={`sl-${formattedSL}`} text={formattedSL} />
             </div>
           </div>
-          <div className="flex justify-between items-center text-[11px]">
+          <div className="flex justify-between items-center text-[10px] sm:text-[11px]">
             <span className="text-muted-foreground">Ожидаемый Net ROI:</span>
             <span className="font-semibold text-rose-600 dark:text-rose-400 mr-8.5">
-              {slRoiPcnt.toFixed(2)}% (-{slLossUsdt.toFixed(2)} USDT)
+              {slRoiPcnt.toFixed(1)}% (-{slLossUsdt.toFixed(1)} U)
             </span>
           </div>
         </div>
 
+        {/* Адаптированная высота h-9.5 для комфортного нажатия пальцем */}
         <Button
           type="button"
           disabled={
-            isSaving || results.positionSizeUsdt <= 0 || isLeverageTooHigh
+            results.positionSizeUsdt <= 0 || isSaving || isLeverageTooHigh
           }
           onClick={handleSaveDeal}
-          className={`w-full mt-5 h-9 text-xs font-bold tracking-wider uppercase transition-all duration-300 shadow-sm cursor-pointer rounded-xl flex items-center justify-center gap-2 ${
+          className={`w-full mt-4 h-9.5 sm:h-10 text-xs font-bold tracking-wider uppercase transition-all duration-300 shadow-sm cursor-pointer rounded-xl flex items-center justify-center gap-2 ${
             isLeverageTooHigh
-              ? "bg-red-500/10 text-red-500/60 border border-solid border-red-500/20 cursor-not-allowed font-extrabold"
+              ? "bg-red-500/10 text-red-500/60 border border-solid border-red-500/20 cursor-not-allowed"
               : saveSuccess
-                ? "bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                ? "bg-emerald-600 hover:bg-emerald-700 text-white"
                 : duplicateWarning
-                  ? "bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                  ? "bg-amber-600 hover:bg-amber-700 text-white"
                   : "bg-primary hover:bg-primary/90 text-primary-foreground"
           }`}
         >
           {isSaving ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              Фиксация трейда...
+              Фиксация...
             </>
           ) : saveSuccess ? (
             <>
               <Check className="h-4 w-4 animate-bounce" />
-              Успешно сохранено!
+              Сохранено!
             </>
           ) : duplicateWarning ? (
             <>
               <FolderPlus className="h-4 w-4" />
-              Позиция уже открыта
+              Позиция открыта
             </>
           ) : isLeverageTooHigh ? (
-            <>Ошибка: Уменьшите плечо</>
+            <>Уменьшите плечо</>
           ) : (
             <>
               <FolderPlus className="h-4 w-4" />

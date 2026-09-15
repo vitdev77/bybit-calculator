@@ -30,7 +30,6 @@ import {
   Tooltip,
   CartesianGrid,
 } from "recharts";
-
 import {
   Table,
   TableBody,
@@ -106,18 +105,17 @@ export default function TradingJournal({
     Record<number, { pnl: number; roi: number }>
   >({});
 
-  // Стейт анимационного скрытия инфографики
+  // ФИКС: Дефолтное значение стейта теперь false (график свернут на старте)
   const [isChartVisible, setIsChartVisible] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem(
         "bybit_calculator_journal_chart_visible",
       );
-      return saved !== null ? saved === "true" : true;
+      return saved !== null ? saved === "true" : false;
     }
-    return true;
+    return false;
   });
 
-  // Дополнительный стейт для полной остановки рендера Recharts после закрытия шторки
   const [renderChart, setRenderChart] = useState(isChartVisible);
 
   const fetchJournal = useCallback(async () => {
@@ -158,7 +156,6 @@ export default function TradingJournal({
       window.removeEventListener("refresh-trading-journal", fetchJournal);
   }, [fetchJournal]);
 
-  // Эффект плавного переключения рендера графиков под анимацию шторки
   useEffect(() => {
     localStorage.setItem(
       "bybit_calculator_journal_chart_visible",
@@ -171,8 +168,9 @@ export default function TradingJournal({
       return () => clearTimeout(timer);
     }
   }, [isChartVisible]);
-  const chartData = useMemo(() => {
-    if (!deals || deals.length === 0) return [];
+  // Магическое ядро графика: Считаем общую прибыль по дням и суммарный итог
+  const { chartData, totalNetPnL } = useMemo(() => {
+    if (!deals || deals.length === 0) return { chartData: [], totalNetPnL: 0 };
 
     const closedDeals = [...deals]
       .filter((d) => d.status !== "OPEN")
@@ -181,8 +179,7 @@ export default function TradingJournal({
           new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
       );
 
-    if (closedDeals.length === 0) return [];
-
+    let runningTotalPnL = 0;
     const pnlByDate: Record<string, number> = {};
 
     closedDeals.forEach((deal) => {
@@ -210,10 +207,11 @@ export default function TradingJournal({
       const finalPnlUsdt = rawFinalPnl - totalFeeUsdt;
 
       pnlByDate[date] = (pnlByDate[date] || 0) + finalPnlUsdt;
+      runningTotalPnL += finalPnlUsdt;
     });
 
     let cumulativePnL = 0;
-    return Object.keys(pnlByDate).map((date) => {
+    const formattedChartData = Object.keys(pnlByDate).map((date) => {
       cumulativePnL += pnlByDate[date];
       return {
         name: date,
@@ -221,6 +219,8 @@ export default function TradingJournal({
         Баланс: parseFloat(cumulativePnL.toFixed(2)),
       };
     });
+
+    return { chartData: formattedChartData, totalNetPnL: runningTotalPnL };
   }, [deals]);
   const exportToCSV = () => {
     if (!deals || deals.length === 0) return;
@@ -412,8 +412,8 @@ export default function TradingJournal({
         }
 
         pnlDisplay = (
-          <div className="flex flex-col text-right select-none relative w-full pl-6">
-            <span className="absolute left-1.5 top-1.5 flex h-1.5 w-1.5">
+          <div className="flex flex-col text-right select-none relative w-full pl-5 sm:pl-6">
+            <span className="absolute left-1 top-1.5 flex h-1.5 w-1.5">
               <span
                 className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isProfit ? "bg-emerald-500" : "bg-rose-500"}`}
               ></span>
@@ -422,17 +422,17 @@ export default function TradingJournal({
               ></span>
             </span>
             <span
-              className={`font-black text-xs ${isProfit ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
+              className={`font-black text-[11px] sm:text-xs ${isProfit ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
             >
               {isProfit ? "+" : ""}
               {liveRoi.toFixed(2)}%
             </span>
             <span
-              className={`text-[10px] font-bold ${isProfit ? "text-emerald-500/80" : "text-rose-500/80"}`}
+              className={`text-[9px] sm:text-[10px] font-bold ${isProfit ? "text-emerald-500/80" : "text-rose-500/80"}`}
             >
               {isProfit ? "+" : ""}
-              {livePnlUsdt.toFixed(4)}{" "}
-              <span className="text-[9px] font-normal opacity-60 text-muted-foreground">
+              {livePnlUsdt.toFixed(3)}{" "}
+              <span className="text-[8px] font-normal opacity-60 text-muted-foreground">
                 USDT
               </span>
             </span>
@@ -446,10 +446,10 @@ export default function TradingJournal({
 
       if (isOpen) {
         pnlDisplay = (
-          <div className="flex flex-col text-right select-none opacity-45 relative w-full pl-6">
-            <Pause className="size-2.5 text-muted-foreground absolute left-1 top-1.5" />
+          <div className="flex flex-col text-right select-none opacity-45 relative w-full pl-5 sm:pl-6">
+            <Pause className="size-2 text-muted-foreground absolute left-0.5 top-1.5" />
             <span
-              className={`text-xs font-bold ${isLastProfit ? "text-emerald-600/80 dark:text-emerald-400/80" : "text-rose-600/80 dark:text-rose-400/80"}`}
+              className={`text-[11px] sm:text-xs font-bold ${isLastProfit ? "text-emerald-600/80 dark:text-emerald-400/80" : "text-rose-600/80 dark:text-rose-400/80"}`}
             >
               {isLastProfit ? "+" : ""}
               {lastKnown.roi.toFixed(2)}%
@@ -458,8 +458,8 @@ export default function TradingJournal({
               className={`text-[10px] font-bold ${isLastProfit ? "text-emerald-500/60" : "text-rose-500/60"}`}
             >
               {isLastProfit ? "+" : ""}
-              {lastKnown.pnl.toFixed(4)}{" "}
-              <span className="text-[9px] font-normal text-muted-foreground opacity-60">
+              {lastKnown.pnl.toFixed(3)}{" "}
+              <span className="text-[8px] font-normal text-muted-foreground opacity-60">
                 USDT
               </span>
             </span>
@@ -490,17 +490,17 @@ export default function TradingJournal({
         pnlDisplay = (
           <div className="flex flex-col text-right opacity-65 select-none w-full">
             <span
-              className={`font-black text-xs ${isFinalProfit ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
+              className={`font-black text-[11px] sm:text-xs ${isFinalProfit ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
             >
               {isFinalProfit ? "+" : ""}
               {finalRoi.toFixed(2)}%
             </span>
             <span
-              className={`text-[10px] font-bold ${isFinalProfit ? "text-emerald-500/80" : "text-rose-500/80"}`}
+              className={`text-[9px] sm:text-[10px] font-bold ${isFinalProfit ? "text-emerald-500/80" : "text-rose-500/80"}`}
             >
               {isFinalProfit ? "+" : ""}
-              {finalPnlUsdt.toFixed(4)}{" "}
-              <span className="text-[9px] font-normal opacity-60 text-muted-foreground">
+              {finalPnlUsdt.toFixed(3)}{" "}
+              <span className="text-[8px] font-normal opacity-60 text-muted-foreground">
                 USDT
               </span>
             </span>
@@ -510,132 +510,133 @@ export default function TradingJournal({
     }
 
     let formattedDateOnly = "--.--.----",
-      formattedTimeOnly = "--:--:--";
+      formattedTimeOnly = "--:--";
     if (deal.created_at) {
       try {
         const d = new Date(deal.created_at);
-        formattedDateOnly = `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}`;
-        formattedTimeOnly = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+        formattedDateOnly = `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getFullYear()).slice(-2)}`;
+        formattedTimeOnly = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
       } catch (e) {}
     }
 
     const statusIcon =
       deal.status === "PROFIT" ? (
         <span className="shrink-0 mt-0.5 flex" title="Профит">
-          <CheckCircle2 className="size-3.5 text-emerald-500" />
+          <CheckCircle2 className="size-3 text-emerald-500" />
         </span>
       ) : deal.status === "LOSS" ? (
         <span className="shrink-0 mt-0.5 flex" title="Стоп">
-          <XCircle className="size-3.5 text-rose-500" />
+          <XCircle className="size-3 text-rose-500" />
         </span>
       ) : deal.status === "CLOSED" ? (
         <span className="shrink-0 mt-0.5 flex opacity-60" title="Руками">
-          <Clock className="size-3.5 text-muted-foreground" />
+          <Clock className="size-3 text-muted-foreground" />
         </span>
       ) : (
         <span
-          className="relative flex h-2 w-2 shrink-0 mt-1.5 mx-0.5"
+          className="relative flex h-1.5 w-1.5 shrink-0 mt-1.5 mx-0.5"
           title="Активная"
         >
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500"></span>
         </span>
       );
 
     return (
       <TableRow
         key={deal.id}
-        className={`transition-all border-b border-border/20 ${isCurrentActiveCoin ? "bg-amber-500/5 dark:bg-amber-500/10 hover:bg-amber-500/10 dark:hover:bg-amber-500/15" : !isOpen ? "opacity-45 grayscale-20" : ""}`}
+        className={`transition-all border-b border-border/10 ${isCurrentActiveCoin ? "bg-amber-500/5 dark:bg-amber-500/10" : !isOpen ? "opacity-45" : ""}`}
       >
-        <TableCell className="py-2 px-2 whitespace-nowrap relative pl-4">
+        <TableCell className="py-2 px-1.5 sm:px-3 whitespace-nowrap relative pl-3.5 sm:pl-5">
           <div
-            className={`absolute left-0 top-0 bottom-0 transition-all duration-300 ${isLong ? (isCurrentActiveCoin ? "w-1.5 bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" : "w-1 bg-emerald-500") : isCurrentActiveCoin ? "w-1.5 bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]" : "w-1 bg-rose-500"}`}
+            className={`absolute left-0 top-0 bottom-0 transition-all duration-300 ${isLong ? "w-1 bg-emerald-500" : "w-1 bg-rose-500"} ${isCurrentActiveCoin ? "w-1.5" : ""}`}
           />
-          <div className="flex items-start gap-1.5">
+          <div className="flex items-start gap-1">
             {statusIcon}
-            <div className="flex flex-col space-y-0.5 text-[10px] select-none text-muted-foreground">
+            <div className="flex flex-col space-y-0.5 text-[9px] sm:text-[10px] select-none text-muted-foreground">
               <span className="font-semibold text-foreground/80">
                 {formattedDateOnly}
               </span>
-              <span className="opacity-70 text-[9px]">{formattedTimeOnly}</span>
+              <span className="opacity-60 text-[8px] sm:text-[9px]">
+                {formattedTimeOnly}
+              </span>
             </div>
           </div>
         </TableCell>
         <TableCell
           onClick={() => onCoinSelect?.(deal.coin)}
-          className="py-3 px-2 font-bold cursor-pointer transition-colors select-none group/coin whitespace-nowrap text-xs tracking-tight"
+          className="py-2 px-1.5 sm:px-3 font-bold cursor-pointer transition-colors select-none group/coin whitespace-nowrap text-[11px] sm:text-xs tracking-tight"
         >
-          <div className="flex flex-col space-y-1">
-            <div className="flex items-center gap-1.5">
-              <span
-                className={`border-b border-dotted border-transparent group-hover/coin:border-amber-500/60 transition-colors duration-150 ${isCurrentActiveCoin ? "text-amber-500 font-extrabold" : ""}`}
-              >
-                {deal.coin}
-              </span>
-              {isCurrentActiveCoin && (
-                <span className="text-[8px] font-black text-amber-500 tracking-widest uppercase animate-pulse">
-                  • active
-                </span>
-              )}
-            </div>
+          <div className="flex flex-col space-y-0.5">
+            <span className="border-b border-dotted border-transparent group-hover/coin:border-amber-500/60 text-foreground">
+              {deal.coin}
+            </span>
             <span
-              className={`inline-flex items-center justify-center text-[9px] font-extrabold px-1 py-0.5 rounded w-fit leading-none ${isLong ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20" : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"}`}
+              className={`text-[8px] font-black w-fit leading-none ${isLong ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
             >
               {isLong ? "LONG" : "SHORT"}
             </span>
           </div>
         </TableCell>
-        <TableCell className="py-3 px-1.5">
+        <TableCell className="py-2 px-1 sm:px-2">
           <span
-            className={`px-1 py-0.5 rounded text-[9px] font-extrabold border ${deal.order_type === "LIMIT" ? "bg-violet-500/10 text-violet-500 border-violet-500/20" : "bg-blue-500/10 text-blue-500 border-blue-500/20"}`}
+            className={`px-0.5 py-0.5 rounded text-[8px] font-black border ${deal.order_type === "LIMIT" ? "bg-violet-500/10 text-violet-500 border-violet-500/15" : "bg-blue-500/10 text-blue-500 border-blue-500/15"}`}
           >
             {deal.order_type}
           </span>
         </TableCell>
-        <TableCell className="py-3 px-2 text-muted-foreground">
+        <TableCell className="py-2 px-1.5 sm:px-3 text-muted-foreground text-[11px] sm:text-xs">
           <span className="font-semibold text-foreground">
-            {(deal.volume || 0).toFixed(2)}
+            {(deal.volume || 0).toFixed(1)}
           </span>
-          <div className="text-[10px]">
-            Маржа: {(deal.margin || 0).toFixed(2)} (x{deal.leverage})
+          <div className="text-[9px] sm:text-[10px] opacity-70">
+            М: {(deal.margin || 0).toFixed(1)} (x{deal.leverage})
           </div>
         </TableCell>
-        <TableCell className="py-3 px-2 font-semibold">
+        <TableCell className="py-2 px-1.5 sm:px-3 font-semibold text-[11px] sm:text-xs">
           {(deal.entry_price || 0).toFixed(precision)}
         </TableCell>
-        <TableCell className="py-3 px-2 font-semibold text-foreground/90 border-none">
+        <TableCell className="py-2 px-1.5 sm:px-3 font-semibold text-muted-foreground text-[11px] sm:text-xs">
           {breakevenPrice.toFixed(precision)}
         </TableCell>
-        <TableCell className="py-3 px-2">
-          <div className="flex flex-col space-y-1">
+        <TableCell className="py-2 px-1.5 sm:px-3">
+          <div className="flex flex-col space-y-0.5 text-[11px] sm:text-xs">
             <span
-              className={`font-semibold transition-all duration-300 rounded px-1 -mx-1 w-fit ${isOpen ? (isHitTP ? "text-emerald-500 dark:text-emerald-400 bg-emerald-500/15 font-black border border-emerald-500/30 animate-pulse" : "text-emerald-600/90") : "text-muted-foreground/60"}`}
+              className={
+                isOpen
+                  ? isHitTP
+                    ? "text-emerald-500 font-black"
+                    : "text-emerald-600/90 font-medium"
+                  : "text-muted-foreground/60"
+              }
             >
-              {isHitTP
-                ? `🔥 ${(deal.take_profit ?? 0).toFixed(precision)}`
-                : (deal.take_profit ?? 0).toFixed(precision)}
+              {(deal.take_profit ?? 0).toFixed(precision)}
             </span>
             <span
-              className={`font-semibold transition-all duration-300 rounded px-1 -mx-1 w-fit ${isOpen ? (isHitSL ? "text-rose-500 dark:text-rose-400 bg-rose-500/15 font-black border border-rose-500/30 animate-pulse" : "text-rose-600/90") : "text-muted-foreground/60"}`}
+              className={
+                isOpen
+                  ? isHitSL
+                    ? "text-rose-500 font-black"
+                    : "text-rose-600/90 font-medium"
+                  : "text-muted-foreground/60"
+              }
             >
-              {isHitSL
-                ? `⚠️ ${(deal.stop_loss ?? 0).toFixed(precision)}`
-                : (deal.stop_loss ?? 0).toFixed(precision)}
+              {(deal.stop_loss ?? 0).toFixed(precision)}
             </span>
           </div>
         </TableCell>
-        <TableCell className="py-3 px-2 relative min-w-26.25">
+        <TableCell className="py-2 px-1.5 sm:px-3 relative min-w-22 sm:min-w-26.25">
           {pnlDisplay}
         </TableCell>
-        <TableCell className="py-3 px-2 text-right whitespace-nowrap">
-          <div className="flex items-center justify-end gap-1">
+        <TableCell className="py-2 px-1.5 sm:px-3 text-right whitespace-nowrap">
+          <div className="flex items-center justify-end gap-0.5 sm:gap-1">
             {isOpen && (
               <>
                 <Button
                   size="icon"
                   variant="ghost"
                   onClick={() => handleUpdateStatus(deal.id, "PROFIT")}
-                  className="h-6 w-6 p-0 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-md"
+                  className="h-7 w-7 p-0 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-md"
                 >
                   <Check className="size-3.5" />
                 </Button>
@@ -643,7 +644,7 @@ export default function TradingJournal({
                   size="icon"
                   variant="ghost"
                   onClick={() => handleUpdateStatus(deal.id, "LOSS")}
-                  className="h-6 w-6 p-0 text-rose-600 hover:bg-rose-600 hover:text-white rounded-md"
+                  className="h-7 w-7 p-0 text-rose-600 hover:bg-rose-600 hover:text-white rounded-md"
                 >
                   <X className="size-3.5" />
                 </Button>
@@ -651,7 +652,7 @@ export default function TradingJournal({
                   size="icon"
                   variant="ghost"
                   onClick={() => handleUpdateStatus(deal.id, "CLOSED")}
-                  className="h-6 w-6 p-0 text-muted-foreground hover:bg-muted hover:text-foreground rounded-md"
+                  className="h-7 w-7 p-0 text-muted-foreground hover:bg-muted hover:text-foreground rounded-md"
                 >
                   <LogOut className="size-3" />
                 </Button>
@@ -666,7 +667,7 @@ export default function TradingJournal({
                   variant: "ghost",
                   size: "icon",
                   className:
-                    "h-6 w-6 p-0 text-muted-foreground hover:text-rose-500",
+                    "h-7 w-7 p-0 text-muted-foreground hover:text-rose-500",
                 })}
               >
                 <Trash2 className="size-3" />
@@ -709,44 +710,45 @@ export default function TradingJournal({
   });
 
   return (
-    <div className="w-full bg-transparent flex flex-col px-1 sm:px-6">
-      {/* ФИКС: Внедрен плавный CSS-переход max-height под каноны Tailwind CSS */}
+    <div className="w-full bg-transparent flex flex-col px-0.5 sm:px-6">
+      {/* ИНТЕГРАЦИЯ СВОРAЧИВАЕМОГО ГРАФИКА С ВЫВОДОМ ТЕКУЩЕЙ СИТУАЦИИ */}
       {chartData.length > 0 && (
-        <div className="mb-6 border border-border/40 rounded-2xl bg-muted/20 dark:bg-black/20 overflow-hidden select-none">
+        <div className="mb-4 sm:mb-6 border border-border/40 rounded-xl sm:rounded-2xl bg-muted/20 dark:bg-black/20 overflow-hidden select-none mx-1 sm:mx-0">
           <div
             onClick={() => setIsChartVisible(!isChartVisible)}
-            className="flex items-center justify-between p-4 select-none cursor-pointer group/chart-header hover:opacity-90"
+            className="flex items-center justify-between p-3 sm:p-4 select-none cursor-pointer group/chart-header hover:opacity-90"
           >
             <div className="flex items-center gap-2">
-              <TrendingUp className="size-4 text-emerald-500" />
-              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground group-hover/chart-header:text-foreground transition-colors">
-                Кривая доходности (Cumulative Equity PnL)
+              <TrendingUp className="size-3.5 sm:size-4 text-emerald-500" />
+              <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-muted-foreground group-hover/chart-header:text-foreground transition-colors flex items-center gap-1.5">
+                Кривая доходности
+                {/* ФИКС: Живой вывод финансового итога по закрытым сделкам прямо в заголовок шторки */}
+                <span
+                  className={`font-black normal-case text-[10px] sm:text-xs ${totalNetPnL >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
+                >
+                  ({totalNetPnL >= 0 ? "+" : ""}
+                  {totalNetPnL.toFixed(2)} USDT)
+                </span>
               </span>
             </div>
             <div className="text-muted-foreground group-hover/chart-header:text-foreground transition-colors">
               {isChartVisible ? (
-                <ChevronUp className="size-4" />
+                <ChevronUp className="size-3.5" />
               ) : (
-                <ChevronDown className="size-4" />
+                <ChevronDown className="size-3.5" />
               )}
             </div>
           </div>
 
-          {/* Схлопывание через плавное изменение max-height, opacity и padding */}
           <div
-            className={`transition-all duration-300 ease-in-out w-full text-[10px] ${
-              isChartVisible
-                ? "max-h-56 opacity-100 p-4 pt-0 visible"
-                : "max-h-0 opacity-0 p-0 overflow-hidden invisible"
-            }`}
+            className={`transition-all duration-300 ease-in-out w-full text-[9px] sm:text-[10px] ${isChartVisible ? "max-h-56 opacity-100 p-3 sm:p-4 pt-0 visible" : "max-h-0 opacity-0 p-0 overflow-hidden invisible"}`}
           >
-            {/* Рендерим Recharts только когда шторка открыта, чтобы не ломать ResponsiveContainer */}
             {renderChart && (
-              <div className="w-full h-44">
+              <div className="w-full h-32 sm:h-44">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart
                     data={chartData}
-                    margin={{ top: 5, right: 5, left: -25, bottom: 0 }}
+                    margin={{ top: 5, right: 5, left: -30, bottom: 0 }}
                   >
                     <defs>
                       <linearGradient id="colorPnL" x1="0" y1="0" x2="0" y2="1">
@@ -764,23 +766,23 @@ export default function TradingJournal({
                     </defs>
                     <CartesianGrid
                       strokeDasharray="3 3"
-                      stroke="rgba(128,128,128,0.1)"
+                      stroke="rgba(128,128,128,0.08)"
                     />
                     <XAxis dataKey="name" stroke="#888888" tickLine={false} />
                     <YAxis stroke="#888888" tickLine={false} />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: "var(--card, #1e1e24)",
-                        borderRadius: "12px",
-                        borderColor: "var(--border, rgba(128,128,128,0.2))",
-                        fontSize: "11px",
+                        borderRadius: "10px",
+                        borderColor: "var(--border, rgba(128,128,128,0.15))",
+                        fontSize: "10px",
                       }}
                     />
                     <Area
                       type="monotone"
                       dataKey="Баланс"
                       stroke="var(--color-primary, #10b981)"
-                      strokeWidth={2}
+                      strokeWidth={1.5}
                       fillOpacity={1}
                       fill="url(#colorPnL)"
                     />
@@ -791,21 +793,21 @@ export default function TradingJournal({
           </div>
         </div>
       )}
-      <div className="py-4 border-b border-border/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-transparent select-none">
-        <div className="flex flex-row items-center gap-3 flex-1 max-w-xl">
-          <div className="relative w-full max-w-55 flex items-center group">
-            <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground/60 pointer-events-none" />
+      <div className="py-3 sm:py-4 border-b border-border/40 flex flex-col gap-3 sm:flex-row sm:items-center justify-between bg-transparent select-none mx-1 sm:mx-0">
+        <div className="flex flex-row items-center gap-2 flex-1 w-full sm:max-w-xl">
+          <div className="relative w-full sm:max-w-55 flex items-center group">
+            <Search className="absolute left-2.5 h-3 w-3 text-muted-foreground/60 pointer-events-none" />
             <Input
               type="text"
-              placeholder="Поиск монеты..."
+              placeholder="Поиск пары..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 pr-7 h-8 text-xs bg-muted/20 dark:bg-muted/5 border-border/40 focus-visible:ring-ring/30 rounded-lg w-full"
+              className="pl-7 pr-7 h-7.5 text-xs bg-muted/20 dark:bg-muted/5 border-border/40 focus-visible:ring-ring/30 rounded-lg w-full"
             />
             {searchQuery.length > 0 && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-2 h-4 w-4 flex items-center justify-center rounded-md text-muted-foreground/60 hover:bg-muted dark:hover:bg-muted/50 hover:text-foreground transition-all p-0 border-none bg-transparent"
+                className="absolute right-2 h-4 w-4 flex items-center justify-center rounded-md text-muted-foreground/60 hover:text-foreground transition-all p-0 border-none bg-transparent"
               >
                 <X className="size-3" />
               </button>
@@ -817,149 +819,156 @@ export default function TradingJournal({
           >
             <TabsList
               variant="default"
-              className="h-8 p-0.5 bg-muted/40 dark:bg-muted/10 border border-border/30 rounded-lg"
+              className="h-7.5 p-0.5 bg-muted/40 dark:bg-muted/10 border border-border/30 rounded-lg"
             >
               <TabsTrigger
                 value="ALL"
-                className="text-xs px-2.5 font-semibold rounded-md data-active:bg-background data-active:text-foreground"
+                className="text-[11px] px-2 font-semibold rounded-md"
               >
                 Все
               </TabsTrigger>
               <TabsTrigger
                 value="OPEN"
-                className="text-xs px-2.5 font-semibold rounded-md data-active:bg-background data-active:text-foreground"
+                className="text-[11px] px-2 font-semibold rounded-md"
               >
-                Открытые
+                Откр.
               </TabsTrigger>
               <TabsTrigger
                 value="CLOSED"
-                className="text-xs px-2.5 font-semibold rounded-md data-active:bg-background data-active:text-foreground"
+                className="text-[11px] px-2 font-semibold rounded-md"
               >
-                Закрытые
+                Закр.
               </TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
-        <div className="flex items-center gap-4 text-xs ml-auto shrink-0 flex-wrap sm:flex-nowrap justify-end w-full sm:w-auto">
-          <div className="text-right">
-            <span className="text-muted-foreground block text-[10px] uppercase">
+
+        <div className="flex items-center gap-2.5 sm:gap-4 text-[11px] sm:text-xs justify-between sm:justify-end w-full sm:w-auto overflow-x-auto sm:overflow-visible pb-1 sm:pb-0 scrollbar-none">
+          <div className="text-center sm:text-right whitespace-nowrap">
+            <span className="text-muted-foreground block text-[9px] uppercase">
               Всего
             </span>
-            <span className="font-bold text-sm">{totalDeals}</span>
+            <span className="font-bold text-xs sm:text-sm">{totalDeals}</span>
           </div>
-          <div className="text-right border-l pl-3 border-border/40">
-            <span className="text-emerald-500 block text-[10px] uppercase">
+          <div className="text-center sm:text-right border-l pl-2 sm:pl-3 border-border/40 whitespace-nowrap">
+            <span className="text-emerald-500 block text-[9px] uppercase">
               Тейки
             </span>
-            <span className="font-bold text-emerald-600 text-sm">
+            <span className="font-bold text-emerald-600 text-xs sm:text-sm">
               {profitDeals}
             </span>
           </div>
-          <div className="text-right border-l pl-3 border-border/40">
-            <span className="text-rose-500 block text-[10px] uppercase">
+          <div className="text-center sm:text-right border-l pl-2 sm:pl-3 border-border/40 whitespace-nowrap">
+            <span className="text-rose-500 block text-[9px] uppercase">
               Стопы
             </span>
-            <span className="font-bold text-rose-600 text-sm">{lossDeals}</span>
+            <span className="font-bold text-rose-600 text-xs sm:text-sm">
+              {lossDeals}
+            </span>
           </div>
-          <div className="text-right border-l pl-3 border-border/40">
-            <span className="text-violet-500 block text-[10px] uppercase font-medium">
+          <div className="text-center sm:text-right border-l pl-2 sm:pl-3 border-border/40 whitespace-nowrap">
+            <span className="text-violet-500 block text-[9px] uppercase font-medium">
               Ручные
             </span>
             <span className="font-bold text-violet-600 text-sm">
               {manualClosedDeals}
             </span>
           </div>
-          <div className="text-right border-l pl-3 border-border/40 bg-muted/40 dark:bg-muted/10 px-2 py-0.5 rounded-md border">
-            <span className="text-amber-500 block text-[10px] uppercase font-medium">
+          <div className="text-center sm:text-right border-l pl-2 sm:pl-3 border-border/40 bg-muted/40 dark:bg-muted/10 px-1.5 py-0.5 rounded-md border whitespace-nowrap">
+            <span className="text-amber-500 block text-[9px] uppercase font-medium">
               WinRate
             </span>
-            <span className="font-extrabold text-sm">{winRate}%</span>
+            <span className="font-extrabold text-xs sm:text-sm">
+              {winRate}%
+            </span>
           </div>
 
-          {totalDeals > 0 && (
-            <Button
-              onClick={exportToCSV}
-              variant="outline"
-              size="icon-sm"
-              className="size-8 rounded-xl text-muted-foreground border-border/60 hover:text-foreground transition-all ml-2"
-              title="Экспортировать историю в CSV файл"
-            >
-              <Download className="size-4" />
-            </Button>
-          )}
-
-          {totalDeals > 0 && (
-            <AlertDialog open={isClearOpen} onOpenChange={setIsClearOpen}>
-              <AlertDialogTrigger
-                className={buttonVariants({
-                  variant: "outline",
-                  size: "icon",
-                  className:
-                    "h-8 w-8 ml-1 text-rose-600 border-rose-500/20 hover:bg-rose-600 hover:text-white rounded-xl p-0",
-                })}
+          <div className="flex items-center gap-1 pl-1 border-l border-border/40 shrink-0">
+            {totalDeals > 0 && (
+              <Button
+                onClick={exportToCSV}
+                variant="outline"
+                size="icon-xs"
+                className="size-7.5 rounded-lg text-muted-foreground border-border/60 hover:text-foreground"
+                title="Экспорт в CSV"
               >
-                <Trash2 className="size-4 shrink-0" />
-              </AlertDialogTrigger>
-              <AlertDialogContent size="default">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Уничтожить весь журнал?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Это действие безвозвратно сотрет историю вашей торговли из
-                    облачной базы.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel className="rounded-xl text-xs h-9">
-                    Отмена
-                  </AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleClearAllDeals}
-                    variant="destructive"
-                    className="rounded-xl text-xs h-9 bg-rose-600 hover:bg-rose-700 text-white border-none"
-                  >
-                    Удалить всё
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
+                <Download className="size-3.5" />
+              </Button>
+            )}
+            {totalDeals > 0 && (
+              <AlertDialog open={isClearOpen} onOpenChange={setIsClearOpen}>
+                <AlertDialogTrigger
+                  className={buttonVariants({
+                    variant: "outline",
+                    size: "icon-xs",
+                    className:
+                      "h-7.5 w-7.5 text-rose-600 border-rose-500/20 hover:bg-rose-600 hover:text-white rounded-lg p-0",
+                  })}
+                >
+                  <Trash2 className="size-3.5 shrink-0" />
+                </AlertDialogTrigger>
+                <AlertDialogContent size="default">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Уничтожить весь журнал?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Это действие безвозвратно сотрет историю вашей торговли из
+                      облачной базы.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="rounded-xl text-xs h-9">
+                      Отмена
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleClearAllDeals}
+                      variant="destructive"
+                      className="rounded-xl text-xs h-9 bg-rose-600 hover:bg-rose-700 text-white border-none"
+                    >
+                      Удалить всё
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
         </div>
       </div>
-      <div className="py-6 pt-4 bg-transparent">
+
+      <div className="py-3 sm:py-6 bg-transparent overflow-hidden">
         {filteredDeals.length === 0 ? (
-          <div className="p-12 text-center text-xs text-muted-foreground font-medium select-none">
+          <div className="p-8 text-center text-xs text-muted-foreground font-medium select-none">
             Ничего не найдено.
           </div>
         ) : (
-          <div className="w-full rounded-2xl border border-border/60 overflow-hidden bg-background">
-            <Table className="w-full text-xs">
+          <div className="w-full rounded-xl sm:rounded-2xl border border-border/50 overflow-x-auto bg-background shadow-sm scrollbar-thin">
+            <Table className="w-full text-xs min-w-180">
               <TableHeader>
-                <TableRow className="border-b border-border/30 bg-muted/40 dark:bg-muted/20 text-[10px] uppercase tracking-wider text-muted-foreground font-medium hover:bg-muted/40">
-                  <TableHead className="py-2.5 px-2 h-auto text-muted-foreground font-medium pl-4">
+                <TableRow className="border-b border-border/20 bg-muted/30 dark:bg-muted/10 text-[9px] sm:text-[10px] uppercase tracking-wider text-muted-foreground font-medium hover:bg-muted/30">
+                  <TableHead className="py-2 px-1.5 sm:px-3 h-auto text-muted-foreground font-medium pl-3.5 sm:pl-5">
                     Вход / Status
                   </TableHead>
-                  <TableHead className="py-2.5 px-2 h-auto text-muted-foreground font-medium">
+                  <TableHead className="py-2 px-1.5 sm:px-3 h-auto text-muted-foreground font-medium">
                     Пара
                   </TableHead>
-                  <TableHead className="py-2.5 px-1.5 h-auto text-muted-foreground font-medium">
+                  <TableHead className="py-2 px-1 sm:px-2 h-auto text-muted-foreground font-medium">
                     Тип
                   </TableHead>
-                  <TableHead className="py-2.5 px-2 h-auto text-muted-foreground font-medium">
+                  <TableHead className="py-2 px-1.5 sm:px-3 h-auto text-muted-foreground font-medium">
                     Объем / Маржа
                   </TableHead>
-                  <TableHead className="py-2.5 px-2 h-auto text-muted-foreground font-medium">
+                  <TableHead className="py-2 px-1.5 sm:px-3 h-auto text-muted-foreground font-medium">
                     Цена Входа
                   </TableHead>
-                  <TableHead className="py-2.5 px-2 h-auto text-muted-foreground font-medium">
+                  <TableHead className="py-2 px-1.5 sm:px-3 h-auto text-muted-foreground font-medium">
                     Безубыток
                   </TableHead>
-                  <TableHead className="py-2.5 px-2 h-auto text-muted-foreground font-medium">
+                  <TableHead className="py-2 px-1.5 sm:px-3 h-auto text-muted-foreground font-medium">
                     TP / SL
                   </TableHead>
                   <TableHead className="py-2.5 px-2 text-right text-muted-foreground font-medium">
                     Результат (PnL)
                   </TableHead>
-                  <TableHead className="py-2.5 px-2 h-auto text-right text-muted-foreground font-medium">
+                  <TableHead className="py-2 px-1.5 sm:px-3 h-auto text-right text-muted-foreground font-medium">
                     Действия
                   </TableHead>
                 </TableRow>

@@ -27,7 +27,6 @@ const COIN_PRECISION_MAP: Record<string, number> = {
   SUIUSDT: 4,
   DOGEUSDT: 5,
 };
-
 interface TickerData {
   lastPrice: number;
   price24hPcnt: number;
@@ -96,7 +95,6 @@ export default function TradingCalculator({
   const [tickerData, setTickerData] = useState<TickerData | null>(null);
   const [tickerLoading, setTickerLoading] = useState(false);
 
-  // Связываем внутренний контекст расчётов с глобальным пропсом шапки сайта
   const partsCount = externalPartsCount;
   const setPartsCount = setExternalPartsCount;
 
@@ -104,7 +102,6 @@ export default function TradingCalculator({
     COIN_PRECISION_MAP[selectedCoin] !== undefined
       ? COIN_PRECISION_MAP[selectedCoin]
       : 4;
-
   const maxSafeLeverage =
     selectedCoin === "BTCUSDT" || selectedCoin === "ETHUSDT" ? 100 : 50;
 
@@ -126,7 +123,6 @@ export default function TradingCalculator({
   });
 
   useTabTicker(tickerData?.lastPrice, selectedCoin, currentDecimals);
-
   const prevCoinRef = useRef(selectedCoin);
   const entryPriceRef = useRef(entryPrice);
 
@@ -161,11 +157,12 @@ export default function TradingCalculator({
       }
       setIsLoaded(true);
     }
-  }, [setSelectedCoin]);
+  }, [setSelectedCoin, onBalanceChange, setPartsCount]);
 
   useEffect(() => {
     if (isLoaded) onBalanceChange?.(balance);
   }, [balance, isLoaded, onBalanceChange]);
+
   const fetchLiveTicker = useCallback(
     async (coin: string, isFirstInit: boolean, isCurrent: () => boolean) => {
       try {
@@ -173,12 +170,9 @@ export default function TradingCalculator({
         const res = await fetch(`/api/bybit?symbol=${coin}`);
         if (!res.ok) throw new Error("API error");
         const data: TickerData = await res.json();
-
         if (!isCurrent()) return;
-
         setTickerData(data);
         onPriceUpdate?.(data.lastPrice);
-
         if (
           isFirstInit ||
           prevCoinRef.current !== coin ||
@@ -199,7 +193,6 @@ export default function TradingCalculator({
   const handlePriceApply = (price: number) => {
     if (price > 0) setEntryPrice(price);
   };
-
   const handleCoinChange = (newCoin: string) => {
     setSelectedCoin(newCoin);
   };
@@ -224,16 +217,12 @@ export default function TradingCalculator({
 
   useEffect(() => {
     if (!isLoaded) return;
-
     let active = true;
     const isCurrent = () => active;
-
     fetchLiveTicker(selectedCoin, true, isCurrent);
-
     const interval = setInterval(() => {
       fetchLiveTicker(selectedCoin, false, isCurrent);
     }, 3000);
-
     return () => {
       active = false;
       clearInterval(interval);
@@ -269,10 +258,10 @@ export default function TradingCalculator({
     partsCount,
     isLoaded,
   ]);
-  // Автоподбор кредитного плеча на основе динамического partsCount и актуальных стейтов
+
+  // ФИКС: Восстановлен правильный массив standardSteps для автоматического подбора плеча
   useEffect(() => {
     if (!isLoaded) return;
-
     const baseRiskAmount = (balance * riskPercent) / 100;
     const allocatedMarginMax = balance / partsCount;
     const openFeeRate = orderType === "MARKET" ? 0.00055 : 0.0002;
@@ -284,7 +273,6 @@ export default function TradingCalculator({
     const calculatedRecLeverage = Math.ceil(
       idealPositionSizeUsdt / allocatedMarginMax,
     );
-
     const standardSteps = [1, 2, 5, 10, 15, 20, 25, 30, 50, 75, 100];
     let finalRecLeverage = 10;
 
@@ -294,15 +282,20 @@ export default function TradingCalculator({
         break;
       }
     }
-
     if (finalRecLeverage > maxSafeLeverage) {
       finalRecLeverage = maxSafeLeverage;
     }
-
     setLeverage(finalRecLeverage);
-  }, [selectedCoin, isLoaded, maxSafeLeverage, partsCount]);
-
-  // Главное математическое ядро калькулятора с исправленной ценой ликвидации линейных контрактов Bybit
+  }, [
+    selectedCoin,
+    isLoaded,
+    maxSafeLeverage,
+    partsCount,
+    balance,
+    riskPercent,
+    orderType,
+    stopLossPercent,
+  ]);
   useEffect(() => {
     if (entryPrice <= 0 || stopLossPercent <= 0 || balance <= 0) return;
 
@@ -383,8 +376,9 @@ export default function TradingCalculator({
   ]);
 
   if (!isLoaded) return null;
+
   return (
-    <div className="w-full p-2 sm:p-4 space-y-4">
+    <div className="w-full p-1.5 sm:p-4 space-y-3 sm:space-y-4">
       <MarketTicker
         data={tickerData}
         loading={tickerLoading}
@@ -392,15 +386,14 @@ export default function TradingCalculator({
         onPriceClick={handlePriceApply}
         selectedCoin={selectedCoin}
       />
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 items-stretch">
         <Card className="shadow-sm border border-border/40 bg-background flex flex-col rounded-xl sm:rounded-2xl">
-          <CardHeader className="py-2 px-3 sm:py-2.5 sm:px-4 border-b border-border/40">
+          <CardHeader className="py-2 px-2.5 sm:py-2.5 sm:px-4 border-b border-border/40">
             <CardTitle className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Панель параметров
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 p-3 sm:p-4 flex-1">
+          <CardContent className="space-y-3.5 sm:space-y-4 p-2.5 sm:p-4 flex-1">
             <CoinSelector
               selectedCoin={selectedCoin}
               onCoinChange={handleCoinChange}
@@ -432,14 +425,13 @@ export default function TradingCalculator({
             />
           </CardContent>
         </Card>
-
         <Card className="shadow-sm border border-border/40 bg-background flex flex-col rounded-xl sm:rounded-2xl">
-          <CardHeader className="py-2 px-3 sm:py-2.5 sm:px-4 border-b border-border/40">
+          <CardHeader className="py-2 px-2.5 sm:py-2.5 sm:px-4 border-b border-border/40">
             <CardTitle className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Торговый отчёт
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-3 sm:p-4 flex-1 flex flex-col justify-between">
+          <CardContent className="p-2.5 sm:p-4 flex-1 flex flex-col justify-between">
             <ResultsDisplay
               results={results}
               coin={selectedCoin}

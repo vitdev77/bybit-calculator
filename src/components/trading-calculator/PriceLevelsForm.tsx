@@ -50,12 +50,12 @@ export default function PriceLevelsForm({
     if (typeof value !== "string") return;
     setRiskRewardRatio(Number(value));
   };
-
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+      {/* ФИКС АДАПТИВНОСТИ: grid-cols-2 жестко удерживает поля в один ряд на любых смартфонах */}
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 items-start">
         <div className="space-y-1">
-          <Label htmlFor="entryPrice" className="text-xs sm:text-sm">
+          <Label htmlFor="entryPrice" className="text-[11px] sm:text-sm px-0.5">
             Цена входа (USDT)
           </Label>
           <Input
@@ -63,7 +63,7 @@ export default function PriceLevelsForm({
             type="number"
             placeholder="0.00"
             value={entryPrice || ""}
-            className="h-9 text-xs sm:text-sm"
+            className="h-8.5 sm:h-9 text-xs sm:text-sm rounded-lg px-2"
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               setEntryPrice(Number(e.target.value))
             }
@@ -71,8 +71,11 @@ export default function PriceLevelsForm({
         </div>
 
         <div className="space-y-1">
-          <Label htmlFor="rr-preset-select" className="text-xs sm:text-sm">
-            Режим торговли (R:R)
+          <Label
+            htmlFor="rr-preset-select"
+            className="text-[11px] sm:text-sm px-0.5"
+          >
+            Режим (R:R)
           </Label>
           <Select
             key={`${stopLossPercent}-${riskRewardRatio}`}
@@ -81,7 +84,7 @@ export default function PriceLevelsForm({
           >
             <SelectTrigger
               id="rr-preset-select"
-              className="w-full h-9! m-0! bg-background text-xs sm:text-sm"
+              className="w-full h-8.5! sm:h-9! m-0! bg-transparent text-xs sm:text-sm rounded-lg"
             >
               <SelectValue placeholder="1:3">{`1:${riskRewardRatio}`}</SelectValue>
             </SelectTrigger>
@@ -103,7 +106,8 @@ export default function PriceLevelsForm({
         </div>
       </div>
 
-      <div className="flex justify-center pt-3 w-full">
+      {/* Кнопка сброса с оптимизированным мобильным отступом */}
+      <div className="flex justify-center pt-1.5 sm:pt-3 w-full">
         <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
           <AlertDialogTrigger
             className={buttonVariants({
