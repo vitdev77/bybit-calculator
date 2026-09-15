@@ -1,6 +1,5 @@
 name: Next.js CI/CD Operations
 
-# Робот запускается при каждом пуше в ветку main или при создании Pull Request
 on:
   push:
     branches: ["main", "master"]
@@ -13,7 +12,6 @@ jobs:
 
     strategy:
       matrix:
-        # ФИКС: Переводим сборщик на актуальную версию Node.js 24, так как 20-я полностью устарела
         node-version: [24.x]
 
     steps:
@@ -24,18 +22,39 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: "npm" # Кешируем package-lock.json для ускорения последующих проверок
+          cache: "npm"
+
       - name: Install project dependencies
-        run: npm ci # Быстрая и чистая установка строго по package-lock.json
+        run: npm ci
 
       - name: Run ESLint static analysis
         run: npm run lint
-        continue-on-error: true # ЖЕЛЕЗОБЕТОННЫЙ ФИКС: Линтер больше не заблокирует и не уронит билд, даже если найдет варнинг
+        continue-on-error: true
 
       - name: Execute production build test
         run: npm run build
         env:
-          # Передаем фейковые переменные, чтобы сборка Next.js не упала из-за отсутствия env в GitHub
           DATABASE_URL: "postgresql://mock_user:mock_pass@localhost:5432/mock_db"
           BYBIT_API_URL: "https://api.bytick.com"
           NEXT_PUBLIC_TRADINGVIEW_SCRIPT_URL: "https://s3.tradingview.com/tv.js"
+      # ЭТАП CD: Если верхние шаги прошли успешно, робот запускает деплой на Vercel
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Build Project Artifacts on Vercel
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Deploy Project to Production
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
