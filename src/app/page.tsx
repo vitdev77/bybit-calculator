@@ -8,7 +8,6 @@ import TradingJournal from "@/components/trading-calculator/TradingJournal";
 import { ModeToggle } from "@/components/ModeToggle";
 
 const STORAGE_KEY_LAYOUT = "bybit_calculator_layout_v1";
-
 export default function Home() {
   const [selectedCoin, setSelectedCoin] = useState("BTCUSDT");
   const [currentBalance, setCurrentBalance] = useState(100);
@@ -42,6 +41,7 @@ export default function Home() {
       setIsMounted(true);
     }
   }, []);
+
   useEffect(() => {
     if (!isMounted) return;
     const layoutState = { isCalcExpanded, isChartExpanded, isJournalExpanded };
@@ -55,19 +55,19 @@ export default function Home() {
     updateAttr("data-hide-chart", isChartExpanded);
     updateAttr("data-hide-journal", isJournalExpanded);
   }, [isCalcExpanded, isChartExpanded, isJournalExpanded, isMounted]);
-
   return (
     <main className="min-h-screen py-4 sm:py-8 space-y-4 sm:space-y-6 max-w-5xl mx-auto px-2 sm:px-4">
       {/* --- ГЛОБАЛЬНАЯ ШАПКА ПРИЛОЖЕНИЯ С ДИНАМИЧЕСКИМ PARTS_COUNT --- */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-2 select-none border-b border-border/20 pb-4">
-        <div className="space-y-1">
-          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
+      {/* ФИКС: grid grid-cols-[1fr_auto] жестко удерживает название и кнопку в один ряд на смартфонах */}
+      <div className="grid grid-cols-[1fr_auto] items-start gap-x-4 border-b border-border/20 pb-4 select-none">
+        <div className="space-y-1 min-w-0">
+          <h1 className="text-base sm:text-xl font-bold tracking-tight text-foreground truncate">
             Bybit Futures{" "}
             <span className="text-muted-foreground font-normal">
               / Calculator
             </span>
           </h1>
-          <p className="text-[11px] sm:text-xs text-muted-foreground leading-normal">
+          <p className="text-[10px] sm:text-xs text-muted-foreground leading-normal truncate">
             Изолированная маржа 1/{partsCount} •{" "}
             <span className="font-semibold text-foreground/90">
               {(currentBalance / partsCount).toFixed(2)} USDT
@@ -75,10 +75,12 @@ export default function Home() {
             на позицию
           </p>
         </div>
-        <div className="flex justify-end sm:block">
+        {/* Кнопка переключения тем теперь стоит монолитно справа и не прыгает вниз */}
+        <div className="flex justify-end pt-0.5">
           <ModeToggle />
         </div>
       </div>
+
       {/* --- БЛОК 1: КАЛЬКУЛЯТОР ПАРАМЕТРОВ --- */}
       <div className="border border-border/40 bg-muted/30 dark:bg-muted/10 rounded-2xl sm:rounded-[2rem] p-1 sm:p-2 transition-all duration-300">
         <div
@@ -90,7 +92,7 @@ export default function Home() {
               Калькулятор Позиций
             </h2>
             <p className="text-[11px] sm:text-xs text-muted-foreground/70 truncate">
-              Расчёт маржи, рисков и параметров ордера
+              Расчёт маржи, рисков и parameters ордера
             </p>
           </div>
           <div className="p-1.5 sm:p-2 rounded-xl text-muted-foreground group-hover/header:text-foreground group-hover/header:bg-muted/50 dark:group-hover/header:bg-muted/20 transition-all shrink-0">
@@ -117,7 +119,6 @@ export default function Home() {
           </div>
         </div>
       </div>
-
       {/* --- БЛОК 2: ЖИВОЙ ГРАФИК TRADINGVIEW --- */}
       <div className="border border-border/40 bg-background rounded-2xl sm:rounded-[2rem] p-1 sm:p-2 transition-all duration-300">
         <div
