@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Copy, Check, FolderPlus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
+import { OrderType, PositionSide } from "./TradingCalculator";
 
 interface ResultsDisplayProps {
   results: {
@@ -23,7 +24,8 @@ interface ResultsDisplayProps {
   };
   coin: string;
   entryPrice: number;
-  orderType: string;
+  orderType: OrderType;
+  side: PositionSide; // Принимаем строго типизированный стейт направления ордера
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -60,6 +62,7 @@ export default function ResultsDisplay({
   coin,
   entryPrice,
   orderType,
+  side,
 }: ResultsDisplayProps) {
   const assetName = coin.replace("USDT", "");
   const [isSaving, setIsSaveLoading] = useState(false);
@@ -82,7 +85,6 @@ export default function ResultsDisplay({
       ? results.liquidationPrice.toFixed(results.decimals)
       : "0.00";
 
-  // Флаг превышения допустимого биржевого плеча актива
   const isLeverageTooHigh = results.selectedLeverage > results.maxSafeLeverage;
 
   const tpRoiPcnt =
@@ -92,20 +94,19 @@ export default function ResultsDisplay({
   const slLossUsdt = results.riskAmount;
   const slRoiPcnt =
     results.marginUsed > 0 ? (-slLossUsdt / results.marginUsed) * 100 : 0;
+
   const handleSaveDeal = async () => {
     if (results.positionSizeUsdt <= 0 || isSaving || isLeverageTooHigh) return;
     try {
       setIsSaveLoading(true);
       setDuplicateWarning(false);
 
-      const isLong = results.takeProfitPrice > results.stopLossPrice;
-
       const response = await fetch("/api/journal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           coin: coin,
-          side: isLong ? "BUY" : "SELL",
+          side: side, // Отправляем на бэкенд прямое значение стейта (BUY/SELL)
           order_type: orderType,
           entry_price: entryPrice,
           stop_loss: results.stopLossPrice,
@@ -133,7 +134,7 @@ export default function ResultsDisplay({
       setSaveSuccess(true);
       toast.add({
         title: "Трейд зафиксирован!",
-        description: `Позиция ${isLong ? "Long" : "Short"} по ${coin} успешно добавлена в облачный журнал сделок.`,
+        description: `Позиция ${side === "BUY" ? "Long" : "Short"} по ${coin} успешно добавлена в облачный журнал сделок.`,
         type: "success",
       });
       setTimeout(() => setSaveSuccess(false), 2000);
@@ -196,7 +197,6 @@ export default function ResultsDisplay({
           </div>
         </div>
 
-        {/* 🔴 КРАСНЫЙ АЛЕРТ: Оборачиваем строку в рамку и выводим ошибку, если выбранное плечо превысило лимит Bybit */}
         <div
           className={`transition-all duration-300 rounded-lg ${isLeverageTooHigh ? "bg-red-500/10 border border-red-500/30 p-2 -mx-2 space-y-1" : ""}`}
         >
@@ -276,7 +276,6 @@ export default function ResultsDisplay({
           </div>
         </div>
       </div>
-
       <div className="space-y-3 pt-3 border-t w-full">
         <div className="space-y-0.5">
           <div className="flex justify-between items-center w-full">
@@ -335,9 +334,9 @@ export default function ResultsDisplay({
             isLeverageTooHigh
               ? "bg-red-500/10 text-red-500/60 border border-solid border-red-500/20 cursor-not-allowed font-extrabold"
               : saveSuccess
-                ? "bg-emerald-600 hover:bg-emerald-600 text-white font-bold"
+                ? "bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
                 : duplicateWarning
-                  ? "bg-amber-600 hover:bg-amber-600 text-white font-bold"
+                  ? "bg-amber-600 hover:bg-amber-700 text-white font-bold"
                   : "bg-primary hover:bg-primary/90 text-primary-foreground"
           }`}
         >

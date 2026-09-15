@@ -445,6 +445,7 @@ export default function TradingCalculator({
               coin={selectedCoin}
               entryPrice={entryPrice}
               orderType={orderType}
+              side={side}
             />
           </CardContent>
         </Card>
