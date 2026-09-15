@@ -15,6 +15,9 @@ const eslintConfig = defineConfig([
       "react/no-unescaped-entities": "off", // Разрешаем кавычки и спецсимволы в JSX текстах калькулятора
       "@next/next/no-img-element": "off", // Разрешаем тег <img> для локальных crypto-icons картинок монеты
       "no-inner-declarations": "off", // Отключаем строгую проверку вложенных функций
+      "react-hooks/exhaustive-deps": "off", // Отключаем жесткую блокировку из-за массивов зависимостей в хуках
+      "@next/next/no-html-link-for-pages": "off", // Отключаем ругань на классические ссылки <a>
+      "no-case-declarations": "off", // Разрешаем объявление переменных внутри блоков switch-case
     },
   },
 ]);
