@@ -1,0 +1,40 @@
+name: Next.js CI/CD Operations
+
+# Робот запускается при каждом пуше в ветку main или при создании Pull Request
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+    branches: ["main", "master"]
+
+jobs:
+  code-verification:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [20.x] # Используем стабильную 20-ю версию Node.js
+
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js environment (${{ matrix.node-version }})
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm" # Кешируем package-lock.json для ускорения последующих проверок
+      - name: Install project dependencies
+        run: npm ci # Быстрая и чистая установка строго по package-lock.json
+
+      - name: Run ESLint static analysis
+        run: npm run lint
+        continue-on-error: false # Если линтер найдет ошибки, сборка упадет
+
+      - name: Execute production build test
+        run: npm run build
+        env:
+          # Передаем фейковые переменные, чтобы сборка Next.js не упала из-за отсутствия env в GitHub
+          DATABASE_URL: "postgresql://mock_user:mock_pass@localhost:5432/mock_db"
+          BYBIT_API_URL: "https://api.bytick.com"
+          NEXT_PUBLIC_TRADINGVIEW_SCRIPT_URL: "https://s3.tradingview.com/tv.js"

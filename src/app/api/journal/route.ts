@@ -1,39 +1,54 @@
 import { NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
 
+// Железобетонно отключаем серверный кэш Next.js для журнала сделок
+export const dynamic = "force-dynamic";
+
 const sql = neon(process.env.DATABASE_URL || "");
 
-async function ensureTableExists() {
-  await sql`
-    CREATE TABLE IF NOT EXISTS deals (
-      id SERIAL PRIMARY KEY,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-      coin VARCHAR(50) NOT NULL,
-      side VARCHAR(10) NOT NULL,
-      order_type VARCHAR(10) NOT NULL,
-      entry_price DOUBLE PRECISION NOT NULL,
-      stop_loss DOUBLE PRECISION NOT NULL,
-      take_profit DOUBLE PRECISION NOT NULL,
-      volume DOUBLE PRECISION NOT NULL,
-      margin DOUBLE PRECISION NOT NULL,
-      leverage INTEGER NOT NULL,
-      status VARCHAR(20) DEFAULT 'OPEN'
-    );
-  `;
+// Изолируем проверку и создание структуры, чтобы не спамить базу тяжелыми DDL-блокировками
+let isTableVerified = false;
 
-  // АВТОМАТИЧЕСКИЙ АПГРЕЙД: Проверяем и добавляем колонку closed_at_price прямо из кода
-  await sql`
-    ALTER TABLE deals ADD COLUMN IF NOT EXISTS closed_at_price DOUBLE PRECISION;
-  `;
+async function ensureTableExists() {
+  if (isTableVerified) return;
+
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS deals (
+        id SERIAL PRIMARY KEY,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        coin VARCHAR(50) NOT NULL,
+        side VARCHAR(10) NOT NULL,
+        order_type VARCHAR(10) NOT NULL,
+        entry_price DOUBLE PRECISION NOT NULL,
+        stop_loss DOUBLE PRECISION NOT NULL,
+        take_profit DOUBLE PRECISION NOT NULL,
+        volume DOUBLE PRECISION NOT NULL,
+        margin DOUBLE PRECISION NOT NULL,
+        leverage INTEGER NOT NULL,
+        status VARCHAR(20) DEFAULT 'OPEN'
+      );
+    `;
+
+    await sql`
+      ALTER TABLE deals ADD COLUMN IF NOT EXISTS closed_at_price DOUBLE PRECISION;
+    `;
+
+    isTableVerified = true; // Фиксируем успешную проверку схемы в памяти инстанса
+  } catch (err) {
+    console.error("Database Migration Error:", err);
+    // Не блокируем рантайм, если таблица уже создана сторонним процессом
+  }
 }
 
 export async function GET() {
   try {
-    if (!process.env.DATABASE_URL)
+    if (!process.env.DATABASE_URL) {
       return NextResponse.json(
         { error: "DATABASE_URL не настроен" },
         { status: 500 },
       );
+    }
     await ensureTableExists();
     const rows = await sql`SELECT * FROM deals ORDER BY created_at DESC;`;
     return NextResponse.json(rows || []);
@@ -44,11 +59,12 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    if (!process.env.DATABASE_URL)
+    if (!process.env.DATABASE_URL) {
       return NextResponse.json(
         { error: "DATABASE_URL не настроен" },
         { status: 500 },
       );
+    }
     await ensureTableExists();
     const body = await request.json();
 
@@ -70,12 +86,18 @@ export async function POST(request: Request) {
     const margin = parseFloat(Number(body.margin).toFixed(2));
     const leverage = parseInt(body.leverage, 10);
 
+    // ФИКС: Для коинов с высокой точностью (DOGE, XRP) используем более строгую проверку равенства цен
+    const priceEpsilon =
+      coin.includes("DOGE") || coin.includes("XRP") || coin.includes("SUI")
+        ? 0.000001
+        : 0.0001;
+
     const existingDuplicates = await sql`
       SELECT id FROM deals
       WHERE coin = ${coin} AND side = ${side} AND status = 'OPEN'
-        AND ABS(entry_price - ${entry_price}) < 0.0001
-        AND ABS(stop_loss - ${stop_loss}) < 0.0001
-        AND ABS(take_profit - ${take_profit}) < 0.0001;
+        AND ABS(entry_price - ${entry_price}) < ${priceEpsilon}
+        AND ABS(stop_loss - ${stop_loss}) < ${priceEpsilon}
+        AND ABS(take_profit - ${take_profit}) < ${priceEpsilon};
     `;
 
     if (existingDuplicates && existingDuplicates.length > 0) {
@@ -95,14 +117,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
 export async function PATCH(request: Request) {
   try {
-    if (!process.env.DATABASE_URL)
+    if (!process.env.DATABASE_URL) {
       return NextResponse.json(
         { error: "DATABASE_URL не настроен" },
         { status: 500 },
       );
-
+    }
     await ensureTableExists();
 
     const body = await request.json();
@@ -116,15 +139,13 @@ export async function PATCH(request: Request) {
     const targetId = parseInt(body.id, 10);
     const targetStatus = String(body.status);
 
-    // Получаем цену ручного закрытия, если она была передана с фронтенда
     const closedAtPrice =
-      body.closed_at_price !== undefined
+      body.closed_at_price !== undefined && body.closed_at_price !== null
         ? parseFloat(Number(body.closed_at_price).toFixed(6))
         : null;
 
     let result;
 
-    // ИСПРАВЛЕНО: Если ордер закрыт руками, сохраняем точную цену выхода
     if (targetStatus === "CLOSED" && closedAtPrice !== null) {
       result = await sql`
         UPDATE deals 
@@ -133,7 +154,6 @@ export async function PATCH(request: Request) {
         RETURNING *;
       `;
     } else {
-      // Для PROFIT и LOSS обычное обновление статуса
       result = await sql`
         UPDATE deals 
         SET status = ${targetStatus} 
@@ -150,12 +170,12 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    if (!process.env.DATABASE_URL)
+    if (!process.env.DATABASE_URL) {
       return NextResponse.json(
         { error: "DATABASE_URL не настроен" },
         { status: 500 },
       );
-
+    }
     await ensureTableExists();
 
     const { searchParams } = new URL(request.url);

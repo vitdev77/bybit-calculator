@@ -144,7 +144,6 @@ export default function TradingJournal({
     totalDeals > 0
       ? ((profitDeals / (profitDeals + lossDeals || 1)) * 100).toFixed(0)
       : "0";
-
   const handleUpdateStatus = async (
     id: number,
     status: "PROFIT" | "LOSS" | "CLOSED",
@@ -164,7 +163,6 @@ export default function TradingJournal({
 
       const targetDeal = deals.find((d) => d.id === id);
       const coinName = targetDeal ? targetDeal.coin.replace("USDT", "") : "";
-
       let toastTitle = "Сделка закрыта руками ✋";
       let toastType: "success" | "warning" | "info" = "info";
 
@@ -224,29 +222,23 @@ export default function TradingJournal({
   const renderDealRow = (deal: Deal) => {
     const isLong = deal.side === "BUY";
     const isOpen = deal.status === "OPEN";
-
     const precision =
       JOURNAL_PRECISION_MAP[deal.coin] !== undefined
         ? JOURNAL_PRECISION_MAP[deal.coin]
         : 4;
-
     const openFeeRate = deal.order_type === "LIMIT" ? 0.0002 : 0.00055;
     const closeFeeRate = 0.00055;
     const totalFeeRate = openFeeRate + closeFeeRate;
 
-    // Истинная математическая цена безубытка с учётом торговой комиссии в обе стороны
     const breakevenPrice = isLong
       ? deal.entry_price * (1 + totalFeeRate)
       : deal.entry_price * (1 - totalFeeRate);
 
     let pnlDisplay = null;
     const isCurrentActiveCoin = activeCoin === deal.coin;
-
     let isHitTP = false;
     let isHitSL = false;
 
-    // 🔥 ИСПРАВЛЕНО: Полностью переписан расчёт PnL в реальном времени.
-    // Комиссия теперь строго вычитается, а не инвертируется в Short-режиме.
     if (isOpen && isCurrentActiveCoin && livePrice > 0) {
       const isPriceValidForCoin =
         (deal.coin === "BTCUSDT" && livePrice > 30000) ||
@@ -255,20 +247,17 @@ export default function TradingJournal({
 
       if (isPriceValidForCoin) {
         isHitTP = isLong
-          ? livePrice >= deal.take_profit
-          : livePrice <= deal.take_profit;
+          ? livePrice >= (deal.take_profit ?? 0)
+          : livePrice <= (deal.take_profit ?? 0);
         isHitSL = isLong
-          ? livePrice <= deal.stop_loss
-          : livePrice >= deal.stop_loss;
+          ? livePrice <= (deal.stop_loss ?? 0)
+          : livePrice >= (deal.stop_loss ?? 0);
 
         const cryptoQty = deal.volume / deal.entry_price;
         const totalFeeUsdt = deal.volume * totalFeeRate;
-
-        // Разделяем грязную прибыль от движения цены и фиксированную комиссию Bybit
         const rawPnlUsdt = isLong
           ? (livePrice - deal.entry_price) * cryptoQty
           : (deal.entry_price - livePrice) * cryptoQty;
-
         const livePnlUsdt = rawPnlUsdt - totalFeeUsdt;
         const liveRoi = deal.margin > 0 ? (livePnlUsdt / deal.margin) * 100 : 0;
         const isProfit = livePnlUsdt >= 0;
@@ -312,7 +301,6 @@ export default function TradingJournal({
       }
     }
 
-    // Расчёт и вывод результатов для уже закрытых или замороженных трейдов
     if (!pnlDisplay) {
       const lastKnown = frozenPnL[deal.id] || { pnl: 0, roi: 0 };
       const isLastProfit = lastKnown.pnl >= 0;
@@ -346,29 +334,23 @@ export default function TradingJournal({
           deal.status === "CLOSED" &&
           deal.closed_at_price &&
           Number(deal.closed_at_price) > 0
-        ) {
+        )
           targetPrice = Number(deal.closed_at_price);
-        } else if (
+        else if (
           deal.status === "CLOSED" &&
           isCurrentActiveCoin &&
           livePrice > 0
-        ) {
+        )
           targetPrice = livePrice;
-        } else {
-          targetPrice = deal.entry_price;
-        }
+        else targetPrice = deal.entry_price;
 
         const cryptoQty =
           deal.entry_price > 0 ? deal.volume / deal.entry_price : 0;
         const totalFeeUsdt = deal.volume * totalFeeRate;
-
-        // 🔥 ИСПРАВЛЕНО: Безупречный расчёт финального PnL закрытой сделки для Long и Short
         const rawFinalPnl = isLong
           ? (targetPrice - deal.entry_price) * cryptoQty
           : (deal.entry_price - targetPrice) * cryptoQty;
-
         const finalPnlUsdt = rawFinalPnl - totalFeeUsdt;
-
         const finalRoi =
           deal.margin > 0.01 ? (finalPnlUsdt / deal.margin) * 100 : 0;
         const isFinalProfit = finalPnlUsdt >= 0;
@@ -437,15 +419,7 @@ export default function TradingJournal({
       >
         <TableCell className="py-2 px-2 whitespace-nowrap relative pl-4">
           <div
-            className={`absolute left-0 top-0 bottom-0 transition-all duration-300 ${
-              isLong
-                ? isCurrentActiveCoin
-                  ? "w-1.5 bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]"
-                  : "w-1 bg-emerald-500"
-                : isCurrentActiveCoin
-                  ? "w-1.5 bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]"
-                  : "w-1 bg-rose-500"
-            }`}
+            className={`absolute left-0 top-0 bottom-0 transition-all duration-300 ${isLong ? (isCurrentActiveCoin ? "w-1.5 bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" : "w-1 bg-emerald-500") : isCurrentActiveCoin ? "w-1.5 bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]" : "w-1 bg-rose-500"}`}
             title={isLong ? "LONG (BUY)" : "SHORT (SELL)"}
           />
           <div className="flex items-start gap-1.5">
@@ -477,17 +451,12 @@ export default function TradingJournal({
               )}
             </div>
             <span
-              className={`inline-flex items-center justify-center text-[9px] font-extrabold px-1 py-0.5 rounded w-fit leading-none ${
-                isLong
-                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
-                  : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
-              }`}
+              className={`inline-flex items-center justify-center text-[9px] font-extrabold px-1 py-0.5 rounded w-fit leading-none ${isLong ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20" : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"}`}
             >
               {isLong ? "LONG" : "SHORT"}
             </span>
           </div>
         </TableCell>
-
         <TableCell className="py-3 px-1.5">
           <span
             className={`px-1 py-0.5 rounded text-[9px] font-extrabold border ${deal.order_type === "LIMIT" ? "bg-violet-500/10 text-violet-500 border-violet-500/20" : "bg-blue-500/10 text-blue-500 border-blue-500/20"}`}
@@ -497,49 +466,35 @@ export default function TradingJournal({
         </TableCell>
         <TableCell className="py-3 px-2 text-muted-foreground">
           <span className="font-semibold text-foreground">
-            {deal.volume.toFixed(2)}
+            {(deal.volume || 0).toFixed(2)}
           </span>
           <div className="text-[10px]">
-            Маржа: {deal.margin.toFixed(2)} (x{deal.leverage})
+            Маржа: {(deal.margin || 0).toFixed(2)} (x{deal.leverage})
           </div>
         </TableCell>
         <TableCell className="py-3 px-2 font-semibold">
-          {deal.entry_price.toFixed(precision)}
+          {(deal.entry_price || 0).toFixed(precision)}
         </TableCell>
         <TableCell className="py-3 px-2 font-semibold text-foreground/90 border-none">
           {breakevenPrice.toFixed(precision)}
         </TableCell>
-
         <TableCell className="py-3 px-2">
           <div className="flex flex-col space-y-1">
             <span
-              className={`font-semibold transition-all duration-300 rounded px-1 -mx-1 w-fit ${
-                isOpen
-                  ? isHitTP
-                    ? "text-emerald-500 dark:text-emerald-400 bg-emerald-500/15 font-black border border-emerald-500/30 animate-pulse"
-                    : "text-emerald-600/90"
-                  : "text-muted-foreground/60"
-              }`}
+              className={`font-semibold transition-all duration-300 rounded px-1 -mx-1 w-fit ${isOpen ? (isHitTP ? "text-emerald-500 dark:text-emerald-400 bg-emerald-500/15 font-black border border-emerald-500/30 animate-pulse" : "text-emerald-600/90") : "text-muted-foreground/60"}`}
               title="Take Profit"
             >
               {isHitTP
-                ? `🔥 ${deal.take_profit.toFixed(precision)}`
-                : deal.take_profit.toFixed(precision)}
+                ? `🔥 ${(deal.take_profit ?? 0).toFixed(precision)}`
+                : (deal.take_profit ?? 0).toFixed(precision)}
             </span>
-
             <span
-              className={`font-semibold transition-all duration-300 rounded px-1 -mx-1 w-fit ${
-                isOpen
-                  ? isHitSL
-                    ? "text-rose-500 dark:text-rose-400 bg-rose-500/15 font-black border border-rose-500/30 animate-pulse"
-                    : "text-rose-600/90"
-                  : "text-muted-foreground/60"
-              }`}
+              className={`font-semibold transition-all duration-300 rounded px-1 -mx-1 w-fit ${isOpen ? (isHitSL ? "text-rose-500 dark:text-rose-400 bg-rose-500/15 font-black border border-rose-500/30 animate-pulse" : "text-rose-600/90") : "text-muted-foreground/60"}`}
               title="Stop Loss"
             >
               {isHitSL
-                ? `⚠️ ${deal.stop_loss.toFixed(precision)}`
-                : deal.stop_loss.toFixed(precision)}
+                ? `⚠️ ${(deal.stop_loss ?? 0).toFixed(precision)}`
+                : (deal.stop_loss ?? 0).toFixed(precision)}
             </span>
           </div>
         </TableCell>
@@ -644,7 +599,6 @@ export default function TradingJournal({
               <button
                 onClick={() => setSearchQuery("")}
                 className="absolute right-2 h-4 w-4 flex items-center justify-center rounded-md text-muted-foreground/60 hover:bg-muted dark:hover:bg-muted/50 hover:text-foreground transition-all cursor-pointer border-none bg-transparent p-0"
-                title="Очистить поиск"
               >
                 <X className="size-3" />
               </button>
@@ -723,7 +677,6 @@ export default function TradingJournal({
                   className:
                     "h-8 w-8 ml-2 text-rose-600 border-rose-500/20 hover:bg-rose-600 hover:text-white rounded-xl cursor-pointer p-0",
                 })}
-                title="Очистить весь журнал сделок"
               >
                 <Trash2 className="size-4 shrink-0" />
               </AlertDialogTrigger>
