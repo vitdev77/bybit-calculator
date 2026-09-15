@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -14,10 +14,22 @@ import {
   Clock,
   Pause,
   Download,
+  TrendingUp,
 } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+// Импортируем компоненты для построения профессионального графика
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from "recharts";
 import {
   Table,
   TableBody,
@@ -53,13 +65,13 @@ interface Deal {
   status: "OPEN" | "PROFIT" | "LOSS" | "CLOSED";
   closed_at_price?: number | null;
 }
+
 interface TradingJournalProps {
   onDealsCountChange?: (summary: { open: number; closed: number }) => void;
   livePrice?: number;
   activeCoin?: string;
   onCoinSelect?: (coin: string) => void;
 }
-
 const JOURNAL_PRECISION_MAP: Record<string, number> = {
   BTCUSDT: 2,
   ETHUSDT: 2,
@@ -129,6 +141,59 @@ export default function TradingJournal({
     return () =>
       window.removeEventListener("refresh-trading-journal", fetchJournal);
   }, [fetchJournal]);
+  // Магическое ядро графика: Группируем сделки по датам и считаем баланс
+  const chartData = useMemo(() => {
+    if (!deals || deals.length === 0) return [];
+
+    // Отбираем только закрытые трейды, где финансовый результат зафиксирован
+    const closedDeals = [...deals]
+      .filter((d) => d.status !== "OPEN")
+      .sort(
+        (a, b) =>
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+      );
+
+    if (closedDeals.length === 0) return [];
+
+    const pnlByDate: Record<string, number> = {};
+
+    closedDeals.forEach((deal) => {
+      const date = new Date(deal.created_at).toLocaleDateString("ru-RU", {
+        day: "2-digit",
+        month: "2-digit",
+      });
+
+      const isLong = deal.side === "BUY";
+      const openFeeRate = deal.order_type === "LIMIT" ? 0.0002 : 0.00055;
+      const totalFeeRate = openFeeRate + 0.00055;
+
+      let targetPrice = deal.entry_price;
+      if (deal.status === "PROFIT") targetPrice = deal.take_profit;
+      else if (deal.status === "LOSS") targetPrice = deal.stop_loss;
+      else if (deal.status === "CLOSED" && deal.closed_at_price)
+        targetPrice = Number(deal.closed_at_price);
+
+      const cryptoQty =
+        deal.entry_price > 0 ? deal.volume / deal.entry_price : 0;
+      const totalFeeUsdt = deal.volume * totalFeeRate;
+      const rawFinalPnl = isLong
+        ? (targetPrice - deal.entry_price) * cryptoQty
+        : (deal.entry_price - targetPrice) * cryptoQty;
+      const finalPnlUsdt = rawFinalPnl - totalFeeUsdt;
+
+      pnlByDate[date] = (pnlByDate[date] || 0) + finalPnlUsdt;
+    });
+
+    let cumulativePnL = 0;
+    return Object.keys(pnlByDate).map((date) => {
+      cumulativePnL += pnlByDate[date];
+      return {
+        name: date,
+        "Чистый PnL": parseFloat(pnlByDate[date].toFixed(2)),
+        Баланс: parseFloat(cumulativePnL.toFixed(2)),
+      };
+    });
+  }, [deals]);
   const exportToCSV = () => {
     if (!deals || deals.length === 0) return;
 
@@ -147,7 +212,6 @@ export default function TradingJournal({
       "Статус",
     ];
 
-    // ФИКС: Внедрены жесткие проверки || "" и || 0 на случай пустых или поврежденных ячеек из БД Neon
     const rows = deals.map((d) => [
       String(d.id || ""),
       d.created_at
@@ -169,11 +233,9 @@ export default function TradingJournal({
       headers.join(","),
       ...rows.map((row) => row.join(",")),
     ].join("\n");
-
     const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), csvContent], {
       type: "text/csv;charset=utf-8;",
     });
-
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
@@ -620,6 +682,63 @@ export default function TradingJournal({
 
   return (
     <div className="w-full bg-transparent flex flex-col px-1 sm:px-6">
+      {/* ИНТЕГРАЦИЯ ГРАФИКА: Отображаем аналитику кумулятивной прибыли, если есть закрытые сделки */}
+      {chartData.length > 0 && (
+        <div className="mb-6 p-4 border border-border/40 rounded-2xl bg-muted/20 dark:bg-black/20 select-none">
+          <div className="flex items-center gap-2 mb-3">
+            <TrendingUp className="size-4 text-emerald-500" />
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              Кривая доходности (Cumulative Equity PnL)
+            </span>
+          </div>
+          <div className="w-full h-44 text-[10px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={chartData}
+                margin={{ top: 5, right: 5, left: -25, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient id="colorPnL" x1="0" y1="0" x2="0" y2="1">
+                    <stop
+                      offset="5%"
+                      stopColor="var(--color-primary, #10b981)"
+                      stopOpacity={0.2}
+                    />
+                    <stop
+                      offset="95%"
+                      stopColor="var(--color-primary, #10b981)"
+                      stopOpacity={0}
+                    />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="rgba(128,128,128,0.1)"
+                />
+                <XAxis dataKey="name" stroke="#888888" tickLine={false} />
+                <YAxis stroke="#888888" tickLine={false} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "var(--card, #1e1e24)",
+                    borderRadius: "12px",
+                    borderColor: "var(--border, rgba(128,128,128,0.2))",
+                    fontSize: "11px",
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="Баланс"
+                  stroke="var(--color-primary, #10b981)"
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#colorPnL)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
       <div className="py-4 border-b border-border/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-transparent select-none">
         <div className="flex flex-row items-center gap-3 flex-1 max-w-xl">
           <div className="relative w-full max-w-55 flex items-center group">
@@ -755,11 +874,7 @@ export default function TradingJournal({
         </div>
       </div>
       <div className="py-6 pt-4 bg-transparent">
-        {loading ? (
-          <div className="p-8 text-center text-xs text-muted-foreground font-medium animate-pulse">
-            Синхронизация с базой данных...
-          </div>
-        ) : filteredDeals.length === 0 ? (
+        {filteredDeals.length === 0 ? (
           <div className="p-12 text-center text-xs text-muted-foreground font-medium select-none">
             Ничего не найдено.
           </div>
