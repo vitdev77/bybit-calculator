@@ -80,7 +80,6 @@ export default function BalanceRiskForm({
         </Button>
       </ButtonGroup>
 
-      {/* 🔥 ИСПРАВЛЕНО: grid-cols-1 для смартфонов, чтобы поля ввода не сдавливались в кашу и цифры влезали целиком */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="space-y-1">
           <Label htmlFor="balance" className="text-xs sm:text-sm">
@@ -120,7 +119,7 @@ export default function BalanceRiskForm({
           >
             <SelectTrigger
               id="leverage-select"
-              className="w-full h-9 text-xs sm:text-sm"
+              className="w-full h-9! m-0! text-xs sm:text-sm"
             >
               <SelectValue placeholder="x10" />
             </SelectTrigger>

@@ -43,7 +43,6 @@ export default function CoinSelector({
 }: CoinSelectorProps) {
   return (
     <div className="space-y-1.5 w-full">
-      {/* 🔥 ИСПРАВЛЕНО: Скрываем лейблы на мобилках (или ставим в flex), разносим элементы по адаптивной сетке */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full items-center">
         <div className="space-y-1 w-full">
           <Label htmlFor="coin-select" className="text-xs sm:text-sm">
@@ -57,7 +56,7 @@ export default function CoinSelector({
           >
             <SelectTrigger
               id="coin-select"
-              className="h-9 w-full bg-background border border-input shadow-none text-xs sm:text-sm"
+              className="h-9! m-0! w-full bg-background border border-input shadow-none text-xs sm:text-sm"
             >
               <SelectValue placeholder="Выберите монету" />
             </SelectTrigger>

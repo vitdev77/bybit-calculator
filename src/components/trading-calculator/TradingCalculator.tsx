@@ -13,20 +13,19 @@ export type PositionSide = "BUY" | "SELL";
 const PARTS_COUNT = 5;
 const STORAGE_KEY = "bybit_calculator_state_v14";
 
-// 🔥 ЖЕЛЕЗОБЕТОННЫЙ ФИКС: Карта разрядностей фьючерсов Bybit под твои параметры
 const COIN_PRECISION_MAP: Record<string, number> = {
   BTCUSDT: 2,
   ETHUSDT: 2,
   XAUTUSDT: 2,
-  ZECUSDT: 2, // 2 знака (Обновлено!)
-  SOLUSDT: 2, // 2 знака (Обновлено!)
-  HYPEUSDT: 2, // 2 знака (Обновлено!)
+  ZECUSDT: 2,
+  SOLUSDT: 2,
+  HYPEUSDT: 2,
   LINKUSDT: 3,
   NEARUSDT: 3,
-  GRAMUSDT: 3, // 3 знака (Обновлено!)
+  GRAMUSDT: 3,
   MNTUSDT: 4,
   XRPUSDT: 4,
-  SUIUSDT: 4, // 4 знака (Обновлено!)
+  SUIUSDT: 4,
   DOGEUSDT: 5,
 };
 
@@ -94,7 +93,6 @@ export default function TradingCalculator({
   const [tickerData, setTickerData] = useState<TickerData | null>(null);
   const [tickerLoading, setTickerLoading] = useState(false);
 
-  // Применяем проверенную точную разрядность из обновленной карты параметров
   const currentDecimals =
     COIN_PRECISION_MAP[selectedCoin] !== undefined
       ? COIN_PRECISION_MAP[selectedCoin]
@@ -128,6 +126,38 @@ export default function TradingCalculator({
   useEffect(() => {
     entryPriceRef.current = entryPrice;
   }, [entryPrice]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedState = localStorage.getItem(STORAGE_KEY);
+      if (savedState) {
+        try {
+          const parsed = JSON.parse(savedState);
+          if (parsed.balance) {
+            setBalance(parsed.balance);
+            onBalanceChange?.(parsed.balance);
+          }
+          if (parsed.riskPercent) setRiskPercent(parsed.riskPercent);
+          if (parsed.riskRewardRatio)
+            setRiskRewardRatio(parsed.riskRewardRatio);
+          if (parsed.selectedCoin) setSelectedCoin(parsed.selectedCoin);
+          if (parsed.orderType) setOrderType(parsed.orderType);
+          if (parsed.entryPrice) setEntryPrice(parsed.entryPrice);
+          if (parsed.stopLossPercent)
+            setStopLossPercent(parsed.stopLossPercent);
+          if (parsed.leverage) setLeverage(Number(parsed.leverage));
+          if (parsed.side) setSide(parsed.side);
+        } catch (e) {
+          console.error("Storage error", e);
+        }
+      }
+      setIsLoaded(true);
+    }
+  }, [setSelectedCoin]);
+
+  useEffect(() => {
+    if (isLoaded) onBalanceChange?.(balance);
+  }, [balance, isLoaded, onBalanceChange]);
   const fetchLiveTicker = useCallback(
     async (coin: string, isFirstInit: boolean, isCurrent: () => boolean) => {
       try {
@@ -164,36 +194,6 @@ export default function TradingCalculator({
 
   const handleCoinChange = (newCoin: string) => {
     setSelectedCoin(newCoin);
-
-    const baseRiskAmount = (balance * riskPercent) / 100;
-    const allocatedMarginMax = balance / PARTS_COUNT;
-    const openFeeRate = orderType === "MARKET" ? 0.00055 : 0.0002;
-    const totalFeeRate = openFeeRate + 0.00055;
-    const priceLossFactor = stopLossPercent / 100;
-
-    const idealPositionSizeUsdt =
-      baseRiskAmount / (priceLossFactor + totalFeeRate);
-    const calculatedRecLeverage = Math.ceil(
-      idealPositionSizeUsdt / allocatedMarginMax,
-    );
-
-    const standardSteps = [1, 2, 5, 10, 15, 20, 25, 30, 50, 75, 100];
-    let finalRecLeverage = 10;
-
-    for (const step of standardSteps) {
-      if (step >= calculatedRecLeverage) {
-        finalRecLeverage = step;
-        break;
-      }
-    }
-
-    const coinMaxLimit =
-      newCoin === "BTCUSDT" || newCoin === "ETHUSDT" ? 100 : 50;
-    if (finalRecLeverage > coinMaxLimit) {
-      finalRecLeverage = coinMaxLimit;
-    }
-
-    setLeverage(finalRecLeverage);
   };
 
   const handleReset = () => {
@@ -204,7 +204,7 @@ export default function TradingCalculator({
     setSelectedCoin("BTCUSDT");
     setOrderType("MARKET");
     setStopLossPercent(1);
-    setLeverage(100);
+    setLeverage(10);
     setSide("BUY");
     setEntryPrice(
       tickerData && selectedCoin === "BTCUSDT"
@@ -212,43 +212,6 @@ export default function TradingCalculator({
         : 77342.45,
     );
   };
-  useEffect(() => {
-    if (leverage > maxSafeLeverage) {
-      setLeverage(maxSafeLeverage);
-    }
-  }, [selectedCoin, leverage, maxSafeLeverage]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedState = localStorage.getItem(STORAGE_KEY);
-      if (savedState) {
-        try {
-          const parsed = JSON.parse(savedState);
-          if (parsed.balance) {
-            setBalance(parsed.balance);
-            onBalanceChange?.(parsed.balance);
-          }
-          if (parsed.riskPercent) setRiskPercent(parsed.riskPercent);
-          if (parsed.riskRewardRatio)
-            setRiskRewardRatio(parsed.riskRewardRatio);
-          if (parsed.selectedCoin) setSelectedCoin(parsed.selectedCoin);
-          if (parsed.orderType) setOrderType(parsed.orderType);
-          if (parsed.entryPrice) setEntryPrice(parsed.entryPrice);
-          if (parsed.stopLossPercent)
-            setStopLossPercent(parsed.stopLossPercent);
-          if (parsed.leverage) setLeverage(Number(parsed.leverage));
-          if (parsed.side) setSide(parsed.side);
-        } catch (e) {
-          console.error("Storage error", e);
-        }
-      }
-      setIsLoaded(true);
-    }
-  }, [setSelectedCoin]);
-
-  useEffect(() => {
-    if (isLoaded) onBalanceChange?.(balance);
-  }, [balance, isLoaded, onBalanceChange]);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -267,6 +230,7 @@ export default function TradingCalculator({
       clearInterval(interval);
     };
   }, [selectedCoin, isLoaded, fetchLiveTicker]);
+
   useEffect(() => {
     if (isLoaded && typeof window !== "undefined") {
       const state = {
@@ -294,6 +258,37 @@ export default function TradingCalculator({
     side,
     isLoaded,
   ]);
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    const baseRiskAmount = (balance * riskPercent) / 100;
+    const allocatedMarginMax = balance / PARTS_COUNT;
+    const openFeeRate = orderType === "MARKET" ? 0.00055 : 0.0002;
+    const totalFeeRate = openFeeRate + 0.00055;
+    const priceLossFactor = stopLossPercent / 100;
+
+    const idealPositionSizeUsdt =
+      baseRiskAmount / (priceLossFactor + totalFeeRate);
+    const calculatedRecLeverage = Math.ceil(
+      idealPositionSizeUsdt / allocatedMarginMax,
+    );
+
+    const standardSteps = [1, 2, 5, 10, 15, 20, 25, 30, 50, 75, 100];
+    let finalRecLeverage = 10;
+
+    for (const step of standardSteps) {
+      if (step >= calculatedRecLeverage) {
+        finalRecLeverage = step;
+        break;
+      }
+    }
+
+    if (finalRecLeverage > maxSafeLeverage) {
+      finalRecLeverage = maxSafeLeverage;
+    }
+
+    setLeverage(finalRecLeverage);
+  }, [selectedCoin, isLoaded, maxSafeLeverage]);
 
   useEffect(() => {
     if (entryPrice <= 0 || stopLossPercent <= 0 || balance <= 0) return;
@@ -337,8 +332,9 @@ export default function TradingCalculator({
 
     const MMR = 0.005;
     let liquidationPrice = isLong
-      ? entryPrice * (1 - 1 / leverage + MMR + closeFeeRate)
-      : entryPrice * (1 + 1 / leverage - MMR - closeFeeRate);
+      ? entryPrice * (1 - 1 / leverage + MMR + totalFeeRate)
+      : entryPrice * (1 + 1 / leverage - MMR - totalFeeRate);
+
     if (liquidationPrice < 0) liquidationPrice = 0;
 
     setResults({

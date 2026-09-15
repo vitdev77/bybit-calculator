@@ -53,7 +53,6 @@ export default function PriceLevelsForm({
 
   return (
     <div className="space-y-3">
-      {/* 🔥 ИСПРАВЛЕНО: Сетка адаптирована под вертикальный стэк на мобилках */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
         <div className="space-y-1">
           <Label htmlFor="entryPrice" className="text-xs sm:text-sm">
@@ -82,7 +81,7 @@ export default function PriceLevelsForm({
           >
             <SelectTrigger
               id="rr-preset-select"
-              className="w-full h-9 bg-background text-xs sm:text-sm"
+              className="w-full h-9! m-0! bg-background text-xs sm:text-sm"
             >
               <SelectValue placeholder="1:3">{`1:${riskRewardRatio}`}</SelectValue>
             </SelectTrigger>
