@@ -13,6 +13,7 @@ import {
   Search,
   Clock,
   Pause,
+  Download,
 } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { Input } from "@/components/ui/input";
@@ -52,7 +53,6 @@ interface Deal {
   status: "OPEN" | "PROFIT" | "LOSS" | "CLOSED";
   closed_at_price?: number | null;
 }
-
 interface TradingJournalProps {
   onDealsCountChange?: (summary: { open: number; closed: number }) => void;
   livePrice?: number;
@@ -118,11 +118,6 @@ export default function TradingJournal({
       onDealsCountChange?.({ open: openCount, closed: closedCount });
     } catch (err) {
       console.error("Не удалось подгрузить журнал сделок:", err);
-      toast.add({
-        title: "Ошибка загрузки",
-        description: "Не удалось получить историю сделок из базы данных.",
-        type: "error",
-      });
     } finally {
       setLoading(false);
     }
@@ -134,6 +129,62 @@ export default function TradingJournal({
     return () =>
       window.removeEventListener("refresh-trading-journal", fetchJournal);
   }, [fetchJournal]);
+  const exportToCSV = () => {
+    if (!deals || deals.length === 0) return;
+
+    const headers = [
+      "ID",
+      "Дата создания",
+      "Торговая пара",
+      "Направление",
+      "Тип ордера",
+      "Объем (USDT)",
+      "Маржа (USDT)",
+      "Плечо",
+      "Цена входа",
+      "Stop Loss",
+      "Take Profit",
+      "Статус",
+    ];
+
+    // ФИКС: Внедрены жесткие проверки || "" и || 0 на случай пустых или поврежденных ячеек из БД Neon
+    const rows = deals.map((d) => [
+      String(d.id || ""),
+      d.created_at
+        ? String(new Date(d.created_at).toLocaleString("ru-RU"))
+        : "",
+      String(d.coin || ""),
+      d.side === "BUY" ? "LONG" : "SHORT",
+      String(d.order_type || ""),
+      String(d.volume || 0),
+      String(d.margin || 0),
+      `x${d.leverage || 0}`,
+      String(d.entry_price || 0),
+      String(d.stop_loss ?? 0),
+      String(d.take_profit ?? 0),
+      String(d.status || ""),
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) => row.join(",")),
+    ].join("\n");
+
+    const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `trading_journal_export_${new Date().toISOString().slice(0, 10)}.csv`,
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const totalDeals = deals.length;
   const profitDeals = deals.filter((d) => d.status === "PROFIT").length;
@@ -176,7 +227,7 @@ export default function TradingJournal({
 
       toast.add({
         title: toastTitle,
-        description: `Статус позиции по ${coinName} успешно обновлен.`,
+        description: `Статус по ${coinName} обновлен.`,
         type: toastType,
       });
       fetchJournal();
@@ -194,7 +245,7 @@ export default function TradingJournal({
 
       toast.add({
         title: "Запись удалена",
-        description: `Трейд по паре ${coinName}USDT успешно удален.`,
+        description: `Трейд по паре ${coinName}USDT удален.`,
         type: "info",
       });
       await fetchJournal();
@@ -233,7 +284,6 @@ export default function TradingJournal({
     const breakevenPrice = isLong
       ? deal.entry_price * (1 + totalFeeRate)
       : deal.entry_price * (1 - totalFeeRate);
-
     let pnlDisplay = null;
     const isCurrentActiveCoin = activeCoin === deal.coin;
     let isHitTP = false;
@@ -300,7 +350,6 @@ export default function TradingJournal({
         );
       }
     }
-
     if (!pnlDisplay) {
       const lastKnown = frozenPnL[deal.id] || { pnl: 0, roi: 0 };
       const isLastProfit = lastKnown.pnl >= 0;
@@ -327,23 +376,16 @@ export default function TradingJournal({
           </div>
         );
       } else {
-        let targetPrice = 0;
-        if (deal.status === "PROFIT") targetPrice = deal.take_profit;
-        else if (deal.status === "LOSS") targetPrice = deal.stop_loss;
-        else if (
-          deal.status === "CLOSED" &&
-          deal.closed_at_price &&
-          Number(deal.closed_at_price) > 0
-        )
-          targetPrice = Number(deal.closed_at_price);
-        else if (
-          deal.status === "CLOSED" &&
-          isCurrentActiveCoin &&
-          livePrice > 0
-        )
-          targetPrice = livePrice;
-        else targetPrice = deal.entry_price;
-
+        let targetPrice =
+          deal.status === "PROFIT"
+            ? deal.take_profit
+            : deal.status === "LOSS"
+              ? deal.stop_loss
+              : deal.closed_at_price && Number(deal.closed_at_price) > 0
+                ? Number(deal.closed_at_price)
+                : isCurrentActiveCoin && livePrice > 0
+                  ? livePrice
+                  : deal.entry_price;
         const cryptoQty =
           deal.entry_price > 0 ? deal.volume / deal.entry_price : 0;
         const totalFeeUsdt = deal.volume * totalFeeRate;
@@ -376,6 +418,7 @@ export default function TradingJournal({
         );
       }
     }
+
     let formattedDateOnly = "--.--.----",
       formattedTimeOnly = "--:--:--";
     if (deal.created_at) {
@@ -388,24 +431,21 @@ export default function TradingJournal({
 
     const statusIcon =
       deal.status === "PROFIT" ? (
-        <span className="shrink-0 mt-0.5 flex" title="Закрыто в Профит">
+        <span className="shrink-0 mt-0.5 flex" title="Профит">
           <CheckCircle2 className="size-3.5 text-emerald-500" />
         </span>
       ) : deal.status === "LOSS" ? (
-        <span className="shrink-0 mt-0.5 flex" title="Закрыто в Убыток">
+        <span className="shrink-0 mt-0.5 flex" title="Стоп">
           <XCircle className="size-3.5 text-rose-500" />
         </span>
       ) : deal.status === "CLOSED" ? (
-        <span
-          className="shrink-0 mt-0.5 flex opacity-60"
-          title="Закрыто вручную"
-        >
+        <span className="shrink-0 mt-0.5 flex opacity-60" title="Руками">
           <Clock className="size-3.5 text-muted-foreground" />
         </span>
       ) : (
         <span
           className="relative flex h-2 w-2 shrink-0 mt-1.5 mx-0.5"
-          title="Активная позиция"
+          title="Активная"
         >
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75"></span>
           <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
@@ -420,7 +460,6 @@ export default function TradingJournal({
         <TableCell className="py-2 px-2 whitespace-nowrap relative pl-4">
           <div
             className={`absolute left-0 top-0 bottom-0 transition-all duration-300 ${isLong ? (isCurrentActiveCoin ? "w-1.5 bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" : "w-1 bg-emerald-500") : isCurrentActiveCoin ? "w-1.5 bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]" : "w-1 bg-rose-500"}`}
-            title={isLong ? "LONG (BUY)" : "SHORT (SELL)"}
           />
           <div className="flex items-start gap-1.5">
             {statusIcon}
@@ -435,7 +474,6 @@ export default function TradingJournal({
         <TableCell
           onClick={() => onCoinSelect?.(deal.coin)}
           className="py-3 px-2 font-bold cursor-pointer transition-colors select-none group/coin whitespace-nowrap text-xs tracking-tight"
-          title="Кликните для переключения калькулятора на эту монету"
         >
           <div className="flex flex-col space-y-1">
             <div className="flex items-center gap-1.5">
@@ -482,7 +520,6 @@ export default function TradingJournal({
           <div className="flex flex-col space-y-1">
             <span
               className={`font-semibold transition-all duration-300 rounded px-1 -mx-1 w-fit ${isOpen ? (isHitTP ? "text-emerald-500 dark:text-emerald-400 bg-emerald-500/15 font-black border border-emerald-500/30 animate-pulse" : "text-emerald-600/90") : "text-muted-foreground/60"}`}
-              title="Take Profit"
             >
               {isHitTP
                 ? `🔥 ${(deal.take_profit ?? 0).toFixed(precision)}`
@@ -490,7 +527,6 @@ export default function TradingJournal({
             </span>
             <span
               className={`font-semibold transition-all duration-300 rounded px-1 -mx-1 w-fit ${isOpen ? (isHitSL ? "text-rose-500 dark:text-rose-400 bg-rose-500/15 font-black border border-rose-500/30 animate-pulse" : "text-rose-600/90") : "text-muted-foreground/60"}`}
-              title="Stop Loss"
             >
               {isHitSL
                 ? `⚠️ ${(deal.stop_loss ?? 0).toFixed(precision)}`
@@ -509,7 +545,7 @@ export default function TradingJournal({
                   size="icon"
                   variant="ghost"
                   onClick={() => handleUpdateStatus(deal.id, "PROFIT")}
-                  className="h-6 w-6 p-0 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-md cursor-pointer"
+                  className="h-6 w-6 p-0 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-md"
                 >
                   <Check className="size-3.5" />
                 </Button>
@@ -517,7 +553,7 @@ export default function TradingJournal({
                   size="icon"
                   variant="ghost"
                   onClick={() => handleUpdateStatus(deal.id, "LOSS")}
-                  className="h-6 w-6 p-0 text-rose-600 hover:bg-rose-600 hover:text-white rounded-md cursor-pointer"
+                  className="h-6 w-6 p-0 text-rose-600 hover:bg-rose-600 hover:text-white rounded-md"
                 >
                   <X className="size-3.5" />
                 </Button>
@@ -525,7 +561,7 @@ export default function TradingJournal({
                   size="icon"
                   variant="ghost"
                   onClick={() => handleUpdateStatus(deal.id, "CLOSED")}
-                  className="h-6 w-6 p-0 text-muted-foreground hover:bg-muted hover:text-foreground rounded-md cursor-pointer"
+                  className="h-6 w-6 p-0 text-muted-foreground hover:bg-muted hover:text-foreground rounded-md"
                 >
                   <LogOut className="size-3" />
                 </Button>
@@ -540,7 +576,7 @@ export default function TradingJournal({
                   variant: "ghost",
                   size: "icon",
                   className:
-                    "h-6 w-6 p-0 text-muted-foreground hover:text-rose-500 cursor-pointer",
+                    "h-6 w-6 p-0 text-muted-foreground hover:text-rose-500",
                 })}
               >
                 <Trash2 className="size-3" />
@@ -554,13 +590,13 @@ export default function TradingJournal({
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel className="rounded-xl text-xs h-9 cursor-pointer">
+                  <AlertDialogCancel className="rounded-xl text-xs h-9">
                     Отмена
                   </AlertDialogCancel>
                   <AlertDialogAction
                     onClick={() => handleDeleteDeal(deal.id)}
                     variant="destructive"
-                    className="rounded-xl text-xs h-9 bg-rose-600 hover:bg-rose-700 text-white cursor-pointer border-none"
+                    className="rounded-xl text-xs h-9 bg-rose-600 hover:bg-rose-700 text-white border-none"
                   >
                     Удалить
                   </AlertDialogAction>
@@ -584,7 +620,7 @@ export default function TradingJournal({
 
   return (
     <div className="w-full bg-transparent flex flex-col px-1 sm:px-6">
-      <div className="py-4 border-b border-border/40 flex flex-row items-center justify-between gap-4 flex-wrap md:flex-nowrap bg-transparent select-none">
+      <div className="py-4 border-b border-border/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-transparent select-none">
         <div className="flex flex-row items-center gap-3 flex-1 max-w-xl">
           <div className="relative w-full max-w-55 flex items-center group">
             <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground/60 pointer-events-none" />
@@ -598,7 +634,7 @@ export default function TradingJournal({
             {searchQuery.length > 0 && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-2 h-4 w-4 flex items-center justify-center rounded-md text-muted-foreground/60 hover:bg-muted dark:hover:bg-muted/50 hover:text-foreground transition-all cursor-pointer border-none bg-transparent p-0"
+                className="absolute right-2 h-4 w-4 flex items-center justify-center rounded-md text-muted-foreground/60 hover:bg-muted dark:hover:bg-muted/50 hover:text-foreground transition-all p-0 border-none bg-transparent"
               >
                 <X className="size-3" />
               </button>
@@ -633,7 +669,7 @@ export default function TradingJournal({
             </TabsList>
           </Tabs>
         </div>
-        <div className="flex items-center gap-4 text-xs ml-auto shrink-0">
+        <div className="flex items-center gap-4 text-xs ml-auto shrink-0 flex-wrap sm:flex-nowrap justify-end w-full sm:w-auto">
           <div className="text-right">
             <span className="text-muted-foreground block text-[10px] uppercase">
               Всего
@@ -668,6 +704,19 @@ export default function TradingJournal({
             </span>
             <span className="font-extrabold text-sm">{winRate}%</span>
           </div>
+
+          {totalDeals > 0 && (
+            <Button
+              onClick={exportToCSV}
+              variant="outline"
+              size="icon-sm"
+              className="size-8 rounded-xl text-muted-foreground border-border/60 hover:text-foreground transition-all ml-2"
+              title="Экспортировать историю в CSV файл"
+            >
+              <Download className="size-4" />
+            </Button>
+          )}
+
           {totalDeals > 0 && (
             <AlertDialog open={isClearOpen} onOpenChange={setIsClearOpen}>
               <AlertDialogTrigger
@@ -675,7 +724,7 @@ export default function TradingJournal({
                   variant: "outline",
                   size: "icon",
                   className:
-                    "h-8 w-8 ml-2 text-rose-600 border-rose-500/20 hover:bg-rose-600 hover:text-white rounded-xl cursor-pointer p-0",
+                    "h-8 w-8 ml-1 text-rose-600 border-rose-500/20 hover:bg-rose-600 hover:text-white rounded-xl p-0",
                 })}
               >
                 <Trash2 className="size-4 shrink-0" />
@@ -689,13 +738,13 @@ export default function TradingJournal({
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel className="rounded-xl text-xs h-9 cursor-pointer">
+                  <AlertDialogCancel className="rounded-xl text-xs h-9">
                     Отмена
                   </AlertDialogCancel>
                   <AlertDialogAction
                     onClick={handleClearAllDeals}
                     variant="destructive"
-                    className="rounded-xl text-xs h-9 bg-rose-600 hover:bg-rose-700 text-white cursor-pointer border-none"
+                    className="rounded-xl text-xs h-9 bg-rose-600 hover:bg-rose-700 text-white border-none"
                   >
                     Удалить всё
                   </AlertDialogAction>
@@ -712,7 +761,7 @@ export default function TradingJournal({
           </div>
         ) : filteredDeals.length === 0 ? (
           <div className="p-12 text-center text-xs text-muted-foreground font-medium select-none">
-            Ничего не найдено. Измените параметры фильтра или поиска
+            Ничего не найдено.
           </div>
         ) : (
           <div className="w-full rounded-2xl border border-border/60 overflow-hidden bg-background">
@@ -720,7 +769,7 @@ export default function TradingJournal({
               <TableHeader>
                 <TableRow className="border-b border-border/30 bg-muted/40 dark:bg-muted/20 text-[10px] uppercase tracking-wider text-muted-foreground font-medium hover:bg-muted/40">
                   <TableHead className="py-2.5 px-2 h-auto text-muted-foreground font-medium pl-4">
-                    Вход / Статус
+                    Вход / Status
                   </TableHead>
                   <TableHead className="py-2.5 px-2 h-auto text-muted-foreground font-medium">
                     Пара
