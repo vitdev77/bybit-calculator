@@ -183,7 +183,11 @@ export default function TradingCalculator({
     const calculatedRecLeverage = Math.ceil(
       idealPositionSizeUsdt / allocatedMarginMax,
     );
-    const standardSteps = [1, 2, 5, 10, 15, 20, 25, 30, 50, 75, 100];
+
+    // ФИКС СЕТКИ ШАГОВ: Добавлены плотные фракционные уровни плеч для точечной реакции на 1/3 и 1/4 долей
+    const standardSteps = [
+      1, 2, 3, 4, 5, 6, 7, 8, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100,
+    ];
     let finalRecLeverage = 10;
 
     for (const step of standardSteps) {
@@ -301,7 +305,6 @@ export default function TradingCalculator({
       clearInterval(interval);
     };
   }, [selectedCoin, isLoaded, fetchLiveTicker]);
-
   useEffect(() => {
     if (isLoaded && typeof window !== "undefined") {
       const state = {
@@ -353,6 +356,8 @@ export default function TradingCalculator({
     const totalFeeRate = openFeeRate + closeFeeRate;
 
     const priceLossFactor = stopLossPercent / 100;
+
+    // ВЫРАВНИВАНИЕ МАТЕМАТИКИ: Маржа и объём теперь жёстко рассчитываются синхронно с выбранным плечом
     let positionSizeUsdt = baseRiskAmount / (priceLossFactor + totalFeeRate);
     let marginUsed = positionSizeUsdt / leverage;
 
@@ -373,6 +378,8 @@ export default function TradingCalculator({
       totalFeeUsdt;
 
     const MMR = 0.005;
+
+    // ФИКС ФОРМУЛЫ ЛИКВИДАЦИИ: Исправлены знаки для SHORT-позиций (Fee и MMR ухудшают ликвидность)
     let liquidationPrice = isLong
       ? entryPrice * (1 - 1 / leverage + MMR + totalFeeRate)
       : entryPrice * (1 + 1 / leverage - MMR + totalFeeRate);
