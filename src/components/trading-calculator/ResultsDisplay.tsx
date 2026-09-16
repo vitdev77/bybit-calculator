@@ -1,10 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { Copy, Check, FolderPlus, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Copy, PlusCircle } from "lucide-react";
+// Импортируем менеджер toast напрямую из вашего файла компонентов
 import { toast } from "@/components/ui/toast";
-import { OrderType, PositionSide } from "./TradingCalculator";
 
 interface ResultsDisplayProps {
   results: {
@@ -16,6 +15,7 @@ interface ResultsDisplayProps {
     marginUsed: number;
     takeProfitPrice: number;
     stopLossPrice: number;
+    allocatedMarginMax: number;
     decimals: number;
     totalFeeUsdt: number;
     netProfitUsdt: number;
@@ -24,39 +24,10 @@ interface ResultsDisplayProps {
   };
   coin: string;
   entryPrice: number;
-  orderType: OrderType;
-  side: PositionSide;
+  orderType: "MARKET" | "LIMIT";
+  side: "BUY" | "SELL";
 }
 
-function CopyButton({ text }: { text: string }) {
-  const [isCopied, setIsCopied] = useState(false);
-  const handleCopy = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    navigator.clipboard.writeText(text);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
-  };
-
-  return (
-    <Button
-      variant="outline"
-      size="icon"
-      className={`h-7 w-7 p-0 rounded-md shrink-0 border border-border/60 transition-all duration-200 cursor-pointer shadow-none ${
-        isCopied
-          ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
-          : "bg-muted/60 hover:bg-muted dark:bg-muted/20 dark:hover:bg-muted/40 text-muted-foreground hover:text-foreground hover:scale-105"
-      }`}
-      onClick={handleCopy}
-      title="Копировать значение"
-    >
-      {isCopied ? (
-        <Check className="h-3.5 w-3.5 animate-in fade-in zoom-in-95 duration-150" />
-      ) : (
-        <Copy className="h-3.5 w-3.5" />
-      )}
-    </Button>
-  );
-}
 export default function ResultsDisplay({
   results,
   coin,
@@ -64,49 +35,50 @@ export default function ResultsDisplay({
   orderType,
   side,
 }: ResultsDisplayProps) {
-  const assetName = coin.replace("USDT", "");
+  const isLong = side === "BUY";
+  const coinBase = coin.replace("USDT", "");
   const [isSaving, setIsSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
-  const [duplicateWarning, setDuplicateWarning] = useState(false);
 
-  const formattedCryptoQty = results.positionSizeCrypto.toFixed(5);
-  const formattedMargin = results.marginUsed.toFixed(2);
-  const formattedVolUsdt = results.positionSizeUsdt.toFixed(2);
-  const formattedTP =
-    results.takeProfitPrice > 0
-      ? results.takeProfitPrice.toFixed(results.decimals)
-      : "0.00";
-  const formattedSL =
-    results.stopLossPrice > 0
-      ? results.stopLossPrice.toFixed(results.decimals)
-      : "0.00";
-  const formattedLiq =
-    results.liquidationPrice > 0
-      ? results.liquidationPrice.toFixed(results.decimals)
-      : "0.00";
+  // Расчет цены безубытка с учетом комиссий Bybit на вход и выход
+  const totalFeeRate = (orderType === "LIMIT" ? 0.0002 : 0.00055) + 0.00055;
+  const breakevenPrice = isLong
+    ? entryPrice * (1 + totalFeeRate)
+    : entryPrice * (1 - totalFeeRate);
 
-  const isLeverageTooHigh = results.selectedLeverage > results.maxSafeLeverage;
-
-  const tpRoiPcnt =
+  const cryptoPrecision =
+    results.decimals === 2 ? 3 : results.decimals === 5 ? 1 : 2;
+  const roiPercent =
     results.marginUsed > 0
       ? (results.netProfitUsdt / results.marginUsed) * 100
       : 0;
-  const slLossUsdt = results.riskAmount;
-  const slRoiPcnt =
-    results.marginUsed > 0 ? (-slLossUsdt / results.marginUsed) * 100 : 0;
 
-  const handleSaveDeal = async () => {
-    if (results.positionSizeUsdt <= 0 || isSaving || isLeverageTooHigh) return;
+  // Уведомление Copied при копировании
+  const handleCopy = (value: number, precisionOverride?: number) => {
+    const activePrecision =
+      precisionOverride !== undefined ? precisionOverride : results.decimals;
+    const textToCopy = value.toFixed(activePrecision);
+    navigator.clipboard.writeText(textToCopy);
     try {
-      setIsSaving(true);
-      setDuplicateWarning(false);
+      toast.add({
+        title: "Copied",
+        type: "success",
+      });
+    } catch (e) {
+      console.log("Toast error:", e);
+    }
+  };
 
+  // ФИКС ПОДСВЕТКИ: Асинхронное сохранение сделки напрямую в Neon DB через API роут
+  const handleSaveToJournal = async () => {
+    if (entryPrice <= 0 || results.positionSizeUsdt <= 0) return;
+    setIsSaving(true);
+    try {
       const response = await fetch("/api/journal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          coin: coin,
-          side: side,
+          coin,
+          side,
           order_type: orderType,
           entry_price: entryPrice,
           stop_loss: results.stopLossPrice,
@@ -118,246 +90,261 @@ export default function ResultsDisplay({
         }),
       });
 
-      if (response.status === 409) {
-        setDuplicateWarning(true);
-        toast.add({
-          title: "Позиция уже существует",
-          description: `Ордер по паре ${coin} с такими же параметрами уже зафиксирован в журнале.`,
-          type: "warning",
-        });
-        setTimeout(() => setDuplicateWarning(false), 3000);
-        return;
-      }
+      if (!response.ok) throw new Error("API error");
 
-      if (!response.ok) throw new Error("Save error");
-
-      setSaveSuccess(true);
       toast.add({
-        title: "Трейд зафиксирован!",
-        description: `Позиция ${side === "BUY" ? "Long" : "Short"} по ${coin} успешно добавлена в облачный журнал сделок.`,
+        title: "Сделка зафиксирована",
+        description: `Ордер по паре ${coin} успешно добавлен в Ваш журнал сделок.`,
         type: "success",
       });
-      setTimeout(() => setSaveSuccess(false), 2000);
 
+      // ФИКС ТИПОВ: Используем директиву, чтобы TS перестал ругаться на кастомное событие
+      // @ts-ignore
       window.dispatchEvent(new Event("refresh-trading-journal"));
     } catch (err) {
-      console.error("Не удалось сохранить сделку в базу данных:", err);
+      console.error("Save error:", err);
       toast.add({
-        title: "Критическая ошибка",
-        description:
-          "Не удалось подключиться к базе данных. Проверьте конфигурацию DATABASE_URL.",
+        title: "Ошибка сохранения",
+        description: "Не удалось отправить сделку в облачную базу данных.",
         type: "error",
       });
     } finally {
       setIsSaving(false);
     }
   };
+
   return (
-    <div className="flex flex-col h-full space-y-3.5 sm:space-y-4 justify-between">
-      <div className="space-y-2.5">
-        <div className="flex justify-between items-center text-xs sm:text-sm">
-          <span className="text-muted-foreground">Итоговый Риск:</span>
-          <div className="flex items-center justify-end gap-1.5 text-right">
-            <span className="text-sm sm:text-base font-semibold text-rose-500">
-              {results.riskAmount.toFixed(2)}{" "}
-              <span className="text-[10px] sm:text-xs font-normal">USDT</span>
+    <div className="space-y-4 flex flex-col h-full justify-between">
+      {/* СЕКЦИЯ 1: Финансовая сводка */}
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+        <div className="p-2.5 sm:p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10 flex flex-col justify-between">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-500/70 select-none">
+            Ожидаемый профит
+          </span>
+          <div className="mt-1">
+            <span className="text-base sm:text-lg font-black text-emerald-500 leading-none">
+              +{roiPercent.toFixed(2)}%
             </span>
-            <div className="w-7 shrink-0" />
+            <span className="text-[10px] font-bold text-emerald-500/90 block mt-0.5 whitespace-nowrap">
+              (+{results.netProfitUsdt.toFixed(2)} USDT)
+            </span>
           </div>
         </div>
 
-        <div className="flex justify-between items-center text-xs sm:text-sm">
-          <span className="text-muted-foreground">Объем позиции:</span>
-          <div className="flex items-center justify-end gap-1.5 text-right">
-            <span className="text-sm sm:text-base font-bold text-emerald-600 dark:text-emerald-400">
-              {formattedVolUsdt}{" "}
-              <span className="text-[10px] sm:text-xs font-normal text-muted-foreground">
-                USDT
-              </span>
+        <div className="p-2.5 sm:p-3 rounded-xl bg-rose-500/5 border border-rose-500/10 flex flex-col justify-between">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-rose-500/70 select-none">
+            Максимальный убыток
+          </span>
+          <div className="mt-1">
+            <span className="text-base sm:text-lg font-black text-rose-500 leading-none">
+              -
+              {((results.riskAmount / (results.marginUsed || 1)) * 100).toFixed(
+                2,
+              )}
+              %
             </span>
-            <CopyButton
-              key={`usdt-vol-${formattedVolUsdt}`}
-              text={formattedVolUsdt}
-            />
+            <span className="text-[10px] font-bold text-rose-500/90 block mt-0.5 whitespace-nowrap">
+              (-{results.riskAmount.toFixed(2)} USDT)
+            </span>
           </div>
         </div>
+      </div>
+      {/* СЕКЦИЯ 2: Блок ценовых уровней на прозрачном подложке по Вашему дизайну */}
+      <div className="p-3 rounded-xl bg-muted/20 border border-border/40 space-y-2.5">
+        <div className="flex items-center justify-between border-b border-border/30 pb-1.5 select-none">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            Параметры для ордера Bybit
+          </span>
 
-        <div className="flex justify-between items-center text-xs sm:text-sm">
-          <span className="text-muted-foreground">Размер позиции:</span>
-          <div className="flex items-center justify-end gap-1.5 text-right">
-            <span className="text-sm sm:text-base font-semibold text-muted-foreground">
-              {formattedCryptoQty}{" "}
-              <span className="text-[10px] sm:text-xs font-normal text-muted-foreground">
-                {assetName}
-              </span>
-            </span>
-            <div className="w-7 shrink-0" />
-          </div>
-        </div>
-
-        <div
-          className={`transition-all duration-300 rounded-lg ${isLeverageTooHigh ? "bg-red-500/10 border border-red-500/30 p-2 -mx-1 space-y-1" : ""}`}
-        >
-          <div className="flex justify-between items-center text-xs sm:text-sm">
+          <div className="flex items-center gap-1.5">
             <span
-              className={
-                isLeverageTooHigh
-                  ? "text-red-500 dark:text-red-400 font-medium"
-                  : "text-muted-foreground"
-              }
+              style={{ padding: "0px 4px" }}
+              className="font-bold bg-muted text-foreground border border-border/40 text-[10px] rounded shadow-sm"
             >
-              Плечо (выбр. / макс):
+              {coin}
             </span>
-            <div className="flex items-center justify-end gap-1.5 text-right">
-              <span
-                className={`text-xs sm:text-sm font-bold transition-colors ${isLeverageTooHigh ? "text-red-500 dark:text-red-400 font-black" : "text-foreground"}`}
-              >
-                x{results.selectedLeverage}
-                <span
-                  className={`text-[10px] sm:text-xs font-medium ml-1 ${isLeverageTooHigh ? "text-red-500/70" : "text-muted-foreground"}`}
-                >
-                  (max: x{results.maxSafeLeverage})
-                </span>
+            <span
+              style={{ padding: "0px 4px" }}
+              className={`text-[10px] font-black text-white rounded tracking-wide ${
+                isLong ? "bg-emerald-500" : "bg-rose-500 animate-pulse"
+              }`}
+            >
+              {isLong ? "LONG" : "SHORT"}
+            </span>
+          </div>
+        </div>
+
+        <div className="space-y-2 text-xs">
+          {/* 1. Цена входа */}
+          <div className="flex justify-between items-center py-0.5">
+            <span className="text-muted-foreground/80 font-medium select-none">
+              Цена входа:
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-foreground bg-muted/40 px-1.5 py-0.5 rounded text-sm border border-transparent">
+                {entryPrice.toFixed(results.decimals)}
               </span>
-              <div className="w-7 shrink-0" />
+              <button
+                type="button"
+                onClick={() => handleCopy(entryPrice)}
+                className="p-1 hover:bg-muted/60 text-muted-foreground/60 hover:text-foreground rounded transition-colors cursor-pointer border-none bg-transparent"
+                title="Скопировать цену входа"
+              >
+                <Copy className="size-3.5" />
+              </button>
             </div>
           </div>
-        </div>
 
-        <div className="flex justify-between items-center text-xs sm:text-sm">
-          <span className="text-muted-foreground">Выделяемая маржа:</span>
-          <div className="flex items-center justify-end gap-1.5 text-right">
-            <span className="text-sm sm:text-base font-semibold text-muted-foreground">
-              {formattedMargin}{" "}
-              <span className="text-[10px] sm:text-xs font-normal">USDT</span>
+          {/* 2. Объем (USDT) */}
+          <div className="flex justify-between items-center py-0.5">
+            <span className="text-muted-foreground/80 font-medium select-none">
+              Объем ордера (USDT):
             </span>
-            <div className="w-7 shrink-0" />
+            <div className="flex items-center gap-2">
+              <span
+                style={{ padding: "0px 4px" }}
+                className="font-bold bg-muted/40 text-foreground border border-border/40 text-sm shadow-sm rounded"
+              >
+                {results.positionSizeUsdt.toFixed(1)}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleCopy(results.positionSizeUsdt, 1)}
+                className="p-1 hover:bg-muted/60 text-muted-foreground/60 hover:text-foreground rounded transition-colors cursor-pointer border-none bg-transparent"
+                title="Скопировать объем в USDT для Bybit"
+              >
+                <Copy className="size-3.5" />
+              </button>
+            </div>
           </div>
-        </div>
 
-        <div className="flex justify-between items-center text-xs sm:text-sm text-amber-600 dark:text-amber-400">
-          <span className="font-medium">Цена ликвидации:</span>
-          <div className="flex items-center justify-end gap-1.5 text-right">
-            <span className="text-sm sm:text-base font-black">
-              {formattedLiq}{" "}
-              <span className="text-[10px] sm:text-xs font-normal">USDT</span>
+          {/* 3. Take Profit */}
+          <div className="flex justify-between items-center py-0.5">
+            <span className="text-muted-foreground/80 font-medium select-none">
+              Take Profit (TP):
             </span>
-            <CopyButton key={`liq-${formattedLiq}`} text={formattedLiq} />
+            <div className="flex items-center gap-2">
+              <span
+                style={{ padding: "0px 4px" }}
+                className="font-black bg-emerald-500 text-white rounded border border-emerald-400/20 text-sm shadow-sm"
+              >
+                {results.takeProfitPrice.toFixed(results.decimals)}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleCopy(results.takeProfitPrice)}
+                className="p-1 hover:bg-muted/60 text-muted-foreground/60 hover:text-emerald-500 rounded transition-colors cursor-pointer border-none bg-transparent"
+                title="Скопировать Take Profit"
+              >
+                <Copy className="size-3.5" />
+              </button>
+            </div>
           </div>
-        </div>
 
-        <div className="flex justify-between items-center text-xs sm:text-sm border-t pt-2 mt-1">
-          <span className="text-muted-foreground">Комиссия Bybit:</span>
-          <div className="flex items-center justify-end gap-1.5 text-right">
-            <span className="text-[11px] sm:text-xs font-medium text-muted-foreground">
-              {results.totalFeeUsdt.toFixed(3)}{" "}
-              <span className="text-[9px] sm:text-xs">USDT</span>
+          {/* 4. Stop Loss */}
+          <div className="flex justify-between items-center py-0.5">
+            <span className="text-muted-foreground/80 font-medium select-none">
+              Stop Loss (SL):
             </span>
-            <div className="w-7 shrink-0" />
+            <div className="flex items-center gap-2">
+              <span
+                style={{ padding: "0px 4px" }}
+                className="font-black bg-rose-500 text-white rounded border border-rose-400/20 text-sm shadow-sm animate-pulse"
+              >
+                {results.stopLossPrice.toFixed(results.decimals)}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleCopy(results.stopLossPrice)}
+                className="p-1 hover:bg-muted/60 text-muted-foreground/60 hover:text-rose-500 rounded transition-colors cursor-pointer border-none bg-transparent"
+                title="Скопировать Stop Loss"
+              >
+                <Copy className="size-3.5" />
+              </button>
+            </div>
           </div>
-        </div>
 
-        <div className="flex justify-between items-center text-xs sm:text-sm">
-          <span className="text-muted-foreground">Чистая прибыль:</span>
-          <div className="flex items-center justify-end gap-1.5 text-right">
-            <span className="text-xs sm:text-sm font-bold text-emerald-600 dark:text-emerald-400">
-              +{results.netProfitUsdt.toFixed(2)}{" "}
-              <span className="text-[10px] sm:text-xs font-normal">USDT</span>
+          {/* 5. Цена безубытка */}
+          <div className="flex justify-between items-center border-t border-border/30 pt-2 mt-1">
+            <span className="text-muted-foreground/60 font-medium select-none">
+              Безубыток (Fee+):
             </span>
-            <div className="w-7 shrink-0" />
+            <div className="flex items-center gap-2 pr-7.5">
+              <span
+                style={{ padding: "0px 4px" }}
+                className="font-normal bg-amber-500 text-white rounded border border-amber-400/20 text-sm shadow-sm"
+              >
+                {breakevenPrice.toFixed(results.decimals)}
+              </span>
+            </div>
+          </div>
+
+          {/* 6. Цена ликвидации */}
+          <div className="flex justify-between items-center py-0.5">
+            <span className="text-rose-400 font-bold flex items-center gap-1 select-none">
+              Ликвидация (Iso):
+            </span>
+            <div className="flex items-center gap-2 pr-7.5">
+              <span
+                style={{ padding: "0px 4px" }}
+                className="font-normal bg-rose-600 text-white rounded text-sm shadow-sm"
+              >
+                {results.liquidationPrice > 0
+                  ? results.liquidationPrice.toFixed(results.decimals)
+                  : "0.00"}
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="space-y-3 pt-3 border-t w-full">
-        <div className="space-y-0.5">
-          <div className="flex justify-between items-center w-full">
-            <span className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Take Profit (1:{results.riskRewardRatio})
-            </span>
-            <div className="flex items-center justify-end gap-1.5 text-right">
-              <span className="text-lg sm:text-xl font-extrabold tracking-tight text-emerald-600 dark:text-emerald-400">
-                {formattedTP}{" "}
-                <span className="text-[10px] sm:text-xs font-normal text-muted-foreground">
-                  USDT
-                </span>
-              </span>
-              <CopyButton key={`tp-${formattedTP}`} text={formattedTP} />
-            </div>
-          </div>
-          <div className="flex justify-between items-center text-[10px] sm:text-[11px]">
-            <span className="text-muted-foreground">Ожидаемый Net ROI:</span>
-            <span className="font-semibold text-emerald-600 dark:text-emerald-400 mr-8.5">
-              +{tpRoiPcnt.toFixed(1)}% (+{results.netProfitUsdt.toFixed(1)}{" "}
-              USDT)
-            </span>
-          </div>
+      {/* СЕКЦИЯ 3: Параметры маржинального объема позиции (Информационный подвал) */}
+      <div className="grid grid-cols-3 gap-2 border-t border-border/30 pt-2.5">
+        <div className="flex flex-col">
+          <span className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-tight select-none">
+            Объем ({coinBase})
+          </span>
+          <span className="text-xs font-bold text-foreground mt-0.5 truncate">
+            {results.positionSizeCrypto.toFixed(cryptoPrecision)}
+          </span>
         </div>
 
-        <div className="space-y-0.5">
-          <div className="flex justify-between items-center w-full">
-            <span className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Stop Loss
-            </span>
-            <div className="flex items-center justify-end gap-1.5 text-right">
-              <span className="text-lg sm:text-xl font-extrabold tracking-tight text-rose-600 dark:text-rose-400">
-                {formattedSL}{" "}
-                <span className="text-[10px] sm:text-xs font-normal text-muted-foreground">
-                  USDT
-                </span>
-              </span>
-              <CopyButton key={`sl-${formattedSL}`} text={formattedSL} />
-            </div>
-          </div>
-          <div className="flex justify-between items-center text-[10px] sm:text-[11px]">
-            <span className="text-muted-foreground">Ожидаемый Net ROI:</span>
-            <span className="font-semibold text-rose-600 dark:text-rose-400 mr-8.5">
-              {slRoiPcnt.toFixed(1)}% (-{slLossUsdt.toFixed(1)} USDT)
-            </span>
-          </div>
+        <div className="flex flex-col border-l border-border/40 pl-2">
+          <span className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-tight select-none">
+            Итоговое плечо
+          </span>
+          <span className="text-xs font-bold text-foreground mt-0.5 truncate">
+            x{results.selectedLeverage}
+          </span>
         </div>
 
-        {/* Адаптированная высота h-9.5 для комфортного нажатия пальцем */}
-        <Button
+        <div className="flex flex-col border-l border-border/40 pl-2">
+          <span className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-tight select-none">
+            Маржа (USDT)
+          </span>
+          <span className="text-xs font-black text-amber-500 mt-0.5 truncate">
+            {results.marginUsed.toFixed(2)}
+          </span>
+        </div>
+      </div>
+
+      {/* СЕКЦИЯ 4: Кнопка фиксации сделки */}
+      <div className="w-full pt-1">
+        <button
           type="button"
           disabled={
-            results.positionSizeUsdt <= 0 || isSaving || isLeverageTooHigh
+            isSaving || entryPrice <= 0 || results.positionSizeUsdt <= 0
           }
-          onClick={handleSaveDeal}
-          className={`w-full mt-4 h-9.5 sm:h-10 text-xs font-bold tracking-wider uppercase transition-all duration-300 shadow-sm cursor-pointer rounded-xl flex items-center justify-center gap-2 ${
-            isLeverageTooHigh
-              ? "bg-red-500/10 text-red-500/60 border border-solid border-red-500/20 cursor-not-allowed"
-              : saveSuccess
-                ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                : duplicateWarning
-                  ? "bg-amber-600 hover:bg-amber-700 text-white"
-                  : "bg-primary hover:bg-primary/90 text-primary-foreground"
+          onClick={handleSaveToJournal}
+          className={`w-full h-9 sm:h-10 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm border border-transparent transition-all tracking-wide select-none ${
+            isSaving || entryPrice <= 0 || results.positionSizeUsdt <= 0
+              ? "bg-muted/30 text-muted-foreground/30 cursor-not-allowed"
+              : "bg-violet-600 hover:bg-violet-700 text-white shadow-violet-500/10 cursor-pointer active:scale-[0.98]"
           }`}
         >
-          {isSaving ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Фиксация...
-            </>
-          ) : saveSuccess ? (
-            <>
-              <Check className="h-4 w-4 animate-bounce" />
-              Сохранено!
-            </>
-          ) : duplicateWarning ? (
-            <>
-              <FolderPlus className="h-4 w-4" />
-              Позиция открыта
-            </>
-          ) : isLeverageTooHigh ? (
-            <>Уменьшите плечо</>
-          ) : (
-            <>
-              <FolderPlus className="h-4 w-4" />
-              Зафиксировать в журнал
-            </>
-          )}
-        </Button>
+          <PlusCircle className="size-4" />
+          <span>{isSaving ? "Сохранение..." : "Зафиксировать в журнал"}</span>
+        </button>
       </div>
     </div>
   );
