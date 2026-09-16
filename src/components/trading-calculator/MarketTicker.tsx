@@ -42,6 +42,7 @@ function formatCompactNumber(num: number): string {
   if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;
   return num.toFixed(0);
 }
+
 export default function MarketTicker({
   data,
   loading,
@@ -141,7 +142,6 @@ export default function MarketTicker({
           <img
             src={localIconUrl}
             alt={coinBaseName}
-            /* ФИКС: Оставлено только чистое увеличение размера size-9 на мобилках и size-10 на ПК, убрана тень shadow-sm */
             className="size-9 sm:size-10 min-w-9 sm:min-w-10 max-w-none rounded-full shrink-0 block object-contain"
             onError={() => setIconError(true)}
           />
@@ -245,7 +245,7 @@ export default function MarketTicker({
           <span
             className={`text-[9px] sm:text-[10px] font-bold block whitespace-nowrap leading-none ${data.fundingRate >= 0 ? "text-amber-600 dark:text-amber-400" : "text-violet-600 dark:text-violet-400"}`}
           >
-            {data.fundingRate.toFixed(4)}%
+            {(data.fundingRate * 100).toFixed(4)}%
           </span>
         </div>
       </div>

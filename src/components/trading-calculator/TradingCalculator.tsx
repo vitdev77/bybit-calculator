@@ -27,6 +27,7 @@ const COIN_PRECISION_MAP: Record<string, number> = {
   SUIUSDT: 4,
   DOGEUSDT: 5,
 };
+
 interface TickerData {
   lastPrice: number;
   price24hPcnt: number;
@@ -75,6 +76,7 @@ interface TradingCalculatorProps {
   externalPartsCount: number;
   setExternalPartsCount: (v: number) => void;
 }
+
 export default function TradingCalculator({
   selectedCoin,
   setSelectedCoin,
@@ -94,6 +96,12 @@ export default function TradingCalculator({
   const [isLoaded, setIsLoaded] = useState(false);
   const [tickerData, setTickerData] = useState<TickerData | null>(null);
   const [tickerLoading, setTickerLoading] = useState(false);
+
+  // Стейт для хранения текущего расчетного идеального плеча
+  const [idealLeverage, setIdealLeverage] = useState(10);
+
+  // Флаг, предотвращающий затирание плеча автоматикой при первой загрузке страницы
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   const partsCount = externalPartsCount;
   const setPartsCount = setExternalPartsCount;
@@ -162,6 +170,71 @@ export default function TradingCalculator({
   useEffect(() => {
     if (isLoaded) onBalanceChange?.(balance);
   }, [balance, isLoaded, onBalanceChange]);
+  // Функция вычисления математически оптимального плеча под параметры риска
+  const getCalculatedIdealLeverage = useCallback(() => {
+    const baseRiskAmount = (balance * riskPercent) / 100;
+    const allocatedMarginMax = balance / partsCount;
+    const openFeeRate = orderType === "MARKET" ? 0.00055 : 0.0002;
+    const totalFeeRate = openFeeRate + 0.00055;
+    const priceLossFactor = stopLossPercent / 100;
+
+    const idealPositionSizeUsdt =
+      baseRiskAmount / (priceLossFactor + totalFeeRate);
+    const calculatedRecLeverage = Math.ceil(
+      idealPositionSizeUsdt / allocatedMarginMax,
+    );
+    const standardSteps = [1, 2, 5, 10, 15, 20, 25, 30, 50, 75, 100];
+    let finalRecLeverage = 10;
+
+    for (const step of standardSteps) {
+      if (step >= calculatedRecLeverage) {
+        finalRecLeverage = step;
+        break;
+      }
+    }
+    if (finalRecLeverage > maxSafeLeverage) {
+      finalRecLeverage = maxSafeLeverage;
+    }
+    return finalRecLeverage;
+  }, [
+    balance,
+    riskPercent,
+    partsCount,
+    orderType,
+    stopLossPercent,
+    maxSafeLeverage,
+  ]);
+
+  // Обновляем идеальное плечо в фоне при изменении рыночных рамок риска
+  useEffect(() => {
+    if (!isLoaded) return;
+    const ideal = getCalculatedIdealLeverage();
+    setIdealLeverage(ideal);
+  }, [
+    partsCount,
+    riskPercent,
+    stopLossPercent,
+    isLoaded,
+    getCalculatedIdealLeverage,
+  ]);
+
+  // Срабатывает при клике на палочку
+  const handleAutoLeverageCalculate = useCallback(() => {
+    const ideal = getCalculatedIdealLeverage();
+    setLeverage(ideal);
+  }, [getCalculatedIdealLeverage]);
+
+  // Принудительно подставляем рекомендуемое плечо при переключении долей капитала, игнорируя первый маунт страницы
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    if (isInitialLoad) {
+      setIsInitialLoad(false);
+      return; // Прерываем автосброс при обновлении вкладки, сохраняя ручной ввод из localStorage
+    }
+
+    handleAutoLeverageCalculate();
+  }, [partsCount, isLoaded, handleAutoLeverageCalculate]);
 
   const fetchLiveTicker = useCallback(
     async (coin: string, isFirstInit: boolean, isCurrent: () => boolean) => {
@@ -259,43 +332,6 @@ export default function TradingCalculator({
     isLoaded,
   ]);
 
-  // ФИКС: Восстановлен правильный массив standardSteps для автоматического подбора плеча
-  useEffect(() => {
-    if (!isLoaded) return;
-    const baseRiskAmount = (balance * riskPercent) / 100;
-    const allocatedMarginMax = balance / partsCount;
-    const openFeeRate = orderType === "MARKET" ? 0.00055 : 0.0002;
-    const totalFeeRate = openFeeRate + 0.00055;
-    const priceLossFactor = stopLossPercent / 100;
-
-    const idealPositionSizeUsdt =
-      baseRiskAmount / (priceLossFactor + totalFeeRate);
-    const calculatedRecLeverage = Math.ceil(
-      idealPositionSizeUsdt / allocatedMarginMax,
-    );
-    const standardSteps = [1, 2, 5, 10, 15, 20, 25, 30, 50, 75, 100];
-    let finalRecLeverage = 10;
-
-    for (const step of standardSteps) {
-      if (step >= calculatedRecLeverage) {
-        finalRecLeverage = step;
-        break;
-      }
-    }
-    if (finalRecLeverage > maxSafeLeverage) {
-      finalRecLeverage = maxSafeLeverage;
-    }
-    setLeverage(finalRecLeverage);
-  }, [
-    selectedCoin,
-    isLoaded,
-    maxSafeLeverage,
-    partsCount,
-    balance,
-    riskPercent,
-    orderType,
-    stopLossPercent,
-  ]);
   useEffect(() => {
     if (entryPrice <= 0 || stopLossPercent <= 0 || balance <= 0) return;
 
@@ -339,7 +375,7 @@ export default function TradingCalculator({
     const MMR = 0.005;
     let liquidationPrice = isLong
       ? entryPrice * (1 - 1 / leverage + MMR + totalFeeRate)
-      : entryPrice * (1 + 1 / leverage - MMR - totalFeeRate);
+      : entryPrice * (1 + 1 / leverage - MMR + totalFeeRate);
 
     if (liquidationPrice < 0) liquidationPrice = 0;
 
@@ -413,6 +449,8 @@ export default function TradingCalculator({
               selectedCoin={selectedCoin}
               partsCount={partsCount}
               setPartsCount={setPartsCount}
+              onAutoLeverage={handleAutoLeverageCalculate}
+              isLeverageModified={leverage !== idealLeverage}
             />
             <PriceLevelsForm
               entryPrice={entryPrice}

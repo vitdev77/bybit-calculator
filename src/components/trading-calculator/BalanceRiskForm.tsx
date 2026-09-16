@@ -3,6 +3,7 @@
 import React from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Wand2 } from "lucide-react";
 
 interface BalanceRiskFormProps {
   balance: number;
@@ -17,7 +18,10 @@ interface BalanceRiskFormProps {
   selectedCoin: string;
   partsCount: number;
   setPartsCount: (v: number) => void;
+  onAutoLeverage?: () => void;
+  isLeverageModified?: boolean;
 }
+
 export default function BalanceRiskForm({
   balance,
   setBalance,
@@ -31,6 +35,8 @@ export default function BalanceRiskForm({
   selectedCoin,
   partsCount,
   setPartsCount,
+  onAutoLeverage,
+  isLeverageModified = false,
 }: BalanceRiskFormProps) {
   return (
     <div className="space-y-3.5 sm:space-y-4">
@@ -92,24 +98,48 @@ export default function BalanceRiskForm({
           <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground select-none">
             Плечо
           </label>
-          <div className="relative flex items-center">
-            <Input
-              type="number"
-              value={leverage || ""}
-              max={maxSafeLeverage}
-              onChange={(e) => {
-                let val = parseInt(e.target.value) || 1;
-                if (val > maxSafeLeverage) val = maxSafeLeverage;
-                setLeverage(val);
-              }}
-              className="h-8.5 text-xs bg-muted/20 border-border/40 focus-visible:ring-ring/30 rounded-lg pr-7 font-semibold"
-            />
-            <span className="absolute right-1 text-[9px] font-bold text-muted-foreground/60 select-none">
-              x{maxSafeLeverage}
-            </span>
+          <div className="flex items-stretch w-full group/leverage-box">
+            <div className="relative flex items-center flex-1 min-w-0">
+              <Input
+                type="number"
+                value={leverage || ""}
+                max={maxSafeLeverage}
+                onChange={(e) => {
+                  let val = parseInt(e.target.value) || 1;
+                  if (val > maxSafeLeverage) val = maxSafeLeverage;
+                  setLeverage(val);
+                }}
+                className={`h-8.5 text-xs bg-muted/20 border-border/40 focus-visible:ring-ring/30 font-semibold pr-7 ${onAutoLeverage ? "rounded-l-lg rounded-r-none border-r-0" : "rounded-lg"}`}
+              />
+              <span className="absolute right-1 text-[9px] font-bold text-muted-foreground/60 select-none">
+                x{maxSafeLeverage}
+              </span>
+            </div>
+            {onAutoLeverage && (
+              <button
+                type="button"
+                disabled={!isLeverageModified}
+                onClick={onAutoLeverage}
+                title={
+                  isLeverageModified
+                    ? "Вернуть оптимальное плечо по риску"
+                    : "Плечо соответствует риску"
+                }
+                className={`h-8.5 w-8.5 rounded-r-lg border flex items-center justify-center transition-all shrink-0 select-none border-l-0 ${
+                  isLeverageModified
+                    ? "bg-violet-600 border-violet-500 text-white shadow-lg shadow-violet-500/30 scale-100 hover:bg-violet-700 active:scale-95 cursor-pointer font-bold"
+                    : "bg-muted/10 border-border/20 text-muted-foreground/20 cursor-not-allowed opacity-50"
+                }`}
+              >
+                <Wand2
+                  className={`size-3.5 ${isLeverageModified ? "animate-pulse" : ""}`}
+                />
+              </button>
+            )}
           </div>
         </div>
       </div>
+
       {/* Выбор количества частей капитала */}
       <div className="flex flex-col space-y-1">
         <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground select-none">
