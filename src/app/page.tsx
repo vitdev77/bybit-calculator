@@ -92,7 +92,7 @@ export default function Home() {
               Калькулятор Позиций
             </h2>
             <p className="text-[11px] sm:text-xs text-muted-foreground/70 truncate">
-              Расчёт маржи, рисков и parameters ордера
+              Расчёт маржи, рисков и параметров ордера
             </p>
           </div>
           <div className="p-1.5 sm:p-2 rounded-xl text-muted-foreground group-hover/header:text-foreground group-hover/header:bg-muted/50 dark:group-hover/header:bg-muted/20 transition-all shrink-0">
@@ -175,7 +175,7 @@ export default function Home() {
               </div>
             </div>
             <p className="text-[11px] sm:text-xs text-muted-foreground/70 truncate">
-              История торгов и статистика WinRate из облачной базы
+              История торгов из облачной базы
             </p>
           </div>
           <div className="p-1.5 sm:p-2 rounded-xl text-muted-foreground group-hover/header:text-foreground group-hover/header:bg-muted/50 dark:group-hover/header:bg-muted/20 transition-all shrink-0">

@@ -647,8 +647,8 @@ export default function TradingJournal({
                   <AlertDialogHeader>
                     <AlertDialogTitle>Уничтожить весь журнал?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Это действие безвозвратно сотрет историю вашей торговли из
-                      облачной базы.
+                      Это действие безвозвратно удалит всю историю Вашей
+                      торговли из базы данных.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -680,7 +680,7 @@ export default function TradingJournal({
               <TableHeader>
                 <TableRow className="border-b border-border/20 bg-muted/30 text-[9px] sm:text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
                   <TableHead className="py-2 px-1.5 h-auto pl-3.5 sm:pl-5">
-                    Вход / Status
+                    Вход / Статус
                   </TableHead>
                   <TableHead className="py-2 px-1.5 h-auto">Пара</TableHead>
                   <TableHead className="py-2 px-1 h-auto">Тип</TableHead>

@@ -63,10 +63,10 @@ export default function BalanceRiskForm({
               type="number"
               value={balance || ""}
               onChange={(e) => setBalance(parseFloat(e.target.value) || 0)}
-              className="h-8.5 text-xs bg-muted/20 border-border/40 focus-visible:ring-ring/30 rounded-lg pr-7 font-semibold"
+              className="h-8.5 text-xs bg-muted/20 border-border/40 focus-visible:ring-ring/30 rounded-lg pr-9 font-semibold"
             />
             <span className="absolute right-2 text-[9px] font-bold text-muted-foreground/60 select-none">
-              $
+              USDT
             </span>
           </div>
         </div>

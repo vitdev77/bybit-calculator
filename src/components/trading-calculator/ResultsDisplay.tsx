@@ -236,7 +236,7 @@ export default function ResultsDisplay({
         </div>
 
         <div className="flex justify-between items-center text-xs sm:text-sm text-amber-600 dark:text-amber-400">
-          <span className="font-medium">Цена Liquidation:</span>
+          <span className="font-medium">Цена ликвидации:</span>
           <div className="flex items-center justify-end gap-1.5 text-right">
             <span className="text-sm sm:text-base font-black">
               {formattedLiq}{" "}
@@ -288,7 +288,8 @@ export default function ResultsDisplay({
           <div className="flex justify-between items-center text-[10px] sm:text-[11px]">
             <span className="text-muted-foreground">Ожидаемый Net ROI:</span>
             <span className="font-semibold text-emerald-600 dark:text-emerald-400 mr-8.5">
-              +{tpRoiPcnt.toFixed(1)}% (+{results.netProfitUsdt.toFixed(1)} U)
+              +{tpRoiPcnt.toFixed(1)}% (+{results.netProfitUsdt.toFixed(1)}{" "}
+              USDT)
             </span>
           </div>
         </div>
@@ -311,7 +312,7 @@ export default function ResultsDisplay({
           <div className="flex justify-between items-center text-[10px] sm:text-[11px]">
             <span className="text-muted-foreground">Ожидаемый Net ROI:</span>
             <span className="font-semibold text-rose-600 dark:text-rose-400 mr-8.5">
-              {slRoiPcnt.toFixed(1)}% (-{slLossUsdt.toFixed(1)} U)
+              {slRoiPcnt.toFixed(1)}% (-{slLossUsdt.toFixed(1)} USDT)
             </span>
           </div>
         </div>
