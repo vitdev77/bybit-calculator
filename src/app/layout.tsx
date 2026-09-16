@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toast";
@@ -22,6 +22,17 @@ export const metadata: Metadata = {
   },
 };
 
+/* 
+  ФИКС ЗУМА НА IPHONE (Блокировка на уровне метаданных Next.js):
+  maximumScale: 1 — запрещает браузеру Safari увеличивать страницу выше масштаба 100% при фокусе инпутов.
+  userScalable: false — полностью отключает автоматический "прыжок" и микро-приближение экрана на iOS.
+*/
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
 export default function RootLayout({
   children,
 }: Readonly<{
