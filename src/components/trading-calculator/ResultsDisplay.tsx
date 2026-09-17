@@ -3,6 +3,9 @@
 import React, { useState } from "react";
 import { Copy, Check, PlusCircle } from "lucide-react";
 
+// НАШ ФИКС: Возвращаем импорт твоего менеджера уведомлений
+import { toast } from "@/components/ui/toast";
+
 interface ResultsDisplayProps {
   results: {
     riskAmount: number;
@@ -37,7 +40,6 @@ export default function ResultsDisplay({
   const coinBase = coin.replace("USDT", "");
   const [isSaving, setIsSaving] = useState(false);
 
-  // Стейты для визуального подтверждения копирования отдельных полей
   const [copiedEntry, setCopiedEntry] = useState(false);
   const [copiedVolume, setCopiedVolume] = useState(false);
   const [copiedTP, setCopiedTP] = useState(false);
@@ -106,10 +108,22 @@ export default function ResultsDisplay({
 
       if (!response.ok) throw new Error("API error");
 
+      // НАШ ФИКС: Возвращаем уведомление об успешной отправке ордера
+      toast.add({
+        title: "Сделка зафиксирована",
+        description: `Ордер по паре ${coin} добавлен в журнал.`,
+        type: "success",
+      });
+
       // @ts-ignore
       window.dispatchEvent(new Event("refresh-trading-journal"));
     } catch (err) {
       console.error("Save error:", err);
+      toast.add({
+        title: "Ошибка сохранения",
+        description: "Не удалось отправить сделку в базу.",
+        type: "error",
+      });
     } finally {
       setIsSaving(false);
     }
