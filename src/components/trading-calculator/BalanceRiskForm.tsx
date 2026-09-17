@@ -3,7 +3,7 @@
 import React from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Wand2 } from "lucide-react";
+import { Shield } from "lucide-react";
 
 interface BalanceRiskFormProps {
   balance: number;
@@ -18,10 +18,9 @@ interface BalanceRiskFormProps {
   selectedCoin: string;
   partsCount: number;
   setPartsCount: (v: number) => void;
-  onAutoLeverage?: () => void;
-  isLeverageModified?: boolean;
+  onAutoLeverage: () => void;
+  isLeverageModified: boolean;
 }
-
 export default function BalanceRiskForm({
   balance,
   setBalance,
@@ -36,127 +35,113 @@ export default function BalanceRiskForm({
   partsCount,
   setPartsCount,
   onAutoLeverage,
-  isLeverageModified = false,
+  isLeverageModified,
 }: BalanceRiskFormProps) {
   return (
-    <div className="space-y-3.5 sm:space-y-4">
-      {/* Кнопки переключения направления BUY/SELL */}
-      <div className="grid grid-cols-2 gap-2 select-none">
-        <Button
+    <div className="space-y-4">
+      {/* КНОПКИ НАПРАВЛЕНИЯ ПОЗИЦИИ (Увеличены до h-11 sm:h-12, text-sm sm:text-base) */}
+      <div className="grid grid-cols-2 gap-2.5">
+        <button
           type="button"
           onClick={() => setSide("BUY")}
-          className={`h-8 sm:h-9 font-bold text-xs rounded-lg transition-all border ${side === "BUY" ? "bg-emerald-500 hover:bg-emerald-600 text-white border-transparent" : "bg-transparent text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/5"}`}
+          className={`h-11 sm:h-12 rounded-xl text-sm sm:text-base font-black transition-all cursor-pointer select-none tracking-wider ${
+            side === "BUY"
+              ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 active:scale-[0.98]"
+              : "bg-muted/40 hover:bg-muted/60 text-muted-foreground"
+          }`}
         >
           LONG (BUY)
-        </Button>
-        <Button
+        </button>
+        <button
           type="button"
           onClick={() => setSide("SELL")}
-          className={`h-8 sm:h-9 font-bold text-xs rounded-lg transition-all border ${side === "SELL" ? "bg-rose-500 hover:bg-rose-600 text-white border-transparent" : "bg-transparent text-rose-500 border-rose-500/20 hover:bg-rose-500/5"}`}
+          className={`h-11 sm:h-12 rounded-xl text-sm sm:text-base font-black transition-all cursor-pointer select-none tracking-wider ${
+            side === "SELL"
+              ? "bg-rose-500 text-white shadow-lg shadow-rose-500/20 active:scale-[0.98]"
+              : "bg-muted/40 hover:bg-muted/60 text-muted-foreground"
+          }`}
         >
           SHORT (SELL)
-        </Button>
+        </button>
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+        <div className="space-y-1">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block select-none">
+            Депозит (USDT)
+          </label>
+          <Input
+            type="number"
+            value={balance || ""}
+            onChange={(e) => setBalance(parseFloat(e.target.value) || 0)}
+            className="h-9 text-xs bg-muted/20 border-border/40 font-bold"
+          />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block select-none">
+            Риск на сделку (%)
+          </label>
+          <Input
+            type="number"
+            step="0.1"
+            value={riskPercent || ""}
+            onChange={(e) => setRiskPercent(parseFloat(e.target.value) || 0)}
+            className="h-9 text-xs bg-muted/20 border-border/40 font-bold"
+          />
+        </div>
       </div>
 
-      {/* МOБИЛЬНЫЙ ФИКС: Депозит, Риск и Плечо жестко зафиксированы в одну строчку через grid-cols-3 */}
-      <div className="grid grid-cols-3 gap-2">
-        <div className="flex flex-col space-y-1">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground select-none">
-            Депозит
-          </label>
-          <div className="relative flex items-center">
-            <Input
-              type="number"
-              value={balance || ""}
-              onChange={(e) => setBalance(parseFloat(e.target.value) || 0)}
-              className="h-8.5 text-xs bg-muted/20 border-border/40 focus-visible:ring-ring/30 rounded-lg pr-9 font-semibold"
-            />
-            <span className="absolute right-2 text-[9px] font-bold text-muted-foreground/60 select-none">
-              USDT
-            </span>
-          </div>
-        </div>
-
-        <div className="flex flex-col space-y-1">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground select-none">
-            Риск
-          </label>
-          <div className="relative flex items-center">
-            <Input
-              type="number"
-              value={riskPercent || ""}
-              onChange={(e) => setRiskPercent(parseFloat(e.target.value) || 0)}
-              className="h-8.5 text-xs bg-muted/20 border-border/40 focus-visible:ring-ring/30 rounded-lg pr-7 font-semibold"
-            />
-            <span className="absolute right-2 text-[9px] font-bold text-muted-foreground/60 select-none">
-              %
-            </span>
-          </div>
-        </div>
-
-        <div className="flex flex-col space-y-1">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground select-none">
-            Плечо
-          </label>
-          <div className="flex items-stretch w-full group/leverage-box">
-            <div className="relative flex items-center flex-1 min-w-0">
-              <Input
-                type="number"
-                value={leverage || ""}
-                max={maxSafeLeverage}
-                onChange={(e) => {
-                  let val = parseInt(e.target.value) || 1;
-                  if (val > maxSafeLeverage) val = maxSafeLeverage;
-                  setLeverage(val);
-                }}
-                className={`h-8.5 text-xs bg-muted/20 border-border/40 focus-visible:ring-ring/30 font-semibold pr-7 ${onAutoLeverage ? "rounded-l-lg rounded-r-none border-r-0" : "rounded-lg"}`}
-              />
-              <span className="absolute right-1 text-[9px] font-bold text-muted-foreground/60 select-none">
-                x{maxSafeLeverage}
-              </span>
-            </div>
-            {onAutoLeverage && (
-              <button
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 items-end">
+        <div className="space-y-1 relative">
+          <div className="flex items-center justify-between">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block select-none">
+              Плечо (x1-{maxSafeLeverage})
+            </label>
+            {isLeverageModified && (
+              <Button
                 type="button"
-                disabled={!isLeverageModified}
+                variant="ghost"
                 onClick={onAutoLeverage}
-                title={
-                  isLeverageModified
-                    ? "Вернуть оптимальное плечо по риску"
-                    : "Плечо соответствует риску"
-                }
-                className={`h-8.5 w-8.5 rounded-r-lg border flex items-center justify-center transition-all shrink-0 select-none border-l-0 ${
-                  isLeverageModified
-                    ? "bg-violet-600 border-violet-500 text-white shadow-lg shadow-violet-500/30 scale-100 hover:bg-violet-700 active:scale-95 cursor-pointer font-bold"
-                    : "bg-muted/10 border-border/20 text-muted-foreground/20 cursor-not-allowed opacity-50"
-                }`}
+                className="h-4 px-1 text-[9px] font-bold text-amber-500 hover:text-amber-600 bg-transparent p-0 flex items-center gap-0.5"
+                title="Вернуть расчетное идеальное плечо"
               >
-                <Wand2
-                  className={`size-3.5 ${isLeverageModified ? "animate-pulse" : ""}`}
-                />
-              </button>
+                <Shield className="size-2.5" />
+                <span>Авто</span>
+              </Button>
             )}
           </div>
+          <Input
+            type="number"
+            min="1"
+            max={maxSafeLeverage}
+            value={leverage || ""}
+            onChange={(e) => {
+              let val = parseInt(e.target.value) || 1;
+              if (val > maxSafeLeverage) val = maxSafeLeverage;
+              setLeverage(val);
+            }}
+            className={`h-9 text-xs font-bold bg-muted/20 border-border/40 ${
+              isLeverageModified ? "border-amber-500/40 text-amber-500" : ""
+            }`}
+          />
         </div>
-      </div>
 
-      {/* Выбор количества частей капитала */}
-      <div className="flex flex-col space-y-1">
-        <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground select-none">
-          Разделение депо (Долей: {partsCount})
-        </label>
-        <div className="grid grid-cols-5 gap-1 select-none">
-          {[2, 3, 4, 5, 10].map((num) => (
-            <Button
-              key={num}
-              type="button"
-              variant="outline"
-              onClick={() => setPartsCount(num)}
-              className={`h-7 text-[10px] font-black rounded-md transition-all ${partsCount === num ? "bg-amber-500/10 text-amber-500 border-amber-500/30 hover:bg-amber-500/15" : "bg-muted/10 border-border/30 hover:bg-muted/30 text-muted-foreground"}`}
-            >
-              1/{num}
-            </Button>
-          ))}
+        <div className="space-y-1">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block select-none">
+            Разбить депо на (частей)
+          </label>
+          <Input
+            type="number"
+            min="1"
+            max="100"
+            value={partsCount || ""}
+            onChange={(e) => {
+              let val = parseInt(e.target.value) || 1;
+              if (val > 100) val = 100;
+              setPartsCount(val);
+            }}
+            className="h-9 text-xs bg-muted/20 border-border/40 font-bold"
+          />
         </div>
       </div>
     </div>

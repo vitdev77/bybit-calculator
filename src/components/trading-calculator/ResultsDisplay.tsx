@@ -2,8 +2,6 @@
 
 import React, { useState } from "react";
 import { Copy, Check, PlusCircle } from "lucide-react";
-
-// НАШ ФИКС: Возвращаем импорт твоего менеджера уведомлений
 import { toast } from "@/components/ui/toast";
 
 interface ResultsDisplayProps {
@@ -108,7 +106,6 @@ export default function ResultsDisplay({
 
       if (!response.ok) throw new Error("API error");
 
-      // НАШ ФИКС: Возвращаем уведомление об успешной отправке ордера
       toast.add({
         title: "Сделка зафиксирована",
         description: `Ордер по паре ${coin} добавлен в журнал.`,
@@ -119,11 +116,6 @@ export default function ResultsDisplay({
       window.dispatchEvent(new Event("refresh-trading-journal"));
     } catch (err) {
       console.error("Save error:", err);
-      toast.add({
-        title: "Ошибка сохранения",
-        description: "Не удалось отправить сделку в базу.",
-        type: "error",
-      });
     } finally {
       setIsSaving(false);
     }
@@ -197,6 +189,22 @@ export default function ResultsDisplay({
         </div>
 
         <div className="space-y-2 text-xs">
+          <div className="flex justify-between items-center py-0.5">
+            <span className="text-muted-foreground/80 font-medium select-none">
+              Тип ордера:
+            </span>
+            <span
+              style={{ padding: "1px 5px" }}
+              className={`rounded text-[9px] font-black border ${
+                orderType === "LIMIT"
+                  ? "bg-violet-500/10 text-violet-500 border-violet-500/15"
+                  : "bg-blue-500/10 text-blue-500 border-blue-500/15"
+              }`}
+            >
+              {orderType}
+            </span>
+          </div>
+
           <div className="flex justify-between items-center py-0.5">
             <span className="text-muted-foreground/80 font-medium select-none">
               Цена входа:
@@ -357,7 +365,7 @@ export default function ResultsDisplay({
         </div>
       </div>
 
-      {/* СЕКЦИЯ 4: Кнопка фиксации сделки */}
+      {/* СЕКЦИЯ 4: Кнопка фиксации сделки (Увеличена до h-11 sm:h-12, шрифт text-sm) */}
       <div className="w-full pt-1">
         <button
           type="button"
@@ -365,13 +373,13 @@ export default function ResultsDisplay({
             isSaving || entryPrice <= 0 || results.positionSizeUsdt <= 0
           }
           onClick={handleSaveToJournal}
-          className={`w-full h-9 sm:h-10 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm border border-transparent transition-all tracking-wide select-none ${
+          className={`w-full h-11 sm:h-12 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 shadow-sm border border-transparent transition-all tracking-wide select-none ${
             isSaving || entryPrice <= 0 || results.positionSizeUsdt <= 0
               ? "bg-muted/30 text-muted-foreground/30 cursor-not-allowed"
-              : "bg-violet-600 hover:bg-violet-700 text-white shadow-violet-500/10 cursor-pointer active:scale-[0.98]"
+              : "bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-500/10 cursor-pointer active:scale-[0.98]"
           }`}
         >
-          <PlusCircle className="size-4" />
+          <PlusCircle className="size-4 shrink-0" />
           <span>{isSaving ? "Сохранение..." : "Зафиксировать в журнал"}</span>
         </button>
       </div>

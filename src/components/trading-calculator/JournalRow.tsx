@@ -255,11 +255,13 @@ export function JournalRow({
       ).padStart(2, "0")}`;
     } catch (e) {}
   }
-  const rowClass = isCurrentActiveCoin
-    ? "bg-amber-500/5 dark:bg-amber-500/10 hover:bg-amber-500/10"
-    : !isOpen
-      ? "opacity-45"
-      : "";
+
+  const rowClass =
+    isCurrentActiveCoin && isOpen
+      ? "bg-amber-500/5 dark:bg-amber-500/10 hover:bg-amber-500/15"
+      : !isOpen
+        ? "opacity-55 hover:bg-muted/40 dark:hover:bg-muted/10 hover:opacity-100"
+        : "hover:bg-muted/40 dark:hover:bg-muted/10";
   return (
     <TableRow
       className={`transition-all border-b border-border/10 ${rowClass}`}
@@ -268,7 +270,7 @@ export function JournalRow({
         <div
           className={`absolute left-0 top-0 bottom-0 transition-all duration-300 ${
             isLong ? "w-1 bg-emerald-500" : "w-1 bg-rose-500"
-          } ${isCurrentActiveCoin ? "w-1.5" : ""}`}
+          } ${isCurrentActiveCoin && isOpen ? "w-1.5" : ""}`}
         />
         <div className="flex items-start gap-1">
           {deal.status?.toUpperCase() === "PROFIT" ||
