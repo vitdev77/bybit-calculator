@@ -59,7 +59,6 @@ interface TradingJournalProps {
   activeCoin?: string;
   onCoinSelect?: (coin: string) => void;
 }
-
 const JOURNAL_PRECISION_MAP: Record<string, number> = {
   BTCUSDT: 2,
   ETHUSDT: 2,
@@ -96,7 +95,10 @@ export default function TradingJournal({
     try {
       const res = await fetch("/api/journal", {
         cache: "no-store",
-        headers: { Pragma: "no-cache", "Cache-Control": "no-cache" },
+        headers: {
+          Pragma: "no-cache",
+          "Cache-Control": "no-cache",
+        },
       });
       if (!res.ok) throw new Error("Load error");
       const data = await res.json();
@@ -115,7 +117,10 @@ export default function TradingJournal({
         (d: Deal) => d.status?.toUpperCase() !== "OPEN",
       ).length;
 
-      onDealsCountChange?.({ open: openCount, closed: closedCount });
+      onDealsCountChange?.({
+        open: openCount,
+        closed: closedCount,
+      });
     } catch (err) {
       console.error("Не удалось подгрузить журнал сделок:", err);
     } finally {
@@ -129,7 +134,6 @@ export default function TradingJournal({
     return () =>
       window.removeEventListener("refresh-trading-journal", fetchJournal);
   }, [fetchJournal]);
-
   const exportToCSV = () => {
     if (!deals || deals.length === 0) return;
     const headers = [
@@ -178,7 +182,6 @@ export default function TradingJournal({
     link.click();
     document.body.removeChild(link);
   };
-
   const totalDeals = deals.length;
   const profitDeals = deals.filter(
     (d) => d.status?.toUpperCase() === "PROFIT",
@@ -211,7 +214,9 @@ export default function TradingJournal({
 
   const handleDeleteDeal = async (id: number) => {
     try {
-      await fetch(`/api/journal?id=${id}`, { method: "DELETE" });
+      await fetch(`/api/journal?id=${id}`, {
+        method: "DELETE",
+      });
       fetchJournal();
       setActiveDeleteId(null);
     } catch (e) {
@@ -307,7 +312,6 @@ export default function TradingJournal({
         </div>
       );
     }
-
     if (!pnlDisplay) {
       const lastKnown = frozenPnL[deal.id] || { pnl: 0, roi: 0 };
       if (isOpen) {
@@ -399,7 +403,6 @@ export default function TradingJournal({
       : !isOpen
         ? "opacity-45"
         : "";
-
     return (
       <TableRow
         key={deal.id}
@@ -461,7 +464,6 @@ export default function TradingJournal({
           {(deal.entry_price || 0).toFixed(precision)}
         </TableCell>
 
-        {/* ФИКС: Ультра-сжатый бэйдж Безубытка (style с нулевым вертикальным паддингом и обычным начертанием) */}
         <TableCell className="py-2 px-1.5 sm:px-3 text-[11px] sm:text-xs select-none">
           <span
             style={isBreakevenPassed ? { padding: "0px 3px" } : undefined}
@@ -475,7 +477,6 @@ export default function TradingJournal({
           </span>
         </TableCell>
 
-        {/* ФИКС: Ультра-сжатые бэйджи TP и SL (style с нулевым вертикальным паддингом и обычным начертанием) */}
         <TableCell className="py-2 px-1.5 sm:px-3 select-none">
           <div className="flex flex-col gap-1 text-[11px] sm:text-xs items-start">
             <span
@@ -494,7 +495,7 @@ export default function TradingJournal({
               style={isSlTriggered ? { padding: "0px 3px" } : undefined}
               className={`inline-block transition-all duration-300 ${
                 isSlTriggered
-                  ? "bg-rose-500 text-white font-normal rounded border border-rose-400/20 shadow-sm animate-pulse"
+                  ? "bg-rose-500 text-white font-normal rounded border border-rose-400/20 shadow-sm"
                   : isOpen
                     ? "text-rose-600/60 font-medium"
                     : "text-muted-foreground/40"
@@ -516,6 +517,7 @@ export default function TradingJournal({
                   variant="ghost"
                   onClick={() => handleUpdateStatus(deal.id, "PROFIT")}
                   className="h-7 w-7 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-md"
+                  title="Закрыть по тейку"
                 >
                   <Check className="size-3.5" />
                 </Button>
@@ -524,6 +526,7 @@ export default function TradingJournal({
                   variant="ghost"
                   onClick={() => handleUpdateStatus(deal.id, "LOSS")}
                   className="h-7 w-7 text-rose-600 hover:bg-rose-600 hover:text-white rounded-md"
+                  title="Закрыть по стопу"
                 >
                   <X className="size-3.5" />
                 </Button>
@@ -532,6 +535,7 @@ export default function TradingJournal({
                   variant="ghost"
                   onClick={() => handleUpdateStatus(deal.id, "CLOSED")}
                   className="h-7 w-7 text-muted-foreground hover:bg-muted hover:text-foreground rounded-md"
+                  title="Закрыть вручную"
                 >
                   <LogOut className="size-3" />
                 </Button>
