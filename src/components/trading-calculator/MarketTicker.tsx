@@ -2,6 +2,18 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ChevronDown, Check } from "lucide-react";
+
+// Импортируем компоненты твоей дизайн-системы Base UI
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+
+// Подтягиваем список доступных монет из селектора
+import { AVAILABLE_COINS } from "./CoinSelector";
 
 interface TickerData {
   lastPrice: number;
@@ -18,6 +30,7 @@ interface MarketTickerProps {
   decimals: number;
   onPriceClick?: (price: number) => void;
   selectedCoin: string;
+  onCoinChange?: (coin: string) => void;
 }
 
 const COIN_NAMES: Record<string, string> = {
@@ -35,7 +48,6 @@ const COIN_NAMES: Record<string, string> = {
   NEAR: "Near Protocol",
   LINK: "Chainlink",
 };
-
 function formatCompactNumber(num: number): string {
   if (num >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(2)}B`;
   if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(2)}M`;
@@ -49,6 +61,7 @@ export default function MarketTicker({
   decimals,
   onPriceClick,
   selectedCoin,
+  onCoinChange,
 }: MarketTickerProps) {
   const [tickDirection, setTickDirection] = useState<"up" | "down" | "stable">(
     "stable",
@@ -70,7 +83,6 @@ export default function MarketTicker({
       prevPriceRef.current = data.lastPrice;
     }
   }, [data?.lastPrice]);
-
   if (!data) {
     return (
       <div className="p-3 sm:p-4 border border-border/40 dark:border-black/40 rounded-xl bg-muted/30 dark:bg-black/40 shadow-inner grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 w-full items-center min-h-20 sm:min-h-22.5">
@@ -136,30 +148,73 @@ export default function MarketTicker({
 
   return (
     <div className="p-3 sm:p-4 border border-border/40 dark:border-black/40 rounded-xl bg-muted/30 dark:bg-black/40 shadow-inner grid grid-cols-2 md:grid-cols-6 gap-3 sm:gap-4 w-full items-center min-h-20 sm:min-h-22.5">
-      {/* 1. Название монеты с крупной плоской иконкой */}
-      <div className="flex items-center gap-3 sm:gap-4 p-0.5 md:col-span-1 select-none border-r border-border/30 pr-1 sm:pr-3 h-12 min-w-fit shrink-0">
-        {!iconError ? (
-          <img
-            src={localIconUrl}
-            alt={coinBaseName}
-            className="size-9 sm:size-10 min-w-9 sm:min-w-10 max-w-none rounded-full shrink-0 block object-contain"
-            onError={() => setIconError(true)}
-          />
-        ) : (
-          <div className="size-9 sm:size-10 min-w-9 sm:min-w-10 max-w-none rounded-full bg-emerald-600/10 dark:bg-emerald-400/10 flex items-center justify-center text-sm sm:text-base font-black text-emerald-600 dark:text-emerald-400 shrink-0 uppercase">
-            {coinBaseName.charAt(0)}
-          </div>
-        )}
-        <div className="flex flex-col min-w-0 pr-1 ml-0.5 space-y-0.5">
-          <span className="text-xs sm:text-sm font-black tracking-tight text-foreground leading-none">
-            {coinBaseName}
-          </span>
-          <span className="text-[9px] sm:text-[10px] font-semibold text-muted-foreground/70 truncate leading-none">
-            {fullName}
-          </span>
-        </div>
+      {/* 1. Блок названия монеты, переделанный в интерактивный селект */}
+      <div className="p-0.5 md:col-span-1 border-r border-border/30 pr-1 sm:pr-3 h-12 min-w-fit shrink-0 flex items-center">
+        <DropdownMenu>
+          {/* ФИКС: Удалены классы фокуса border и ring */}
+          <DropdownMenuTrigger className="flex items-center gap-2 sm:gap-3 text-left p-1.5 rounded-xl border border-transparent transition-all duration-200 cursor-pointer outline-none w-full group/trigger hover:bg-muted/60 dark:hover:bg-muted/20 active:scale-[0.98]">
+            <div className="relative shrink-0">
+              {!iconError ? (
+                <img
+                  src={localIconUrl}
+                  alt={coinBaseName}
+                  className="size-9 sm:size-10 rounded-full block object-contain shrink-0 group-hover/trigger:scale-105 transition-transform"
+                  onError={() => setIconError(true)}
+                />
+              ) : (
+                <div className="size-9 sm:size-10 rounded-full bg-emerald-600/10 dark:bg-emerald-400/10 flex items-center justify-center text-sm font-black text-emerald-600 dark:text-emerald-400 shrink-0 uppercase">
+                  {coinBaseName.charAt(0)}
+                </div>
+              )}
+            </div>
+            <div className="flex flex-col min-w-0 space-y-0.5 flex-1 pr-4 relative">
+              <div className="flex items-center gap-1">
+                <span className="text-xs sm:text-sm font-black tracking-tight text-foreground leading-none group-hover/trigger:text-amber-500 transition-colors">
+                  {coinBaseName}
+                </span>
+                <ChevronDown className="size-3 text-muted-foreground/60 group-hover/trigger:text-foreground transition-colors shrink-0" />
+              </div>
+              <span className="text-[9px] sm:text-[10px] font-semibold text-muted-foreground/70 truncate leading-none">
+                {fullName}
+              </span>
+            </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="max-h-60 overflow-y-auto z-50 bg-popover rounded-xl p-1 border border-border/40 shadow-xl min-w-48">
+            {AVAILABLE_COINS.map((coin) => {
+              const base = coin.replace("USDT", "");
+              const iconPath = `/crypto-icons/${base.toLowerCase()}.svg`;
+              const isSelected = selectedCoin === coin;
+              return (
+                <DropdownMenuItem
+                  key={coin}
+                  onClick={() => onCoinChange?.(coin)}
+                  className={`flex items-center justify-between gap-2 px-2.5 py-1.5 text-xs sm:text-sm rounded-lg cursor-pointer transition-colors focus:bg-accent focus:text-accent-foreground ${
+                    isSelected
+                      ? "bg-amber-500/10 text-amber-500 font-bold"
+                      : "text-foreground"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <img
+                      src={iconPath}
+                      alt={base}
+                      className="size-4 object-contain rounded-full shrink-0"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = "none";
+                      }}
+                    />
+                    <span className="truncate">{coin}</span>
+                  </div>
+                  {/* ФИКС: Жестко фиксированный размер галочки лусида вместо Base UI */}
+                  {isSelected && (
+                    <Check className="size-3.5 sm:size-4 text-amber-500 shrink-0 ml-auto" />
+                  )}
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
-
       {/* 2. Живая цена */}
       <div className="p-0.5 w-full overflow-hidden bg-transparent md:col-span-2 h-10 sm:h-11 flex flex-col justify-center">
         <span className="text-[8px] sm:text-[9px] font-medium uppercase tracking-wider text-muted-foreground block pl-5 sm:pl-7 select-none leading-none mb-0.5 sm:mb-1">

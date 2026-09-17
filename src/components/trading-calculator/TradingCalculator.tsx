@@ -36,7 +36,6 @@ interface TickerData {
   fundingRate: number;
   turnover24h: number;
 }
-
 function useTabTicker(
   price: number | undefined,
   coin: string,
@@ -58,7 +57,10 @@ function useTabTicker(
       else return;
     }
     prevPriceRef.current = price;
-    const nextTitle = `${triangle} ${formattedPrice} | Трейдинг ${coin} | Bybit Calculator`;
+    const nextTitle =
+      `${triangle} ${formattedPrice} | ` +
+      `Трейдинг ${coin} | Bybit Calculator`;
+
     if (document.title !== nextTitle) document.title = nextTitle;
   }, [price, coin, decimals]);
 
@@ -76,7 +78,6 @@ interface TradingCalculatorProps {
   externalPartsCount: number;
   setExternalPartsCount: (v: number) => void;
 }
-
 export default function TradingCalculator({
   selectedCoin,
   setSelectedCoin,
@@ -96,11 +97,7 @@ export default function TradingCalculator({
   const [isLoaded, setIsLoaded] = useState(false);
   const [tickerData, setTickerData] = useState<TickerData | null>(null);
   const [tickerLoading, setTickerLoading] = useState(false);
-
-  // Стейт для хранения текущего расчетного идеального плеча
   const [idealLeverage, setIdealLeverage] = useState(10);
-
-  // Флаг, предотвращающий затирание плеча автоматикой при первой загрузке страницы
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   const partsCount = externalPartsCount;
@@ -110,6 +107,7 @@ export default function TradingCalculator({
     COIN_PRECISION_MAP[selectedCoin] !== undefined
       ? COIN_PRECISION_MAP[selectedCoin]
       : 4;
+
   const maxSafeLeverage =
     selectedCoin === "BTCUSDT" || selectedCoin === "ETHUSDT" ? 100 : 50;
 
@@ -170,7 +168,7 @@ export default function TradingCalculator({
   useEffect(() => {
     if (isLoaded) onBalanceChange?.(balance);
   }, [balance, isLoaded, onBalanceChange]);
-  // Функция вычисления математически оптимального плеча под параметры риска
+
   const getCalculatedIdealLeverage = useCallback(() => {
     const baseRiskAmount = (balance * riskPercent) / 100;
     const allocatedMarginMax = balance / partsCount;
@@ -184,7 +182,6 @@ export default function TradingCalculator({
       idealPositionSizeUsdt / allocatedMarginMax,
     );
 
-    // ФИКС СЕТКИ ШАГОВ: Добавлены плотные фракционные уровни плеч для точечной реакции на 1/3 и 1/4 долей
     const standardSteps = [
       1, 2, 3, 4, 5, 6, 7, 8, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100,
     ];
@@ -209,7 +206,6 @@ export default function TradingCalculator({
     maxSafeLeverage,
   ]);
 
-  // Обновляем идеальное плечо в фоне при изменении рыночных рамок риска
   useEffect(() => {
     if (!isLoaded) return;
     const ideal = getCalculatedIdealLeverage();
@@ -222,24 +218,19 @@ export default function TradingCalculator({
     getCalculatedIdealLeverage,
   ]);
 
-  // Срабатывает при клике на палочку
   const handleAutoLeverageCalculate = useCallback(() => {
     const ideal = getCalculatedIdealLeverage();
     setLeverage(ideal);
   }, [getCalculatedIdealLeverage]);
 
-  // Принудительно подставляем рекомендуемое плечо при переключении долей капитала, игнорируя первый маунт страницы
   useEffect(() => {
     if (!isLoaded) return;
-
     if (isInitialLoad) {
       setIsInitialLoad(false);
-      return; // Прерываем автосброс при обновлении вкладки, сохраняя ручной ввод из localStorage
+      return;
     }
-
     handleAutoLeverageCalculate();
   }, [partsCount, isLoaded, handleAutoLeverageCalculate]);
-
   const fetchLiveTicker = useCallback(
     async (coin: string, isFirstInit: boolean, isCurrent: () => boolean) => {
       try {
@@ -305,6 +296,7 @@ export default function TradingCalculator({
       clearInterval(interval);
     };
   }, [selectedCoin, isLoaded, fetchLiveTicker]);
+
   useEffect(() => {
     if (isLoaded && typeof window !== "undefined") {
       const state = {
@@ -334,7 +326,6 @@ export default function TradingCalculator({
     partsCount,
     isLoaded,
   ]);
-
   useEffect(() => {
     if (entryPrice <= 0 || stopLossPercent <= 0 || balance <= 0) return;
 
@@ -345,6 +336,7 @@ export default function TradingCalculator({
     const stopLossPrice =
       entryPrice *
       (isLong ? 1 - stopLossPercent / 100 : 1 + stopLossPercent / 100);
+
     const takeProfitPrice =
       entryPrice *
       (isLong
@@ -354,10 +346,8 @@ export default function TradingCalculator({
     const openFeeRate = orderType === "MARKET" ? 0.00055 : 0.0002;
     const closeFeeRate = 0.00055;
     const totalFeeRate = openFeeRate + closeFeeRate;
-
     const priceLossFactor = stopLossPercent / 100;
 
-    // ВЫРАВНИВАНИЕ МАТЕМАТИКИ: Маржа и объём теперь жёстко рассчитываются синхронно с выбранным плечом
     let positionSizeUsdt = baseRiskAmount / (priceLossFactor + totalFeeRate);
     let marginUsed = positionSizeUsdt / leverage;
 
@@ -372,6 +362,7 @@ export default function TradingCalculator({
     const totalFeeUsdt = openFee + closeFee;
     const rawLossUsdt =
       positionSizeCrypto * Math.abs(entryPrice - stopLossPrice);
+
     const actualRiskAmount = rawLossUsdt + totalFeeUsdt;
     const netProfitUsdt =
       positionSizeCrypto * Math.abs(entryPrice - takeProfitPrice) -
@@ -379,7 +370,6 @@ export default function TradingCalculator({
 
     const MMR = 0.005;
 
-    // ФИКС ФОРМУЛЫ ЛИКВИДАЦИИ: Исправлены знаки для SHORT-позиций (Fee и MMR ухудшают ликвидность)
     let liquidationPrice = isLong
       ? entryPrice * (1 - 1 / leverage + MMR + totalFeeRate)
       : entryPrice * (1 + 1 / leverage - MMR + totalFeeRate);
@@ -419,15 +409,16 @@ export default function TradingCalculator({
   ]);
 
   if (!isLoaded) return null;
-
   return (
     <div className="w-full p-1.5 sm:p-4 space-y-3 sm:space-y-4">
+      {/* НАШ ФИКС: Передаем onCoinChange для сквозной синхронизации при клике в информере */}
       <MarketTicker
         data={tickerData}
         loading={tickerLoading}
         decimals={currentDecimals}
         onPriceClick={handlePriceApply}
         selectedCoin={selectedCoin}
+        onCoinChange={handleCoinChange}
       />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 items-stretch">
         <Card className="shadow-sm border border-border/40 bg-background flex flex-col rounded-xl sm:rounded-2xl">
@@ -473,7 +464,7 @@ export default function TradingCalculator({
         <Card className="shadow-sm border border-border/40 bg-background flex flex-col rounded-xl sm:rounded-2xl">
           <CardHeader className="py-2 px-2.5 sm:py-2.5 sm:px-4 border-b border-border/40">
             <CardTitle className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Торговый отчёт
+              Торговый отчет
             </CardTitle>
           </CardHeader>
           <CardContent className="p-2.5 sm:p-4 flex-1 flex flex-col justify-between">
