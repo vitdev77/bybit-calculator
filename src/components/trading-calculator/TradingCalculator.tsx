@@ -177,8 +177,14 @@ export default function TradingCalculator({
   const getCalculatedIdealLeverage = useCallback(() => {
     const baseRiskAmount = (balance * riskPercent) / 100;
     const allocatedMarginMax = balance / partsCount;
-    const openFeeRate = orderType === "MARKET" ? 0.00055 : 0.0002;
-    const totalFeeRate = openFeeRate + 0.00055;
+
+    // ЖЕСТКИЙ ПОДБОР ТАРИФОВ: Плечо x1 — Спот, иначе — Ваши фьючерсы
+    const isSpot = leverage === 1;
+    const activeTaker = isSpot ? 0.00135 : 0.0009;
+    const activeMaker = isSpot ? 0.00075 : 0.000324;
+
+    const openFeeRate = orderType === "MARKET" ? activeTaker : activeMaker;
+    const totalFeeRate = openFeeRate + activeTaker;
     const priceLossFactor = stopLossPercent / 100;
 
     const idealPositionSizeUsdt =
@@ -209,6 +215,7 @@ export default function TradingCalculator({
     orderType,
     stopLossPercent,
     maxSafeLeverage,
+    leverage,
   ]);
 
   useEffect(() => {
@@ -350,8 +357,13 @@ export default function TradingCalculator({
         ? 1 + (stopLossPercent * riskRewardRatio) / 100
         : 1 - (stopLossPercent * riskRewardRatio) / 100);
 
-    const openFeeRate = orderType === "MARKET" ? 0.00055 : 0.0002;
-    const closeFeeRate = 0.00055;
+    // ВЫБОР ДИНАМИЧЕСКИХ ТАРИФОВ ПОД ВАШ АККАУНТ
+    const isSpot = leverage === 1;
+    const activeTaker = isSpot ? 0.00135 : 0.0009; // 0.135% спот / 0.09% фьючи
+    const activeMaker = isSpot ? 0.00075 : 0.000324; // 0.075% спот / 0.0324% фьючи
+
+    const openFeeRate = orderType === "MARKET" ? activeTaker : activeMaker;
+    const closeFeeRate = activeTaker;
     const totalFeeRate = openFeeRate + closeFeeRate;
     const priceLossFactor = stopLossPercent / 100;
 
@@ -375,7 +387,6 @@ export default function TradingCalculator({
       positionSizeCrypto * Math.abs(entryPrice - takeProfitPrice) -
       totalFeeUsdt;
 
-    // ЖЕЛЕЗНО ИСПРАВЛЕННАЯ ФОРМУЛА ШОРТ-ЛИКВИДАЦИИ BYBIT
     const MMR = 0.005;
     let liquidationPrice = isLong
       ? entryPrice * (1 - 1 / leverage + MMR + closeFeeRate)
