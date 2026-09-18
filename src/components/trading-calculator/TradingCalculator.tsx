@@ -36,6 +36,7 @@ interface TickerData {
   fundingRate: number;
   turnover24h: number;
 }
+
 function useTabTicker(
   price: number | undefined,
   coin: string,
@@ -45,8 +46,9 @@ function useTabTicker(
 
   useEffect(() => {
     if (!price) {
-      if (document.title !== "Bybit Calculator")
+      if (document.title !== "Bybit Calculator") {
         document.title = "Bybit Calculator";
+      }
       return;
     }
     const formattedPrice = price.toFixed(decimals);
@@ -61,7 +63,9 @@ function useTabTicker(
       `${triangle} ${formattedPrice} | ` +
       `Трейдинг ${coin} | Bybit Calculator`;
 
-    if (document.title !== nextTitle) document.title = nextTitle;
+    if (document.title !== nextTitle) {
+      document.title = nextTitle;
+    }
   }, [price, coin, decimals]);
 
   useEffect(() => {
@@ -69,7 +73,6 @@ function useTabTicker(
     document.title = "Bybit Calculator";
   }, [coin]);
 }
-
 interface TradingCalculatorProps {
   selectedCoin: string;
   setSelectedCoin: (coin: string) => void;
@@ -78,6 +81,7 @@ interface TradingCalculatorProps {
   externalPartsCount: number;
   setExternalPartsCount: (v: number) => void;
 }
+
 export default function TradingCalculator({
   selectedCoin,
   setSelectedCoin,
@@ -99,6 +103,10 @@ export default function TradingCalculator({
   const [tickerLoading, setTickerLoading] = useState(false);
   const [idealLeverage, setIdealLeverage] = useState(10);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  // ДИНАМИЧЕСКИЕ СТЭЙТЫ ПОД КОМИССИИ ТАРУФОВ ВАШЕГО АККАУНТА
+  const [takerFee, setTakerFee] = useState(0.09);
+  const [makerFee, setMakerFee] = useState(0.0324);
 
   const partsCount = externalPartsCount;
   const setPartsCount = setExternalPartsCount;
@@ -147,16 +155,20 @@ export default function TradingCalculator({
             onBalanceChange?.(parsed.balance);
           }
           if (parsed.riskPercent) setRiskPercent(parsed.riskPercent);
-          if (parsed.riskRewardRatio)
+          if (parsed.riskRewardRatio) {
             setRiskRewardRatio(parsed.riskRewardRatio);
+          }
           if (parsed.selectedCoin) setSelectedCoin(parsed.selectedCoin);
           if (parsed.orderType) setOrderType(parsed.orderType);
           if (parsed.entryPrice) setEntryPrice(parsed.entryPrice);
-          if (parsed.stopLossPercent)
+          if (parsed.stopLossPercent) {
             setStopLossPercent(parsed.stopLossPercent);
+          }
           if (parsed.leverage) setLeverage(Number(parsed.leverage));
           if (parsed.side) setSide(parsed.side);
           if (parsed.partsCount) setPartsCount(Number(parsed.partsCount));
+          if (parsed.takerFee) setTakerFee(Number(parsed.takerFee));
+          if (parsed.makerFee) setMakerFee(Number(parsed.makerFee));
         } catch (e) {
           console.error("Storage error", e);
         }
@@ -168,12 +180,12 @@ export default function TradingCalculator({
   useEffect(() => {
     if (isLoaded) onBalanceChange?.(balance);
   }, [balance, isLoaded, onBalanceChange]);
-
   const getCalculatedIdealLeverage = useCallback(() => {
     const baseRiskAmount = (balance * riskPercent) / 100;
     const allocatedMarginMax = balance / partsCount;
-    const openFeeRate = orderType === "MARKET" ? 0.00055 : 0.0002;
-    const totalFeeRate = openFeeRate + 0.00055;
+    const openFeeRate = (orderType === "MARKET" ? takerFee : makerFee) / 100;
+    const closeFeeRate = takerFee / 100;
+    const totalFeeRate = openFeeRate + closeFeeRate;
     const priceLossFactor = stopLossPercent / 100;
 
     const idealPositionSizeUsdt =
@@ -204,6 +216,8 @@ export default function TradingCalculator({
     orderType,
     stopLossPercent,
     maxSafeLeverage,
+    takerFee,
+    makerFee,
   ]);
 
   useEffect(() => {
@@ -231,6 +245,7 @@ export default function TradingCalculator({
     }
     handleAutoLeverageCalculate();
   }, [partsCount, isLoaded, handleAutoLeverageCalculate]);
+
   const fetchLiveTicker = useCallback(
     async (coin: string, isFirstInit: boolean, isCurrent: () => boolean) => {
       try {
@@ -276,6 +291,8 @@ export default function TradingCalculator({
     setLeverage(10);
     setSide("BUY");
     setPartsCount(5);
+    setTakerFee(0.09);
+    setMakerFee(0.0324);
     setEntryPrice(
       tickerData && selectedCoin === "BTCUSDT"
         ? tickerData.lastPrice
@@ -310,6 +327,8 @@ export default function TradingCalculator({
         leverage,
         side,
         partsCount,
+        takerFee,
+        makerFee,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     }
@@ -324,8 +343,11 @@ export default function TradingCalculator({
     leverage,
     side,
     partsCount,
+    takerFee,
+    makerFee,
     isLoaded,
   ]);
+
   useEffect(() => {
     if (entryPrice <= 0 || stopLossPercent <= 0 || balance <= 0) return;
 
@@ -343,8 +365,8 @@ export default function TradingCalculator({
         ? 1 + (stopLossPercent * riskRewardRatio) / 100
         : 1 - (stopLossPercent * riskRewardRatio) / 100);
 
-    const openFeeRate = orderType === "MARKET" ? 0.00055 : 0.0002;
-    const closeFeeRate = 0.00055;
+    const openFeeRate = (orderType === "MARKET" ? takerFee : makerFee) / 100;
+    const closeFeeRate = takerFee / 100;
     const totalFeeRate = openFeeRate + closeFeeRate;
     const priceLossFactor = stopLossPercent / 100;
 
@@ -369,10 +391,9 @@ export default function TradingCalculator({
       totalFeeUsdt;
 
     const MMR = 0.005;
-
     let liquidationPrice = isLong
-      ? entryPrice * (1 - 1 / leverage + MMR + totalFeeRate)
-      : entryPrice * (1 + 1 / leverage - MMR + totalFeeRate);
+      ? entryPrice * (1 - 1 / leverage + MMR + closeFeeRate)
+      : entryPrice * (1 + 1 / leverage - MMR - closeFeeRate);
 
     if (liquidationPrice < 0) liquidationPrice = 0;
 
@@ -406,12 +427,13 @@ export default function TradingCalculator({
     selectedCoin,
     maxSafeLeverage,
     partsCount,
+    takerFee,
+    makerFee,
   ]);
-
   if (!isLoaded) return null;
+
   return (
     <div className="w-full p-1.5 sm:p-4 space-y-3 sm:space-y-4">
-      {/* НАШ ФИКС: Передаем onCoinChange для сквозной синхронизации при клике в информере */}
       <MarketTicker
         data={tickerData}
         loading={tickerLoading}
@@ -449,6 +471,10 @@ export default function TradingCalculator({
               setPartsCount={setPartsCount}
               onAutoLeverage={handleAutoLeverageCalculate}
               isLeverageModified={leverage !== idealLeverage}
+              takerFee={takerFee}
+              setTakerFee={setTakerFee}
+              makerFee={makerFee}
+              setMakerFee={setMakerFee}
             />
             <PriceLevelsForm
               entryPrice={entryPrice}
