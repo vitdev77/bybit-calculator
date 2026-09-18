@@ -212,7 +212,6 @@ export default function TradingJournal({
     }
   };
 
-  // МИНИМАЛИСТИЧНЫЙ ИНФО-БЛОК НА СТАНДАРТНОМ ШРИФТЕ GEIST SANS (БЕЗ МОНО)
   const activeOpenDeal = deals.find(
     (d) => d.status?.toUpperCase() === "OPEN" && d.coin === activeCoin,
   );
@@ -245,61 +244,70 @@ export default function TradingJournal({
     const pr = JOURNAL_PRECISION_MAP[activeCoin] ?? 4;
 
     monitorStatusBar = (
-      <div className="w-full bg-muted/10 dark:bg-muted/5 border border-border/30 rounded-xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs select-none">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
+      <div className="w-full space-y-1.5 pt-1">
+        {/* ИНФО-ЗАГОЛОВК БЛОКА МОНИТОРИНГА */}
+        <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block select-none px-1">
+          Рантайм-трекер окупаемости сборов Bybit
+        </div>
+
+        {/* СТРУКТУРИРОВАННАЯ СТАТУС-СТРОКА */}
+        <div className="w-full py-2.5 border-t border-b border-border/30 bg-transparent flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-[11px] select-none text-muted-foreground font-semibold px-1">
+          {/* ЛЕВАЯ ЧАСТЬ: Маркер со сквозным выводом активной пары */}
+          <div className="flex items-center gap-2">
             <span
-              className={`relative flex h-2 w-2 ${isBuPassed ? "" : "animate-pulse"}`}
-            >
-              <span
-                className={`relative inline-flex rounded-full h-2 w-2 ${isBuPassed ? "bg-emerald-500" : "bg-amber-500"}`}
-              />
-            </span>
-            <span
-              className={`font-black tracking-wider text-[10px] uppercase px-1.5 py-0.5 rounded ${
+              className={`font-black tracking-wider text-[9px] uppercase px-1.5 py-0.5 rounded-md ${
                 isBuPassed
                   ? "bg-emerald-500/10 text-emerald-500"
                   : "bg-amber-500/10 text-amber-500"
               }`}
             >
-              {isBuPassed ? "SAFE" : "SPREAD"}
+              {isBuPassed ? "SECURED" : `SPREAD: ${distPercent.toFixed(2)}%`}
             </span>
-          </div>
-          <div className="text-muted-foreground font-semibold">
-            Мониторинг риска{" "}
-            <span className="text-foreground font-bold">{activeCoin}</span>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-1 sm:text-right font-medium text-muted-foreground">
-          <div>
-            Вход:{" "}
-            <span className="text-foreground font-bold">
-              {activeOpenDeal.entry_price.toFixed(pr)}
-            </span>
-          </div>
-          <div>
-            Безубыток (Fee+):{" "}
-            <span className="text-foreground font-bold">
-              {bPrice.toFixed(pr)}
-            </span>
-          </div>
-          <div>
-            {isBuPassed ? (
-              <span className="text-emerald-500 dark:text-emerald-400 font-bold">
-                Пройдено: <span>+{distPercent.toFixed(2)}%</span>
-              </span>
-            ) : (
-              <span>
-                До окупаемости:{" "}
-                <span className="text-amber-500 font-bold">
-                  -{Math.abs(distPercent).toFixed(2)}%
-                </span>{" "}
-                <span className="text-[10px] opacity-70">
-                  ({usdtToBreakeven.toFixed(2)} USDT)
+            <div>
+              {isBuPassed ? (
+                <span>
+                  Окупаемость{" "}
+                  <span className="text-foreground font-bold">
+                    {activeCoin}
+                  </span>{" "}
+                  зафиксирована
                 </span>
+              ) : (
+                <span>
+                  Ордер{" "}
+                  <span className="text-foreground font-bold">
+                    {activeCoin}
+                  </span>{" "}
+                  • Спред: {usdtToBreakeven.toFixed(2)} USDT
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* ПРАВАЯ ЧАСТЬ: Лента цен */}
+          <div className="flex items-center gap-2 text-foreground/80">
+            <span>
+              Вход{" "}
+              <span className="font-bold text-foreground">
+                {activeOpenDeal.entry_price.toFixed(pr)}
               </span>
-            )}
+            </span>
+            <span className="opacity-30">→</span>
+            <span>
+              Живая{" "}
+              <span
+                className={`font-bold ${isBuPassed ? "text-emerald-500" : "text-amber-500"}`}
+              >
+                {livePrice.toFixed(pr)}
+              </span>
+            </span>
+            <span className="opacity-30">→</span>
+            <span>
+              БУ{" "}
+              <span className="font-bold text-foreground">
+                {bPrice.toFixed(pr)}
+              </span>
+            </span>
           </div>
         </div>
       </div>
@@ -347,7 +355,7 @@ export default function TradingJournal({
         />
       </div>
 
-      {/* РЯД 2: МИНИМАЛИСТИЧНЫЙ HUD-БЛОК НА СТАНДАРТНОМ ШРИФТЕ */}
+      {/* РЯД 2: ПРОЗРАЧНАЯ СТАТУС-СТРОКА С ИНФО ЗАГОЛОВКОМ И НАЗВАНИЕМ ПАРЫ */}
       {monitorStatusBar}
 
       {/* РЯД 3: Таблица истории сделок */}
