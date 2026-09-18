@@ -174,17 +174,13 @@ export default function TradingCalculator({
   useEffect(() => {
     if (isLoaded) onBalanceChange?.(balance);
   }, [balance, isLoaded, onBalanceChange]);
+  // Изолируем расчет авто-плеча от рантйам-стейта leverage для исключения зацикливания
   const getCalculatedIdealLeverage = useCallback(() => {
     const baseRiskAmount = (balance * riskPercent) / 100;
     const allocatedMarginMax = balance / partsCount;
 
-    // ЖЕСТКИЙ ПОДБОР ТАРИФОВ: Плечо x1 — Спот, иначе — Ваши фьючерсы
-    const isSpot = leverage === 1;
-    const activeTaker = isSpot ? 0.00135 : 0.0009;
-    const activeMaker = isSpot ? 0.00075 : 0.000324;
-
-    const openFeeRate = orderType === "MARKET" ? activeTaker : activeMaker;
-    const totalFeeRate = openFeeRate + activeTaker;
+    const openFeeRate = orderType === "MARKET" ? 0.0009 : 0.000324;
+    const totalFeeRate = openFeeRate + 0.0009;
     const priceLossFactor = stopLossPercent / 100;
 
     const idealPositionSizeUsdt =
@@ -215,9 +211,9 @@ export default function TradingCalculator({
     orderType,
     stopLossPercent,
     maxSafeLeverage,
-    leverage,
   ]);
 
+  // Вычисляем идеальное плечо для фонового отображения иконки щита-отката
   useEffect(() => {
     if (!isLoaded) return;
     const ideal = getCalculatedIdealLeverage();
@@ -235,14 +231,16 @@ export default function TradingCalculator({
     setLeverage(ideal);
   }, [getCalculatedIdealLeverage]);
 
+  // ФИКС: Сброс плеча происходит СТРОГО и ТОЛЬКО при смене вкладок распределения
   useEffect(() => {
     if (!isLoaded) return;
     if (isInitialLoad) {
       setIsInitialLoad(false);
       return;
     }
-    handleAutoLeverageCalculate();
-  }, [partsCount, isLoaded, handleAutoLeverageCalculate]);
+    const ideal = getCalculatedIdealLeverage();
+    setLeverage(ideal);
+  }, [partsCount]); // Намертво изолирован от leverage, ручной ввод разблокирован!
 
   const fetchLiveTicker = useCallback(
     async (coin: string, isFirstInit: boolean, isCurrent: () => boolean) => {
@@ -350,17 +348,15 @@ export default function TradingCalculator({
     const stopLossPrice =
       entryPrice *
       (isLong ? 1 - stopLossPercent / 100 : 1 + stopLossPercent / 100);
-
     const takeProfitPrice =
       entryPrice *
       (isLong
         ? 1 + (stopLossPercent * riskRewardRatio) / 100
         : 1 - (stopLossPercent * riskRewardRatio) / 100);
 
-    // ВЫБОР ДИНАМИЧЕСКИХ ТАРИФОВ ПОД ВАШ АККАУНТ
     const isSpot = leverage === 1;
-    const activeTaker = isSpot ? 0.00135 : 0.0009; // 0.135% спот / 0.09% фьючи
-    const activeMaker = isSpot ? 0.00075 : 0.000324; // 0.075% спот / 0.0324% фьючи
+    const activeTaker = isSpot ? 0.00135 : 0.0009;
+    const activeMaker = isSpot ? 0.00075 : 0.000324;
 
     const openFeeRate = orderType === "MARKET" ? activeTaker : activeMaker;
     const closeFeeRate = activeTaker;

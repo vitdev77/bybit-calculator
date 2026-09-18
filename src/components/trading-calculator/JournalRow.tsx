@@ -54,6 +54,8 @@ interface JournalRowProps {
   handleUpdateStatus: (id: number, status: any) => Promise<void>;
   handleDeleteDeal: (id: number) => Promise<void>;
 }
+
+// ФИКС: Экспортируем как именованную функцию строго по импорту в TradingJournal.tsx
 export function JournalRow({
   deal,
   livePrice,
@@ -69,8 +71,19 @@ export function JournalRow({
 }: JournalRowProps) {
   const isLong = deal.side === "BUY";
   const isOpen = deal.status?.toUpperCase() === "OPEN";
-  const totalFeeRate =
-    (deal.order_type === "LIMIT" ? 0.0002 : 0.00055) + 0.00055;
+
+  // СИНХРОНИЗАЦИЯ ТАРИФОВ ПОД ВАШ АККАУНТ ДЛЯ ИДЕАЛЬНОЙ СТАТИСТИКИ
+  const isSpot = deal.leverage === 1;
+  const openFeeRate = isSpot
+    ? deal.order_type === "LIMIT"
+      ? 0.00075
+      : 0.00135
+    : deal.order_type === "LIMIT"
+      ? 0.000324
+      : 0.0009;
+
+  const closeFeeRate = isSpot ? 0.00135 : 0.0009;
+  const totalFeeRate = openFeeRate + closeFeeRate;
 
   const breakevenPrice = isLong
     ? deal.entry_price * (1 + totalFeeRate)
@@ -119,30 +132,20 @@ export function JournalRow({
       <div className="flex flex-col text-right select-none relative w-full pl-5 sm:pl-6">
         <span className="absolute left-1 top-1.5 flex h-1.5 w-1.5">
           <span
-            className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-              isProfit ? "bg-emerald-500" : "bg-rose-500"
-            }`}
-          ></span>
+            className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isProfit ? "bg-emerald-500" : "bg-rose-500"}`}
+          />
           <span
-            className={`relative inline-flex rounded-full h-1.5 w-1.5 ${
-              isProfit ? "bg-emerald-500" : "bg-rose-500"
-            }`}
-          ></span>
+            className={`relative inline-flex rounded-full h-1.5 w-1.5 ${isProfit ? "bg-emerald-500" : "bg-rose-500"}`}
+          />
         </span>
         <span
-          className={`font-black text-[11px] sm:text-xs ${
-            isProfit
-              ? "text-emerald-600 dark:text-emerald-400"
-              : "text-rose-600 dark:text-rose-400"
-          }`}
+          className={`font-black text-[11px] sm:text-xs ${isProfit ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
         >
           {isProfit ? "+" : ""}
           {liveRoi.toFixed(2)}%
         </span>
         <span
-          className={`text-[9px] sm:text-[10px] font-bold ${
-            isProfit ? "text-emerald-500/80" : "text-rose-500/80"
-          }`}
+          className={`text-[9px] sm:text-[10px] font-bold ${isProfit ? "text-emerald-500/80" : "text-rose-500/80"}`}
         >
           {isProfit ? "+" : ""}
           {livePnlUsdt.toFixed(3)}{" "}
@@ -153,6 +156,7 @@ export function JournalRow({
       </div>
     );
   }
+
   if (!pnlDisplay) {
     const lastKnown = frozenPnL[deal.id] || { pnl: 0, roi: 0 };
     if (isOpen) {
@@ -160,19 +164,13 @@ export function JournalRow({
         <div className="flex flex-col text-right select-none opacity-45 relative w-full pl-5 sm:pl-6">
           <Pause className="size-2 text-muted-foreground absolute left-0.5 top-1.5" />
           <span
-            className={`text-[11px] sm:text-xs font-bold ${
-              lastKnown.pnl >= 0
-                ? "text-emerald-600/80 dark:text-emerald-400/80"
-                : "text-rose-600/80 dark:text-rose-400/80"
-            }`}
+            className={`text-[11px] sm:text-xs font-bold ${lastKnown.pnl >= 0 ? "text-emerald-600/80 dark:text-emerald-400/80" : "text-rose-600/80 dark:text-rose-400/80"}`}
           >
             {lastKnown.pnl >= 0 ? "+" : ""}
             {lastKnown.roi.toFixed(2)}%
           </span>
           <span
-            className={`text-[10px] font-bold ${
-              lastKnown.pnl >= 0 ? "text-emerald-500/60" : "text-rose-500/60"
-            }`}
+            className={`text-[10px] font-bold ${lastKnown.pnl >= 0 ? "text-emerald-500/60" : "text-rose-500/60"}`}
           >
             {lastKnown.pnl >= 0 ? "+" : ""}
             {lastKnown.pnl.toFixed(3)}{" "}
@@ -191,6 +189,10 @@ export function JournalRow({
             ? deal.stop_loss
             : deal.entry_price;
 
+      const actualCloseRate =
+        statusUpper === "CLOSED" ? closeFeeRate : closeFeeRate;
+      const actualTotalRate = openFeeRate + actualCloseRate;
+
       if (statusUpper === "CLOSED") {
         const parsedPrice = deal.closed_at_price
           ? parseFloat(String(deal.closed_at_price))
@@ -205,31 +207,25 @@ export function JournalRow({
 
       const cryptoQty =
         deal.entry_price > 0 ? deal.volume / deal.entry_price : 0;
-
       const priceDiff = isLong
         ? targetPrice - deal.entry_price
         : deal.entry_price - targetPrice;
 
-      const finalPnlUsdt = priceDiff * cryptoQty - deal.volume * totalFeeRate;
+      const finalPnlUsdt =
+        priceDiff * cryptoQty - deal.volume * actualTotalRate;
       const finalRoi =
         deal.margin > 0.01 ? (finalPnlUsdt / deal.margin) * 100 : 0;
 
       pnlDisplay = (
         <div className="flex flex-col text-right opacity-65 select-none w-full">
           <span
-            className={`font-black text-[11px] sm:text-xs ${
-              finalPnlUsdt >= 0
-                ? "text-emerald-600 dark:text-emerald-400"
-                : "text-rose-600 dark:text-rose-400"
-            }`}
+            className={`font-black text-[11px] sm:text-xs ${finalPnlUsdt >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
           >
             {finalPnlUsdt >= 0 ? "+" : ""}
             {finalRoi.toFixed(2)}%
           </span>
           <span
-            className={`text-[9px] sm:text-[10px] font-bold ${
-              finalPnlUsdt >= 0 ? "text-emerald-500/80" : "text-rose-500/80"
-            }`}
+            className={`text-[9px] sm:text-[10px] font-bold ${finalPnlUsdt >= 0 ? "text-emerald-500/80" : "text-rose-500/80"}`}
           >
             {finalPnlUsdt >= 0 ? "+" : ""}
             {finalPnlUsdt.toFixed(3)}{" "}
@@ -247,12 +243,8 @@ export function JournalRow({
   if (deal.created_at) {
     try {
       const d = new Date(deal.created_at);
-      dStr = `${String(d.getDate()).padStart(2, "0")}.${String(
-        d.getMonth() + 1,
-      ).padStart(2, "0")}.${String(d.getFullYear()).slice(-2)}`;
-      tStr = `${String(d.getHours()).padStart(2, "0")}:${String(
-        d.getMinutes(),
-      ).padStart(2, "0")}`;
+      dStr = `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getFullYear()).slice(-2)}`;
+      tStr = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
     } catch (e) {}
   }
 
@@ -268,31 +260,25 @@ export function JournalRow({
     >
       <TableCell className="py-2 px-1.5 sm:px-3 relative pl-3.5 sm:pl-5">
         <div
-          className={`absolute left-0 top-0 bottom-0 transition-all duration-300 ${
-            isLong ? "w-1 bg-emerald-500" : "w-1 bg-rose-500"
-          } ${isCurrentActiveCoin && isOpen ? "w-1.5" : ""}`}
+          className={`absolute left-0 top-0 bottom-0 transition-all duration-300 ${isLong ? "w-1 bg-emerald-500" : "w-1 bg-rose-500"} ${isCurrentActiveCoin && isOpen ? "w-1.5" : ""}`}
         />
         <div className="flex items-start gap-1">
           {deal.status?.toUpperCase() === "PROFIT" ||
           (isTpTriggered && isOpen) ? (
             <CheckCircle2
-              className={`size-3 text-emerald-500 mt-0.5 ${
-                isTpTriggered ? "animate-bounce" : ""
-              }`}
+              className={`size-3 text-emerald-500 mt-0.5 ${isTpTriggered ? "animate-bounce" : ""}`}
             />
           ) : deal.status?.toUpperCase() === "LOSS" ||
             (isSlTriggered && isOpen) ? (
             <XCircle
-              className={`size-3 text-rose-500 mt-0.5 ${
-                isSlTriggered ? "animate-pulse" : ""
-              }`}
+              className={`size-3 text-rose-500 mt-0.5 ${isSlTriggered ? "animate-pulse" : ""}`}
             />
           ) : deal.status?.toUpperCase() === "CLOSED" ? (
             <Clock className="size-3 text-muted-foreground mt-0.5 opacity-60" />
           ) : (
             <span className="relative flex h-1.5 w-1.5 mt-1.5 mx-0.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75" />
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500" />
             </span>
           )}
           <div className="flex flex-col text-[9px] sm:text-[10px] text-muted-foreground">
@@ -311,11 +297,7 @@ export function JournalRow({
       </TableCell>
       <TableCell className="py-2 px-1 sm:px-2">
         <span
-          className={`px-0.5 py-0.5 rounded text-[8px] font-black border ${
-            deal.order_type === "LIMIT"
-              ? "bg-violet-500/10 text-violet-500 border-violet-500/15"
-              : "bg-blue-500/10 text-blue-500 border-blue-500/15"
-          }`}
+          className={`px-0.5 py-0.5 rounded text-[8px] font-black border ${deal.order_type === "LIMIT" ? "bg-violet-500/10 text-violet-500 border-violet-500/15" : "bg-blue-500/10 text-blue-500 border-blue-500/15"}`}
         >
           {deal.order_type}
         </span>
@@ -333,12 +315,7 @@ export function JournalRow({
       </TableCell>
       <TableCell className="py-2 px-1.5 sm:px-3 text-[11px] sm:text-xs select-none">
         <span
-          style={isBreakevenPassed ? { padding: "0px 3px" } : undefined}
-          className={`inline-block transition-all duration-300 ${
-            isBreakevenPassed
-              ? "bg-amber-500 text-white font-normal rounded border border-amber-400/20 shadow-sm"
-              : "text-muted-foreground"
-          }`}
+          className={`inline-block transition-all duration-300 ${isBreakevenPassed ? "bg-amber-500 text-white font-normal rounded border border-amber-400/20 shadow-sm px-1" : "text-muted-foreground"}`}
         >
           {breakevenPrice.toFixed(precision)}
         </span>
@@ -346,22 +323,12 @@ export function JournalRow({
       <TableCell className="py-2 px-1.5 sm:px-3 select-none">
         <div className="flex flex-col gap-1 text-[11px] sm:text-xs items-start">
           <span
-            style={isTpTriggered ? { padding: "0px 3px" } : undefined}
-            className={`inline-block transition-all duration-300 ${
-              isTpTriggered
-                ? "bg-emerald-500 text-white font-normal rounded border border-emerald-400/20 shadow-sm"
-                : "text-muted-foreground/40"
-            }`}
+            className={`inline-block transition-all duration-300 ${isTpTriggered ? "bg-emerald-500 text-white font-normal rounded border border-emerald-400/20 shadow-sm px-1" : "text-muted-foreground/40"}`}
           >
             {(deal.take_profit ?? 0).toFixed(precision)}
           </span>
           <span
-            style={isSlTriggered ? { padding: "0px 3px" } : undefined}
-            className={`inline-block transition-all duration-300 ${
-              isSlTriggered
-                ? "bg-rose-500 text-white font-normal rounded border border-rose-400/20 shadow-sm"
-                : "text-muted-foreground/40"
-            }`}
+            className={`inline-block transition-all duration-300 ${isSlTriggered ? "bg-rose-500 text-white font-normal rounded border border-rose-400/20 shadow-sm px-1" : "text-muted-foreground/40"}`}
           >
             {(deal.stop_loss ?? 0).toFixed(precision)}
           </span>
