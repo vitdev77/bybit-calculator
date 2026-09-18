@@ -104,9 +104,11 @@ export default function TradingCalculator({
   const [idealLeverage, setIdealLeverage] = useState(10);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
-  // ДИНАМИЧЕСКИЕ СТЭЙТЫ ПОД КОМИССИИ ТАРУФОВ ВАШЕГО АККАУНТА
-  const [takerFee, setTakerFee] = useState(0.09);
-  const [makerFee, setMakerFee] = useState(0.0324);
+  // 4 ОБЛАЧНЫХ СТЭЙТА ПОД КОМИССИИ ТАРУФОВ ВАШЕГО АККАУНТА
+  const [futTaker, setFutTaker] = useState(0.09);
+  const [futMaker, setFutMaker] = useState(0.0324);
+  const [spotTaker, setSpotTaker] = useState(0.135);
+  const [spotMaker, setSpotMaker] = useState(0.075);
 
   const partsCount = externalPartsCount;
   const setPartsCount = setExternalPartsCount;
@@ -144,6 +146,25 @@ export default function TradingCalculator({
     entryPriceRef.current = entryPrice;
   }, [entryPrice]);
 
+  // Загружаем всю сетку комиссий вашего аккаунта из выделенного роута /api/fees
+  useEffect(() => {
+    async function loadCloudFees() {
+      try {
+        const res = await fetch("/api/fees");
+        if (res.ok) {
+          const cloud = await res.json();
+          if (cloud.fut_taker !== undefined) setFutTaker(cloud.fut_taker);
+          if (cloud.fut_maker !== undefined) setFutMaker(cloud.fut_maker);
+          if (cloud.spot_taker !== undefined) setSpotTaker(cloud.spot_taker);
+          if (cloud.spot_maker !== undefined) setSpotMaker(cloud.spot_maker);
+        }
+      } catch (e) {
+        console.error("Ошибка загрузки комиссий из /api/fees:", e);
+      }
+    }
+    loadCloudFees();
+  }, []);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedState = localStorage.getItem(STORAGE_KEY);
@@ -167,8 +188,6 @@ export default function TradingCalculator({
           if (parsed.leverage) setLeverage(Number(parsed.leverage));
           if (parsed.side) setSide(parsed.side);
           if (parsed.partsCount) setPartsCount(Number(parsed.partsCount));
-          if (parsed.takerFee) setTakerFee(Number(parsed.takerFee));
-          if (parsed.makerFee) setMakerFee(Number(parsed.makerFee));
         } catch (e) {
           console.error("Storage error", e);
         }
@@ -183,8 +202,15 @@ export default function TradingCalculator({
   const getCalculatedIdealLeverage = useCallback(() => {
     const baseRiskAmount = (balance * riskPercent) / 100;
     const allocatedMarginMax = balance / partsCount;
-    const openFeeRate = (orderType === "MARKET" ? takerFee : makerFee) / 100;
-    const closeFeeRate = takerFee / 100;
+
+    // Динамически определяем комиссию под рынок
+    const isSpot = leverage === 1;
+    const activeTaker = isSpot ? spotTaker : futTaker;
+    const activeMaker = isSpot ? spotMaker : futMaker;
+
+    const openFeeRate =
+      (orderType === "MARKET" ? activeTaker : activeMaker) / 100;
+    const closeFeeRate = activeTaker / 100;
     const totalFeeRate = openFeeRate + closeFeeRate;
     const priceLossFactor = stopLossPercent / 100;
 
@@ -216,8 +242,11 @@ export default function TradingCalculator({
     orderType,
     stopLossPercent,
     maxSafeLeverage,
-    takerFee,
-    makerFee,
+    leverage,
+    futTaker,
+    futMaker,
+    spotTaker,
+    spotMaker,
   ]);
 
   useEffect(() => {
@@ -265,7 +294,7 @@ export default function TradingCalculator({
           prevCoinRef.current = coin;
         }
       } catch (err) {
-        console.error("Bybit fetch error", err);
+        console.error(err);
       } finally {
         if (isCurrent()) setTickerLoading(false);
       }
@@ -291,8 +320,10 @@ export default function TradingCalculator({
     setLeverage(10);
     setSide("BUY");
     setPartsCount(5);
-    setTakerFee(0.09);
-    setMakerFee(0.0324);
+    setFutTaker(0.09);
+    setFutMaker(0.0324);
+    setSpotTaker(0.135);
+    setSpotMaker(0.075);
     setEntryPrice(
       tickerData && selectedCoin === "BTCUSDT"
         ? tickerData.lastPrice
@@ -327,8 +358,10 @@ export default function TradingCalculator({
         leverage,
         side,
         partsCount,
-        takerFee,
-        makerFee,
+        futTaker,
+        futMaker,
+        spotTaker,
+        spotMaker,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     }
@@ -343,8 +376,10 @@ export default function TradingCalculator({
     leverage,
     side,
     partsCount,
-    takerFee,
-    makerFee,
+    futTaker,
+    futMaker,
+    spotTaker,
+    spotMaker,
     isLoaded,
   ]);
 
@@ -358,15 +393,20 @@ export default function TradingCalculator({
     const stopLossPrice =
       entryPrice *
       (isLong ? 1 - stopLossPercent / 100 : 1 + stopLossPercent / 100);
-
     const takeProfitPrice =
       entryPrice *
       (isLong
         ? 1 + (stopLossPercent * riskRewardRatio) / 100
         : 1 - (stopLossPercent * riskRewardRatio) / 100);
 
-    const openFeeRate = (orderType === "MARKET" ? takerFee : makerFee) / 100;
-    const closeFeeRate = takerFee / 100;
+    // ВЫБОР ДИНАМИЧЕСКИХ ТАРИФОВ ПОД РЫНОК (СПОТ ИЛИ ФЬЮЧЕРСЫ)
+    const isSpot = leverage === 1;
+    const activeTaker = isSpot ? spotTaker : futTaker;
+    const activeMaker = isSpot ? spotMaker : futMaker;
+
+    const openFeeRate =
+      (orderType === "MARKET" ? activeTaker : activeMaker) / 100;
+    const closeFeeRate = activeTaker / 100;
     const totalFeeRate = openFeeRate + closeFeeRate;
     const priceLossFactor = stopLossPercent / 100;
 
@@ -427,8 +467,10 @@ export default function TradingCalculator({
     selectedCoin,
     maxSafeLeverage,
     partsCount,
-    takerFee,
-    makerFee,
+    futTaker,
+    futMaker,
+    spotTaker,
+    spotMaker,
   ]);
   if (!isLoaded) return null;
 
@@ -471,10 +513,16 @@ export default function TradingCalculator({
               setPartsCount={setPartsCount}
               onAutoLeverage={handleAutoLeverageCalculate}
               isLeverageModified={leverage !== idealLeverage}
-              takerFee={takerFee}
-              setTakerFee={setTakerFee}
-              makerFee={makerFee}
-              setMakerFee={setMakerFee}
+              orderType={orderType}
+              // Пробрасываем все 4 облачные сетки в форму под модалку
+              futTaker={futTaker}
+              setFutTaker={setFutTaker}
+              futMaker={futMaker}
+              setFutMaker={setFutMaker}
+              spotTaker={spotTaker}
+              setSpotTaker={setSpotTaker}
+              spotMaker={spotMaker}
+              setSpotMaker={setSpotMaker}
             />
             <PriceLevelsForm
               entryPrice={entryPrice}
