@@ -4,7 +4,17 @@ import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RotateCcw, Settings2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+  AlertDialogFooter,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
+import { RotateCcw, Settings2, CheckCircle2 } from "lucide-react";
+import { toast } from "@/components/ui/toast";
 
 interface BalanceRiskFormProps {
   balance: number;
@@ -21,10 +31,15 @@ interface BalanceRiskFormProps {
   setPartsCount: (v: number) => void;
   onAutoLeverage: () => void;
   isLeverageModified: boolean;
-  takerFee: number;
-  setTakerFee: (v: number) => void;
-  makerFee: number;
-  setMakerFee: (v: number) => void;
+  orderType: "MARKET" | "LIMIT";
+  futTaker: number;
+  setFutTaker: (v: number) => void;
+  futMaker: number;
+  setFutMaker: (v: number) => void;
+  spotTaker: number;
+  setSpotTaker: (v: number) => void;
+  spotMaker: number;
+  setSpotMaker: (v: number) => void;
 }
 
 export default function BalanceRiskForm({
@@ -41,18 +56,79 @@ export default function BalanceRiskForm({
   setPartsCount,
   onAutoLeverage,
   isLeverageModified,
-  takerFee,
-  setTakerFee,
-  makerFee,
-  setMakerFee,
+  orderType,
+  futTaker,
+  setFutTaker,
+  futMaker,
+  setFutMaker,
+  spotTaker,
+  setSpotTaker,
+  spotMaker,
+  setSpotMaker,
 }: BalanceRiskFormProps) {
-  // Набор числовых пресетов для деления депозита
   const partsPresets = [1, 2, 3, 5, 10];
-  const [showFeeSettings, setShowFeeSettings] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Буферные стейты для редактирования полей в диалоге
+  const [tFutTaker, setTempFutTaker] = useState(futTaker);
+  const [tFutMaker, setTempFutMaker] = useState(futMaker);
+  const [tSpotTaker, setTempSpotTaker] = useState(spotTaker);
+  const [tSpotMaker, setTempSpotMaker] = useState(spotMaker);
+
+  const isSpotMode = leverage === 1;
+
+  const handleOpenModal = () => {
+    setTempFutTaker(futTaker);
+    setTempFutMaker(futMaker);
+    setTempSpotTaker(spotTaker);
+    setTempSpotMaker(spotMaker);
+    setIsOpen(true);
+  };
+
+  // Проверка: изменились ли данные по сравнению с базой
+  const isDataChanged =
+    tFutTaker !== futTaker ||
+    tFutMaker !== futMaker ||
+    tSpotTaker !== spotTaker ||
+    tSpotMaker !== spotMaker;
+  const handleSaveToDb = async () => {
+    if (!isDataChanged) return;
+    setIsSaving(true);
+    try {
+      const res = await fetch("/api/fees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          futTaker: tFutTaker,
+          futMaker: tFutMaker,
+          spotTaker: tSpotTaker,
+          spotMaker: tSpotMaker,
+        }),
+      });
+      if (!res.ok) throw new Error();
+
+      setFutTaker(tFutTaker);
+      setFutMaker(tFutMaker);
+      setSpotTaker(tSpotTaker);
+      setSpotMaker(tSpotMaker);
+
+      toast.add({
+        title: "Данные сохранены",
+        description: "Тарифная сетка обновлена в таблице fee_settings.",
+        type: "success",
+      });
+      setIsOpen(false);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
-      {/* КНОПКИ НАПРАВЛЕНИЯ ПОЗИЦИИ */}
+      {/* КНОПКИ LONG / SHORT */}
       <div className="grid grid-cols-2 gap-2.5">
         <button
           type="button"
@@ -77,9 +153,10 @@ export default function BalanceRiskForm({
           SHORT (SELL)
         </button>
       </div>
+
       {/* ТРЕХКОЛОНОЧНЫЙ РЯД КЛЮЧЕВЫХ ПАРАМЕТРОВ ОРДЕРА */}
       <div className="grid grid-cols-3 gap-2 sm:gap-3 items-start">
-        {/* БАЛАНС / ДЕПОЗИТ */}
+        {/* ДЕПОЗИТ */}
         <div className="space-y-1">
           <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block select-none">
             Депозит
@@ -105,7 +182,7 @@ export default function BalanceRiskForm({
           />
         </div>
 
-        {/* РИСК НА СДЕЛКУ */}
+        {/* РИСК */}
         <div className="space-y-1">
           <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block select-none">
             Риск (%)
@@ -136,7 +213,7 @@ export default function BalanceRiskForm({
           />
         </div>
 
-        {/* ИТОГОВОЕ КРЕДИТНОЕ ПЛЕЧО */}
+        {/* ПЛЕЧО */}
         <div className="space-y-1">
           <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block select-none">
             Плечо
@@ -179,24 +256,146 @@ export default function BalanceRiskForm({
           </div>
         </div>
       </div>
-
       {/* РАСПРЕДЕЛЕНИЕ ДЕПОЗИТА */}
       <div className="space-y-1.5 pt-1">
         <div className="flex items-center justify-between w-full">
           <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block select-none">
             Распределение депозита
           </label>
-          <button
-            type="button"
-            onClick={() => setShowFeeSettings(!showFeeSettings)}
-            className={`text-muted-foreground/50 hover:text-amber-500 transition-colors bg-transparent border-none p-0 cursor-pointer ${
-              showFeeSettings ? "text-amber-500" : ""
-            }`}
-            title="Настройка торговых комиссий"
-          >
-            <Settings2 className="size-3.5" />
-          </button>
+
+          <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
+            <AlertDialogTrigger
+              onClick={handleOpenModal}
+              render={
+                <button
+                  type="button"
+                  className="text-muted-foreground/50 hover:text-amber-500 transition-colors bg-transparent border-none p-0 cursor-pointer"
+                />
+              }
+            >
+              <Settings2 className="size-3.5" />
+            </AlertDialogTrigger>
+            <AlertDialogContent className="rounded-2xl max-w-sm p-5 bg-popover border border-border/40 shadow-2xl">
+              <AlertDialogHeader className="text-left space-y-1 pb-2 border-b border-border/20">
+                <AlertDialogTitle className="text-sm sm:text-base font-black uppercase tracking-wider text-foreground">
+                  Тарифная сетка аккаунта
+                </AlertDialogTitle>
+                <p className="text-[11px] text-muted-foreground">
+                  {isSpotMode
+                    ? "Сейчас активен СПОТ рынок (Плечо x1)"
+                    : "Сейчас активны ФЬЮЧЕРСЫ"}
+                </p>
+              </AlertDialogHeader>
+
+              <div className="space-y-4 py-4">
+                {/* БЛОК ФЬЮЧЕРСОВ */}
+                <div className="space-y-2 p-2 rounded-xl bg-muted/20 border border-border/20">
+                  <span className="text-[9px] font-black text-amber-500 block uppercase px-1">
+                    Фьючерсы
+                  </span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[9px] font-bold text-muted-foreground">
+                        <span>Taker (Маркет)</span>
+                        {!isSpotMode && orderType === "MARKET" && (
+                          <CheckCircle2 className="size-2.5 text-emerald-500" />
+                        )}
+                      </div>
+                      <Input
+                        type="number"
+                        step="0.0001"
+                        value={tFutTaker}
+                        onChange={(e) =>
+                          setTempFutTaker(parseFloat(e.target.value) || 0)
+                        }
+                        className={`h-8 text-xs font-bold ${!isSpotMode && orderType === "MARKET" ? "border-amber-500/80 bg-amber-500/5 text-amber-500" : ""}`}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[9px] font-bold text-muted-foreground">
+                        <span>Maker (Лимит)</span>
+                        {!isSpotMode && orderType === "LIMIT" && (
+                          <CheckCircle2 className="size-2.5 text-emerald-500" />
+                        )}
+                      </div>
+                      <Input
+                        type="number"
+                        step="0.0001"
+                        value={tFutMaker}
+                        onChange={(e) =>
+                          setTempFutMaker(parseFloat(e.target.value) || 0)
+                        }
+                        className={`h-8 text-xs font-bold ${!isSpotMode && orderType === "LIMIT" ? "border-amber-500/80 bg-amber-500/5 text-amber-500" : ""}`}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* БЛОК СПОТА */}
+                <div className="space-y-2 p-2 rounded-xl bg-muted/20 border border-border/20">
+                  <span className="text-[9px] font-black text-violet-500 block uppercase px-1">
+                    Спот рынок
+                  </span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[9px] font-bold text-muted-foreground">
+                        <span>Taker (Маркет)</span>
+                        {isSpotMode && orderType === "MARKET" && (
+                          <CheckCircle2 className="size-2.5 text-emerald-500" />
+                        )}
+                      </div>
+                      <Input
+                        type="number"
+                        step="0.0001"
+                        value={tSpotTaker}
+                        onChange={(e) =>
+                          setTempSpotTaker(parseFloat(e.target.value) || 0)
+                        }
+                        className={`h-8 text-xs font-bold ${isSpotMode && orderType === "MARKET" ? "border-amber-500/80 bg-amber-500/5 text-amber-500" : ""}`}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[9px] font-bold text-muted-foreground">
+                        <span>Maker (Лимит)</span>
+                        {isSpotMode && orderType === "LIMIT" && (
+                          <CheckCircle2 className="size-2.5 text-emerald-500" />
+                        )}
+                      </div>
+                      <Input
+                        type="number"
+                        step="0.0001"
+                        value={tSpotMaker}
+                        onChange={(e) =>
+                          setTempSpotMaker(parseFloat(e.target.value) || 0)
+                        }
+                        className={`h-8 text-xs font-bold ${isSpotMode && orderType === "LIMIT" ? "border-amber-500/80 bg-amber-500/5 text-amber-500" : ""}`}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <AlertDialogFooter className="gap-2 pt-2 border-t border-border/20">
+                <AlertDialogCancel className="rounded-xl text-xs h-9 cursor-pointer border border-border/60">
+                  Отмена
+                </AlertDialogCancel>
+                <Button
+                  type="button"
+                  disabled={!isDataChanged || isSaving}
+                  onClick={handleSaveToDb}
+                  className={`rounded-xl text-xs h-9 font-bold px-4 shadow-md transition-all ${
+                    isDataChanged
+                      ? "bg-violet-600 hover:bg-violet-700 text-white cursor-pointer active:scale-[0.98]"
+                      : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
+                  }`}
+                >
+                  {isSaving ? "Сохранение..." : "Сохранить в базу"}
+                </Button>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
+
         <Tabs
           value={String(partsCount)}
           onValueChange={(val) => setPartsCount(Number(val) || 1)}
@@ -220,36 +419,6 @@ export default function BalanceRiskForm({
           </TabsList>
         </Tabs>
       </div>
-
-      {/* ВЫЕЗЖАЮЩАЯ ПАНЕЛЬ НАСТРОЕК ТАРИФОВ */}
-      {showFeeSettings && (
-        <div className="grid grid-cols-2 gap-3 p-2.5 rounded-xl border border-border/40 bg-muted/20 dark:bg-muted/5 animate-in slide-in-from-top-2 duration-200">
-          <div className="space-y-1">
-            <label className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground block select-none">
-              Тейкер комиссия (%)
-            </label>
-            <Input
-              type="number"
-              step="0.0001"
-              value={takerFee}
-              onChange={(e) => setTakerFee(parseFloat(e.target.value) || 0)}
-              className="h-8 text-[11px] font-semibold bg-background"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground block select-none">
-              Мейкер комиссия (%)
-            </label>
-            <Input
-              type="number"
-              step="0.0001"
-              value={makerFee}
-              onChange={(e) => setMakerFee(parseFloat(e.target.value) || 0)}
-              className="h-8 text-[11px] font-semibold bg-background"
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
