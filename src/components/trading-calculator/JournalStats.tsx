@@ -23,8 +23,9 @@ interface JournalStatsProps {
   isClearOpen: boolean;
   setIsClearOpen: (open: boolean) => void;
   exportToCSV: () => void;
-  handleClearAllDeals: () => Promise<void>;
+  handleClearAllDeals: () => void;
 }
+
 export function JournalStats({
   totalDeals,
   profitDeals,
@@ -37,34 +38,41 @@ export function JournalStats({
 }: JournalStatsProps) {
   return (
     <div className="flex items-center gap-2.5 sm:gap-4 text-[11px] sm:text-xs justify-between sm:justify-end w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+      {/* ВОЗВРАЩЕНО НАЗАД: Вся статистика имеет исходный лаконичный вид, дубли убраны */}
       <div className="text-center">
-        <span className="text-muted-foreground block text-[9px] uppercase">
+        <span className="text-muted-foreground block text-[9px] uppercase tracking-wider">
           Всего
         </span>
         <span className="font-bold text-xs sm:text-sm">{totalDeals}</span>
       </div>
+
       <div className="text-center border-l pl-2 border-border/40">
-        <span className="text-emerald-500 block text-[9px] uppercase">
+        <span className="text-emerald-500 block text-[9px] uppercase tracking-wider">
           Тейки
         </span>
         <span className="font-bold text-emerald-600 text-xs sm:text-sm">
           {profitDeals}
         </span>
       </div>
+
       <div className="text-center border-l pl-2 border-border/40">
-        <span className="text-rose-500 block text-[9px] uppercase">Стопы</span>
+        <span className="text-rose-500 block text-[9px] uppercase tracking-wider">
+          Стопы
+        </span>
         <span className="font-bold text-rose-600 text-xs sm:text-sm">
           {lossDeals}
         </span>
       </div>
+
       <div className="text-center border-l pl-2 border-border/40">
-        <span className="text-violet-500 block text-[9px] uppercase">
+        <span className="text-violet-500 block text-[9px] uppercase tracking-wider">
           Ручные
         </span>
         <span className="font-bold text-violet-600 text-sm">
           {manualClosedDeals}
         </span>
       </div>
+
       <div className="flex items-center gap-1 pl-1 border-l border-border/40 shrink-0">
         {totalDeals > 0 && (
           <Button
@@ -76,6 +84,7 @@ export function JournalStats({
             <Download className="size-4" />
           </Button>
         )}
+
         {totalDeals > 0 && (
           <AlertDialog open={isClearOpen} onOpenChange={setIsClearOpen}>
             <AlertDialogTrigger
@@ -88,7 +97,8 @@ export function JournalStats({
             >
               <Trash2 className="size-3.5 shrink-0" />
             </AlertDialogTrigger>
-            <AlertDialogContent size="default">
+
+            <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Уничтожить весь журнал?</AlertDialogTitle>
                 <AlertDialogDescription>
@@ -100,10 +110,14 @@ export function JournalStats({
                 <AlertDialogCancel className="rounded-xl text-xs h-9">
                   Отмена
                 </AlertDialogCancel>
+
                 <AlertDialogAction
                   onClick={handleClearAllDeals}
-                  variant="destructive"
-                  className="rounded-xl text-xs h-9 bg-rose-600 text-white border-none"
+                  className={buttonVariants({
+                    variant: "destructive",
+                    className:
+                      "rounded-xl text-xs h-9 bg-rose-600 text-white border-none",
+                  })}
                 >
                   Удалить всё
                 </AlertDialogAction>
