@@ -546,7 +546,7 @@ export default function TradingJournal({
       <div className="py-3 sm:py-4 border-b border-border/40 flex flex-col gap-3 sm:flex-row sm:items-center justify-between bg-transparent select-none mx-1 sm:mx-0">
         <div className="flex flex-col min-w-0 pr-2 flex-1">
           <h2 className="text-base sm:text-lg font-black tracking-tight text-foreground truncate">
-            Журнал сделок и аналитика ({openDealsCount})
+            Открытые сделки ({openDealsCount})
           </h2>
         </div>
 
