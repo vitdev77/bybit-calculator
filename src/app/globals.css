@@ -116,7 +116,6 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 }
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -129,7 +128,24 @@
   }
 }
 
-/* Если в HTML прописано сжатие блоков — жестко схлопываем их на старте без анимации прыжка */
+/* Дополнительные стили для нативной анимации пульсации скелетонов shadcn/ui */
+@layer utilities {
+  .animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+}
+
+/* Жестко схлопываем блоки на старте без анимации прыжка, если записано в HTML */
 :root[data-hide-calc="true"] .calc-container-grid {
   grid-template-rows: 0fr !important;
   opacity: 0 !important;

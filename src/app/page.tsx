@@ -8,13 +8,12 @@ import TradingJournal from "@/components/trading-calculator/TradingJournal";
 import { ModeToggle } from "@/components/ModeToggle";
 
 const STORAGE_KEY_LAYOUT = "bybit_calculator_layout_v1";
+
 export default function Home() {
   const [selectedCoin, setSelectedCoin] = useState("BTCUSDT");
   const [currentBalance, setCurrentBalance] = useState(100);
   const [dealsSummary, setDealsCount] = useState({ open: 0, closed: 0 });
   const [currentCoinPrice, setCurrentCoinPrice] = useState(0);
-
-  // Динамическое состояние разделения депозита, поднятое в родительский хаб
   const [partsCount, setPartsCount] = useState(5);
 
   const [isCalcExpanded, setIsCalcExpanded] = useState(true);
@@ -28,12 +27,15 @@ export default function Home() {
       if (savedLayout) {
         try {
           const parsed = JSON.parse(savedLayout);
-          if (parsed.isCalcExpanded !== undefined)
+          if (parsed.isCalcExpanded !== undefined) {
             setIsCalcExpanded(parsed.isCalcExpanded);
-          if (parsed.isChartExpanded !== undefined)
+          }
+          if (parsed.isChartExpanded !== undefined) {
             setIsChartExpanded(parsed.isChartExpanded);
-          if (parsed.isJournalExpanded !== undefined)
+          }
+          if (parsed.isJournalExpanded !== undefined) {
             setIsJournalExpanded(parsed.isJournalExpanded);
+          }
         } catch (e) {
           console.error("Ошибка чтения настроек лейаута:", e);
         }
@@ -57,8 +59,7 @@ export default function Home() {
   }, [isCalcExpanded, isChartExpanded, isJournalExpanded, isMounted]);
   return (
     <main className="min-h-screen py-4 sm:py-8 space-y-4 sm:space-y-6 max-w-5xl mx-auto px-2 sm:px-4">
-      {/* --- ГЛОБАЛЬНАЯ ШАПКА ПРИЛОЖЕНИЯ С ДИНАМИЧЕСКИМ PARTS_COUNT --- */}
-      {/* ФИКС: grid grid-cols-[1fr_auto] жестко удерживает название и кнопку в один ряд на смартфонах */}
+      {/* --- ГЛОБАЛЬНАЯ ШАПКА ПРИЛОЖЕНИЯ --- */}
       <div className="grid grid-cols-[1fr_auto] items-start gap-x-4 border-b border-border/20 pb-4 select-none">
         <div className="space-y-1 min-w-0">
           <h1 className="text-base sm:text-xl font-bold tracking-tight text-foreground truncate">
@@ -75,7 +76,6 @@ export default function Home() {
             на позицию
           </p>
         </div>
-        {/* Кнопка переключения тем теперь стоит монолитно справа и не прыгает вниз */}
         <div className="flex justify-end pt-0.5">
           <ModeToggle />
         </div>
@@ -119,6 +119,7 @@ export default function Home() {
           </div>
         </div>
       </div>
+
       {/* --- БЛОК 2: ЖИВОЙ ГРАФИК TRADINGVIEW --- */}
       <div className="border border-border/40 bg-background rounded-2xl sm:rounded-[2rem] p-1 sm:p-2 transition-all duration-300">
         <div
@@ -141,6 +142,7 @@ export default function Home() {
             )}
           </div>
         </div>
+
         <div
           className={`chart-container-grid grid transition-all duration-300 ease-in-out ${isChartExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0 overflow-hidden"}`}
         >
@@ -186,6 +188,7 @@ export default function Home() {
             )}
           </div>
         </div>
+
         <div
           className={`journal-container-grid grid transition-all duration-300 ease-in-out ${isJournalExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0 overflow-hidden"}`}
         >

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import CoinSelector from "./CoinSelector";
 import BalanceRiskForm from "./BalanceRiskForm";
 import PriceLevelsForm from "./PriceLevelsForm";
@@ -73,6 +74,7 @@ function useTabTicker(
     document.title = "Bybit Calculator";
   }, [coin]);
 }
+
 interface TradingCalculatorProps {
   selectedCoin: string;
   setSelectedCoin: (coin: string) => void;
@@ -81,7 +83,6 @@ interface TradingCalculatorProps {
   externalPartsCount: number;
   setExternalPartsCount: (v: number) => void;
 }
-
 export default function TradingCalculator({
   selectedCoin,
   setSelectedCoin,
@@ -111,7 +112,6 @@ export default function TradingCalculator({
     COIN_PRECISION_MAP[selectedCoin] !== undefined
       ? COIN_PRECISION_MAP[selectedCoin]
       : 4;
-
   const maxSafeLeverage =
     selectedCoin === "BTCUSDT" || selectedCoin === "ETHUSDT" ? 100 : 50;
 
@@ -151,15 +151,13 @@ export default function TradingCalculator({
             onBalanceChange?.(parsed.balance);
           }
           if (parsed.riskPercent) setRiskPercent(parsed.riskPercent);
-          if (parsed.riskRewardRatio) {
+          if (parsed.riskRewardRatio)
             setRiskRewardRatio(parsed.riskRewardRatio);
-          }
           if (parsed.selectedCoin) setSelectedCoin(parsed.selectedCoin);
           if (parsed.orderType) setOrderType(parsed.orderType);
           if (parsed.entryPrice) setEntryPrice(parsed.entryPrice);
-          if (parsed.stopLossPercent) {
+          if (parsed.stopLossPercent)
             setStopLossPercent(parsed.stopLossPercent);
-          }
           if (parsed.leverage) setLeverage(Number(parsed.leverage));
           if (parsed.side) setSide(parsed.side);
           if (parsed.partsCount) setPartsCount(Number(parsed.partsCount));
@@ -174,11 +172,10 @@ export default function TradingCalculator({
   useEffect(() => {
     if (isLoaded) onBalanceChange?.(balance);
   }, [balance, isLoaded, onBalanceChange]);
-  // Изолируем расчет авто-плеча от рантйам-стейта leverage для исключения зацикливания
+
   const getCalculatedIdealLeverage = useCallback(() => {
     const baseRiskAmount = (balance * riskPercent) / 100;
     const allocatedMarginMax = balance / partsCount;
-
     const openFeeRate = orderType === "MARKET" ? 0.0009 : 0.000324;
     const totalFeeRate = openFeeRate + 0.0009;
     const priceLossFactor = stopLossPercent / 100;
@@ -188,7 +185,6 @@ export default function TradingCalculator({
     const calculatedRecLeverage = Math.ceil(
       idealPositionSizeUsdt / allocatedMarginMax,
     );
-
     const standardSteps = [
       1, 2, 3, 4, 5, 6, 7, 8, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100,
     ];
@@ -200,9 +196,7 @@ export default function TradingCalculator({
         break;
       }
     }
-    if (finalRecLeverage > maxSafeLeverage) {
-      finalRecLeverage = maxSafeLeverage;
-    }
+    if (finalRecLeverage > maxSafeLeverage) finalRecLeverage = maxSafeLeverage;
     return finalRecLeverage;
   }, [
     balance,
@@ -213,7 +207,6 @@ export default function TradingCalculator({
     maxSafeLeverage,
   ]);
 
-  // Вычисляем идеальное плечо для фонового отображения иконки щита-отката
   useEffect(() => {
     if (!isLoaded) return;
     const ideal = getCalculatedIdealLeverage();
@@ -231,7 +224,6 @@ export default function TradingCalculator({
     setLeverage(ideal);
   }, [getCalculatedIdealLeverage]);
 
-  // ФИКС: Сброс плеча происходит СТРОГО и ТОЛЬКО при смене вкладок распределения
   useEffect(() => {
     if (!isLoaded) return;
     if (isInitialLoad) {
@@ -240,7 +232,7 @@ export default function TradingCalculator({
     }
     const ideal = getCalculatedIdealLeverage();
     setLeverage(ideal);
-  }, [partsCount]); // Намертво изолирован от leverage, ручной ввод разблокирован!
+  }, [partsCount]);
 
   const fetchLiveTicker = useCallback(
     async (coin: string, isFirstInit: boolean, isCurrent: () => boolean) => {
@@ -421,7 +413,71 @@ export default function TradingCalculator({
     maxSafeLeverage,
     partsCount,
   ]);
-  if (!isLoaded) return null;
+  // Профессиональный скелетон-слой для предотвращения Layout Shift (Hydration Fix)
+  if (!isLoaded) {
+    return (
+      <div className="w-full p-1.5 sm:p-4 space-y-3 sm:space-y-4 select-none">
+        <div className="p-3 sm:p-4 border border-border/40 rounded-xl bg-muted/30 h-20 sm:h-22.5 grid grid-cols-2 md:grid-cols-6 gap-3 sm:gap-4 items-center">
+          <div className="flex items-center gap-3 md:col-span-1 border-r border-border/30 pr-2 h-12">
+            <Skeleton className="size-9 sm:size-10 rounded-full" />
+            <div className="space-y-1.5 flex-1">
+              <Skeleton className="h-3.5 w-12" />
+              <Skeleton className="h-2.5 w-16" />
+            </div>
+          </div>
+          <div className="md:col-span-2 space-y-1.5">
+            <Skeleton className="h-2.5 w-12 ml-6" />
+            <Skeleton className="h-5 w-32 ml-6" />
+          </div>
+          <div className="md:col-span-1">
+            <Skeleton className="h-4 w-14" />
+          </div>
+          <div className="hidden sm:block md:col-span-1 space-y-2">
+            <Skeleton className="h-2.5 w-12" />
+            <Skeleton className="h-1.5 w-full" />
+          </div>
+          <div className="md:col-span-1 space-y-2">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-2 w-12" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 items-stretch min-h-115">
+          <Card className="rounded-xl border-border/40">
+            <CardHeader className="py-2.5 px-4 border-b">
+              <Skeleton className="h-4 w-28" />
+            </CardHeader>
+            <CardContent className="p-4 space-y-5">
+              <Skeleton className="h-11 w-full rounded-xl" />
+              <div className="grid grid-cols-3 gap-3">
+                <Skeleton className="h-14 w-full" />
+                <Skeleton className="h-14 w-full" />
+                <Skeleton className="h-14 w-full" />
+              </div>
+              <Skeleton className="h-14 w-full rounded-xl" />
+              <Skeleton className="h-16 w-full rounded-xl" />
+            </CardContent>
+          </Card>
+          <Card className="rounded-xl border-border/40">
+            <CardHeader className="py-2.5 px-4 border-b">
+              <Skeleton className="h-4 w-24" />
+            </CardHeader>
+            <CardContent className="p-4 flex flex-col justify-between h-95">
+              <div className="grid grid-cols-2 gap-3">
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+              </div>
+              <Skeleton className="h-44 w-full rounded-xl" />
+              <div className="grid grid-cols-3 gap-2">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full p-1.5 sm:p-4 space-y-3 sm:space-y-4">

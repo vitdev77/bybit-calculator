@@ -63,6 +63,7 @@ export default function TradingJournal({
 }: TradingJournalProps) {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isChangingCoin, setIsChangingCoin] = useState(false);
   const [isClearOpen, setIsClearOpen] = useState(false);
   const [activeDeleteId, setActiveDeleteId] = useState<number | null>(null);
 
@@ -77,17 +78,21 @@ export default function TradingJournal({
   ).length;
 
   useEffect(() => {
-    document.title = `Журнал сделок и аналитика (${openDealsCount})`;
+    document.title = `Журнал сделок (${openDealsCount})`;
   }, [openDealsCount]);
+
+  // ФИКС: Имитируем быструю загрузку скелетона карты при смене торговой пары
+  useEffect(() => {
+    setIsChangingCoin(true);
+    const timer = setTimeout(() => setIsChangingCoin(false), 350);
+    return () => clearTimeout(timer);
+  }, [activeCoin]);
 
   const fetchJournal = useCallback(async () => {
     try {
       const res = await fetch("/api/journal", {
         cache: "no-store",
-        headers: {
-          Pragma: "no-cache",
-          "Cache-Control": "no-cache",
-        },
+        headers: { Pragma: "no-cache", "Cache-Control": "no-cache" },
       });
       if (!res.ok) throw new Error("Load error");
       const data = await res.json();
@@ -118,6 +123,7 @@ export default function TradingJournal({
     return () =>
       window.removeEventListener("refresh-trading-journal", fetchJournal);
   }, [fetchJournal]);
+
   const exportToCSV = () => {
     if (!deals || deals.length === 0) return;
     const headers = [
@@ -178,7 +184,6 @@ export default function TradingJournal({
         body: JSON.stringify({ id, status, closed_at_price: livePrice }),
       });
       if (!res.ok) throw new Error();
-
       const statusRu =
         status === "PROFIT"
           ? "в плюс"
@@ -230,10 +235,27 @@ export default function TradingJournal({
   const activeOpenDeal = deals.find(
     (d) => d.status?.toUpperCase() === "OPEN" && d.coin === activeCoin,
   );
-
   let monitorStatusBar = null;
 
-  if (
+  // ФИКС: Жестко рендерим скелетон карты, если пара переключается
+  if (isChangingCoin) {
+    monitorStatusBar = (
+      <div className="w-full space-y-2.5 pt-2 px-1 select-none">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-4 w-44" />
+          <Skeleton className="h-5 w-24 rounded" />
+        </div>
+        <div className="w-full bg-muted/20 border border-border/30 rounded-xl h-44 flex flex-col justify-center p-6 space-y-4">
+          <Skeleton className="h-1 w-full rounded" />
+          <div className="flex justify-between">
+            <Skeleton className="h-5 w-20 rounded" />
+            <Skeleton className="h-5 w-24 rounded" />
+            <Skeleton className="h-5 w-20 rounded" />
+          </div>
+        </div>
+      </div>
+    );
+  } else if (
     activeOpenDeal &&
     livePrice > 0 &&
     activeOpenDeal.stop_loss &&
@@ -254,7 +276,6 @@ export default function TradingJournal({
     const bPrice = isLong
       ? activeOpenDeal.entry_price * (1 + totalFeeRate)
       : activeOpenDeal.entry_price * (1 - totalFeeRate);
-
     const isBuPassed = isLong ? livePrice >= bPrice : livePrice <= bPrice;
     const pr = JOURNAL_PRECISION_MAP[activeCoin] ?? 4;
 
@@ -270,8 +291,10 @@ export default function TradingJournal({
 
     const getPercent = (targetPrice: number) => {
       if (totalRange <= 0) return 50;
-      const pct = ((targetPrice - minScalePrice) / totalRange) * 100;
-      return Math.min(Math.max(pct, 0), 100);
+      return Math.min(
+        Math.max(((targetPrice - minScalePrice) / totalRange) * 100, 0),
+        100,
+      );
     };
 
     const getVisualPercent = (targetPrice: number) => {
@@ -293,11 +316,8 @@ export default function TradingJournal({
       : livePrice > activeOpenDeal.stop_loss;
 
     let liveTranslateX = -50;
-    if (livePct < 20) {
-      liveTranslateX = -50 + (20 - livePct) * 2.5;
-    } else if (livePct > 80) {
-      liveTranslateX = -50 - (livePct - 80) * 2.5;
-    }
+    if (livePct < 20) liveTranslateX = -50 + (20 - livePct) * 2.5;
+    else if (livePct > 80) liveTranslateX = -50 - (livePct - 80) * 2.5;
 
     const isMovingToProfit = isLong
       ? livePrice > activeOpenDeal.entry_price
@@ -309,7 +329,6 @@ export default function TradingJournal({
       liveTextClass = "text-cyan-600 dark:text-cyan-400 border-cyan-500/20";
     }
 
-    // СЕТКА СТАТИЧНЫХ ТЕКСТОВ И ИКОНОК
     let StatusTopIcon = Activity;
     let statusTopBadgeClass = "bg-amber-500/10 text-amber-500";
     let statusText = "В СПРЕДЕ КОМИССИЙ";
@@ -327,7 +346,6 @@ export default function TradingJournal({
       statusTopBadgeClass = "bg-cyan-500/10 text-cyan-500";
       statusText = "В БЕЗУБЫТКЕ";
     }
-
     monitorStatusBar = (
       <div className="w-full space-y-2.5 pt-2 px-1 select-none">
         <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
@@ -339,21 +357,15 @@ export default function TradingJournal({
             <span>{statusText}</span>
           </span>
         </div>
-
         <div className="relative w-full bg-muted/20 border border-border/30 rounded-xl px-4 pt-24 pb-20 sm:px-6 flex flex-col justify-center min-h-44 shadow-sm">
           <div className="relative w-full h-0.5 bg-muted-foreground/20 rounded-full flex items-center">
             <div
-              className={`absolute top-0 bottom-0 rounded-full animate-pulse shadow-[0_0_6px_rgba(245,158,11,0.3)] ${
-                isLong
-                  ? "bg-linear-to-r from-amber-500/40 to-emerald-500/40"
-                  : "bg-linear-to-r from-emerald-500/40 to-amber-500/40"
-              }`}
+              className={`absolute top-0 bottom-0 rounded-full animate-pulse shadow-[0_0_6px_rgba(245,158,11,0.3)] ${isLong ? "bg-linear-to-r from-amber-500/40 to-emerald-500/40" : "bg-linear-to-r from-emerald-500/40 to-amber-500/40"}`}
               style={{
                 left: `${Math.min(entryPct, buPct)}%`,
                 width: `${Math.abs(buPct - entryPct)}%`,
               }}
             />
-
             <div
               className="absolute size-2 bg-rose-500 rounded-full border border-background shadow-sm"
               style={{ left: `${slPct}%`, transform: "translateX(-50%)" }}
@@ -370,7 +382,6 @@ export default function TradingJournal({
               className="absolute size-2 bg-emerald-500 rounded-full border border-background shadow-sm"
               style={{ left: `${tpPct}%`, transform: "translateX(-50%)" }}
             />
-
             {!isTakeProfitBroken && !isStopLossBroken && (
               <div
                 className="absolute flex flex-col items-center z-20 transition-all duration-700 ease-out"
@@ -382,7 +393,6 @@ export default function TradingJournal({
                 <div
                   className={`size-2.5 rounded-full border border-background shadow-md ${liveBgClass}`}
                 />
-
                 <div
                   className={`absolute -top-9 bg-background border rounded overflow-hidden shadow-sm text-[10px] h-5 z-30 flex items-center ${liveTextClass}`}
                 >
@@ -404,7 +414,6 @@ export default function TradingJournal({
                 <div className="absolute -top-3 border-l border-muted-foreground/30 h-3 border-dashed" />
               </div>
             )}
-
             <div
               className="absolute bottom-0 border-l border-rose-500/20 h-10 border-dashed -translate-x-1/2"
               style={{ left: `${slPct}%` }}
@@ -421,10 +430,9 @@ export default function TradingJournal({
               className="absolute top-0 border-l border-amber-500/20 h-11 border-dashed -translate-x-1/2"
               style={{ left: `${buPct}%` }}
             />
-
             <div
               className="absolute bottom-11 flex items-center bg-background border border-border/60 rounded overflow-hidden shadow-sm text-[10px] h-5"
-              style={{ left: `${slPct}%`, transform: "translateX(0%)" }}
+              style={{ left: `${slPct}%` }}
             >
               <span className="h-full px-1.5 flex items-center bg-rose-500 text-white text-[8px] font-black uppercase tracking-wider">
                 SL
@@ -433,12 +441,10 @@ export default function TradingJournal({
                 {activeOpenDeal.stop_loss.toFixed(pr)}
               </span>
             </div>
-
-            {/* ФИКС: Полное отключение мигания и прыжков с аларм-шлюза */}
             {isStopLossBroken && (
               <div
                 className="absolute bottom-17 flex items-center bg-background border border-rose-500/30 rounded overflow-hidden shadow-[0_0_10px_rgba(225,29,72,0.1)] text-[10px] h-5 z-40"
-                style={{ left: `${slPct}%`, transform: "translateX(0%)" }}
+                style={{ left: `${slPct}%` }}
               >
                 <span className="h-full px-2 flex items-center bg-rose-600 text-white">
                   <AlertTriangle className="size-3 shrink-0" />
@@ -448,7 +454,6 @@ export default function TradingJournal({
                 </span>
               </div>
             )}
-
             <div
               className="absolute bottom-11 flex items-center bg-background border border-border/60 rounded overflow-hidden shadow-sm text-[10px] h-5"
               style={{ left: `${tpPct}%`, transform: "translateX(-100%)" }}
@@ -460,8 +465,6 @@ export default function TradingJournal({
                 {activeOpenDeal.take_profit.toFixed(pr)}
               </span>
             </div>
-
-            {/* ФИКС: Полное отключение мигания и прыжков с ракетного шлюза */}
             {isTakeProfitBroken && (
               <div
                 className="absolute bottom-17 flex items-center bg-background border border-purple-500/30 rounded overflow-hidden shadow-[0_0_10px_rgba(147,51,234,0.1)] text-[10px] h-5 z-40"
@@ -475,7 +478,6 @@ export default function TradingJournal({
                 </span>
               </div>
             )}
-
             <div
               className="absolute top-3.75 flex items-center bg-background border border-border/60 rounded overflow-hidden shadow-sm text-[10px] h-5"
               style={{
@@ -495,7 +497,6 @@ export default function TradingJournal({
                 {activeOpenDeal.entry_price.toFixed(pr)}
               </span>
             </div>
-
             <div
               className="absolute top-11.25 flex items-center bg-background border border-border/60 rounded overflow-hidden shadow-sm text-[10px] h-5"
               style={{
@@ -528,7 +529,6 @@ export default function TradingJournal({
           ? d.status?.toUpperCase() === "OPEN"
           : d.status?.toUpperCase() !== "OPEN")),
   );
-
   const totalDealsCount = deals.length;
   const profitDeals = deals.filter(
     (d) => d.status?.toUpperCase() === "PROFIT",
@@ -548,7 +548,6 @@ export default function TradingJournal({
             Открытые сделки ({openDealsCount})
           </h2>
         </div>
-
         <JournalStats
           totalDeals={totalDealsCount}
           profitDeals={profitDeals}
@@ -560,7 +559,6 @@ export default function TradingJournal({
           handleClearAllDeals={handleClearAllDeals}
         />
       </div>
-
       <div className="py-2 sm:py-3 mx-1 sm:mx-0">
         <JournalFilters
           searchQuery={searchQuery}
@@ -569,32 +567,65 @@ export default function TradingJournal({
           setStatusFilter={setStatusFilter}
         />
       </div>
-
       {monitorStatusBar}
-
       <div className="py-2 overflow-hidden">
-        <JournalTable
-          filteredDeals={filteredDeals}
-          renderDealRow={(deal) => {
-            const prec = JOURNAL_PRECISION_MAP[deal.coin] ?? 4;
-            return (
-              <JournalRow
-                key={deal.id}
-                deal={deal}
-                livePrice={livePrice}
-                activeCoin={activeCoin}
-                precision={prec}
-                frozenPnL={frozenPnL}
-                setFrozenPnL={setFrozenPnL}
-                onCoinSelect={onCoinSelect}
-                handleUpdateStatus={handleUpdateStatus}
-                handleDeleteDeal={handleDeleteDeal}
-                activeDeleteId={activeDeleteId}
-                setActiveDeleteId={setActiveDeleteId}
-              />
-            );
-          }}
-        />
+        {loading ? (
+          <div className="w-full rounded-xl border border-border/50 bg-background shadow-sm p-4 space-y-3">
+            <div className="grid grid-cols-6 gap-4 pb-2 border-b border-border/20">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-4 w-12" />
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-16 md:ml-auto" />
+            </div>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div
+                key={i}
+                className="grid grid-cols-6 gap-4 items-center py-1 border-b border-border/10 last:border-0"
+              >
+                <div className="flex items-center gap-2">
+                  <Skeleton className="size-3.5 rounded-full" />
+                  <Skeleton className="h-3 w-14" />
+                </div>
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-3 w-10" />
+                <div className="space-y-1">
+                  <Skeleton className="h-3 w-12" />
+                  <Skeleton className="h-2 w-16 opacity-60" />
+                </div>
+                <Skeleton className="h-4 w-16" />
+                <div className="flex justify-end gap-1">
+                  <Skeleton className="size-6 rounded-md" />
+                  <Skeleton className="size-6 rounded-md" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <JournalTable
+            filteredDeals={filteredDeals}
+            renderDealRow={(deal) => {
+              const prec = JOURNAL_PRECISION_MAP[deal.coin] ?? 4;
+              return (
+                <JournalRow
+                  key={deal.id}
+                  deal={deal}
+                  livePrice={livePrice}
+                  activeCoin={activeCoin}
+                  precision={prec}
+                  frozenPnL={frozenPnL}
+                  setFrozenPnL={setFrozenPnL}
+                  onCoinSelect={onCoinSelect}
+                  handleUpdateStatus={handleUpdateStatus}
+                  handleDeleteDeal={handleDeleteDeal}
+                  activeDeleteId={activeDeleteId}
+                  setActiveDeleteId={setActiveDeleteId}
+                />
+              );
+            }}
+          />
+        )}
       </div>
     </div>
   );
