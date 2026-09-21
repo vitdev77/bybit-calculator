@@ -317,22 +317,21 @@ export default function TradingJournal({
     if (isTakeProfitBroken) {
       StatusTopIcon = Rocket;
       statusTopBadgeClass = "bg-purple-500/10 text-purple-500";
-      statusText = "ЦЕЛЬ ПЕРЕВЫПОЛНЕНА";
+      statusText = "ЦЕЛЬ ДОСТИГНУТА";
     } else if (isStopLossBroken) {
       StatusTopIcon = AlertTriangle;
       statusTopBadgeClass = "bg-rose-500/10 text-rose-500";
-      statusText = "РИСК ФИКСИРОВАН";
+      statusText = "STOP LOSS ПРОБИТ";
     } else if (isBuPassed) {
       StatusTopIcon = ShieldCheck;
       statusTopBadgeClass = "bg-cyan-500/10 text-cyan-500";
-      statusText = "СБОРЫ ОКУПЛЕНЫ";
+      statusText = "В БЕЗУБЫТКЕ";
     }
 
     monitorStatusBar = (
       <div className="w-full space-y-2.5 pt-2 px-1 select-none">
         <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
           <span>Рантайм-карта ордера {activeCoin}</span>
-          {/* ФИКС: Текст вернулся на место и гармонично выводится справа от статичной иконки */}
           <span
             className={`px-2 py-0.5 rounded flex items-center gap-1 text-[9px] font-black tracking-wide ${statusTopBadgeClass}`}
           >
@@ -341,7 +340,7 @@ export default function TradingJournal({
           </span>
         </div>
 
-        <div className="relative w-full bg-muted/20 border border-border/30 rounded-xl px-4 pb-28 pt-24 sm:px-6 flex flex-col justify-center min-h-44 shadow-sm">
+        <div className="relative w-full bg-muted/20 border border-border/30 rounded-xl px-4 pt-24 pb-20 sm:px-6 flex flex-col justify-center min-h-44 shadow-sm">
           <div className="relative w-full h-0.5 bg-muted-foreground/20 rounded-full flex items-center">
             <div
               className={`absolute top-0 bottom-0 rounded-full animate-pulse shadow-[0_0_6px_rgba(245,158,11,0.3)] ${
@@ -385,7 +384,7 @@ export default function TradingJournal({
                 />
 
                 <div
-                  className={`absolute -top-11 bg-background border rounded overflow-hidden shadow-sm text-[10px] h-5 z-30 flex items-center ${liveTextClass}`}
+                  className={`absolute -top-9 bg-background border rounded overflow-hidden shadow-sm text-[10px] h-5 z-30 flex items-center ${liveTextClass}`}
                 >
                   <span
                     className={`h-full px-2 flex items-center text-white ${liveBgClass}`}
@@ -394,7 +393,7 @@ export default function TradingJournal({
                   </span>
                   <span className="pl-1.5 pr-1.5 font-bold flex items-center gap-1.5">
                     {!isMovingToProfit && (
-                      <TrendingDown className="size-3 text-rose-500 shrink-0" />
+                      <TrendingDown className="size-3 text-rose-500 shrink-0 scale-x-[-1]" />
                     )}
                     <span>{livePrice.toFixed(pr)}</span>
                     {isMovingToProfit && (
@@ -402,7 +401,7 @@ export default function TradingJournal({
                     )}
                   </span>
                 </div>
-                <div className="absolute -top-4 border-l border-muted-foreground/30 h-4 border-dashed" />
+                <div className="absolute -top-3 border-l border-muted-foreground/30 h-3 border-dashed" />
               </div>
             )}
 
@@ -445,7 +444,7 @@ export default function TradingJournal({
                   <AlertTriangle className="size-3 shrink-0" />
                 </span>
                 <span className="px-2 font-black text-rose-600 dark:text-rose-400">
-                  OUT: {livePrice.toFixed(pr)}
+                  {livePrice.toFixed(pr)}
                 </span>
               </div>
             )}
@@ -469,7 +468,7 @@ export default function TradingJournal({
                 style={{ left: `${tpPct}%`, transform: "translateX(-100%)" }}
               >
                 <span className="px-2 font-black text-purple-600 dark:text-purple-400">
-                  BOOM: {livePrice.toFixed(pr)}
+                  {livePrice.toFixed(pr)}
                 </span>
                 <span className="h-full px-2 flex items-center bg-purple-600 text-white">
                   <Rocket className="size-3 shrink-0" />
