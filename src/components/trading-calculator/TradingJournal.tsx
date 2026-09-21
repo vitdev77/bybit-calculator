@@ -81,7 +81,6 @@ export default function TradingJournal({
     document.title = `Журнал сделок (${openDealsCount})`;
   }, [openDealsCount]);
 
-  // ФИКС: Имитируем быструю загрузку скелетона карты при смене торговой пары
   useEffect(() => {
     setIsChangingCoin(true);
     const timer = setTimeout(() => setIsChangingCoin(false), 350);
@@ -237,22 +236,15 @@ export default function TradingJournal({
   );
   let monitorStatusBar = null;
 
-  // ФИКС: Жестко рендерим скелетон карты, если пара переключается
-  if (isChangingCoin) {
+  // ИСПРАВЛЕНО: Убрали внешние паддинги и установили монолиту чистую высоту h-[208px]
+  if (isChangingCoin || (loading && activeCoin)) {
     monitorStatusBar = (
-      <div className="w-full space-y-2.5 pt-2 px-1 select-none">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-4 w-44" />
-          <Skeleton className="h-5 w-24 rounded" />
-        </div>
-        <div className="w-full bg-muted/20 border border-border/30 rounded-xl h-44 flex flex-col justify-center p-6 space-y-4">
-          <Skeleton className="h-1 w-full rounded" />
-          <div className="flex justify-between">
-            <Skeleton className="h-5 w-20 rounded" />
-            <Skeleton className="h-5 w-24 rounded" />
-            <Skeleton className="h-5 w-20 rounded" />
-          </div>
-        </div>
+      <div className="w-full px-1 select-none">
+        <Skeleton className="w-full h-52 rounded-xl flex items-center justify-center border border-border/30">
+          <span className="text-xs font-bold tracking-wider text-muted-foreground/60 animate-pulse">
+            Загрузка данных...
+          </span>
+        </Skeleton>
       </div>
     );
   } else if (
@@ -357,15 +349,37 @@ export default function TradingJournal({
             <span>{statusText}</span>
           </span>
         </div>
-        <div className="relative w-full bg-muted/20 border border-border/30 rounded-xl px-4 pt-24 pb-20 sm:px-6 flex flex-col justify-center min-h-44 shadow-sm">
-          <div className="relative w-full h-0.5 bg-muted-foreground/20 rounded-full flex items-center">
+        {/* ИСПРАВЛЕНО: Высота карты зафиксирована жестко на h-[208px], паддинги pt-20 pb-16 идеально центрируют ось */}
+        <div className="relative w-full bg-muted/20 border border-border/30 rounded-xl px-4 pt-20 pb-16 sm:px-6 flex flex-col justify-center h-52 shadow-sm">
+          <div className="relative w-full h-0.75 rounded-full flex items-center">
+            {/* 🔴 Сплошная красная линия: ЗОНА УБЫТКА */}
             <div
-              className={`absolute top-0 bottom-0 rounded-full animate-pulse shadow-[0_0_6px_rgba(245,158,11,0.3)] ${isLong ? "bg-linear-to-r from-amber-500/40 to-emerald-500/40" : "bg-linear-to-r from-emerald-500/40 to-amber-500/40"}`}
+              className="absolute h-full bg-rose-500 border border-rose-500/10 shadow-[0_0_4px_rgba(244,63,94,0.2)] rounded-l-full"
+              style={{
+                left: `${Math.min(slPct, entryPct)}%`,
+                width: `${Math.abs(entryPct - slPct)}%`,
+              }}
+            />
+
+            {/* 🟡 Сплошная желтая линия: Комиссионный спред */}
+            <div
+              className="absolute h-full bg-amber-500 border border-amber-500/10 shadow-[0_0_4px_rgba(245,158,11,0.2)]"
               style={{
                 left: `${Math.min(entryPct, buPct)}%`,
                 width: `${Math.abs(buPct - entryPct)}%`,
               }}
             />
+
+            {/* 🟢 Сплошная зеленая линия: ЗОНА ЧИСТОЙ ПРИБЫЛИ */}
+            <div
+              className="absolute h-full bg-emerald-500 border border-emerald-500/10 shadow-[0_0_4px_rgba(16,185,129,0.2)] rounded-r-full"
+              style={{
+                left: `${Math.min(buPct, tpPct)}%`,
+                width: `${Math.abs(tpPct - buPct)}%`,
+              }}
+            />
+
+            {/* Круглые опорные узлы уровней на трехцветной прямой */}
             <div
               className="absolute size-2 bg-rose-500 rounded-full border border-background shadow-sm"
               style={{ left: `${slPct}%`, transform: "translateX(-50%)" }}
@@ -382,6 +396,7 @@ export default function TradingJournal({
               className="absolute size-2 bg-emerald-500 rounded-full border border-background shadow-sm"
               style={{ left: `${tpPct}%`, transform: "translateX(-50%)" }}
             />
+
             {!isTakeProfitBroken && !isStopLossBroken && (
               <div
                 className="absolute flex flex-col items-center z-20 transition-all duration-700 ease-out"

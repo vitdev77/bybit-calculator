@@ -5,8 +5,13 @@ import { TableHeader, TableRow, TableHead } from "@/components/ui/table";
 
 export function JournalHeader() {
   return (
-    <TableHeader>
-      <TableRow className="border-b border-border/20 bg-muted/30 text-[9px] sm:text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+    /* 
+      ФИКС РЕГЛАМЕНТА: sticky top-0 зажимает шапку таблицы сверху контейнера.
+      z-30 гарантирует, что строки прокручиваются строго под заголовками.
+      bg-muted/95 или сплошной цвет исключает просвечивание контента.
+    */
+    <TableHeader className="sticky top-0 z-30 bg-muted/95 dark:bg-muted/90 backdrop-blur-xs shadow-xs">
+      <TableRow className="border-b border-border/20 text-[9px] sm:text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
         <TableHead className="py-2 px-1.5 h-auto pl-3.5 sm:pl-5">
           Вход / Status
         </TableHead>

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import {
   CheckCircle2,
   XCircle,
@@ -10,6 +10,8 @@ import {
   LogOut,
   Pause,
   Clock,
+  ShieldAlert,
+  ShieldCheck,
 } from "lucide-react";
 import { TableCell, TableRow } from "@/components/ui/table";
 import {
@@ -24,6 +26,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 
 interface Deal {
   id: number;
@@ -55,7 +58,6 @@ interface JournalRowProps {
   handleDeleteDeal: (id: number) => Promise<void>;
 }
 
-// ФИКС: Экспортируем как именованную функцию строго по импорту в TradingJournal.tsx
 export function JournalRow({
   deal,
   livePrice,
@@ -71,8 +73,8 @@ export function JournalRow({
 }: JournalRowProps) {
   const isLong = deal.side === "BUY";
   const isOpen = deal.status?.toUpperCase() === "OPEN";
+  const [isMovingToBu, setIsMovingToBu] = useState(false);
 
-  // СИНХРОНИЗАЦИЯ ТАРИФОВ ПОД ВАШ АККАУНТ ДЛЯ ИДЕАЛЬНОЙ СТАТИСТИКИ
   const isSpot = deal.leverage === 1;
   const openFeeRate = isSpot
     ? deal.order_type === "LIMIT"
@@ -99,6 +101,9 @@ export function JournalRow({
   let isSlTriggered = false;
   let isTpTriggered = false;
   let isBreakevenPassed = false;
+  const isAlreadyInBreakeven =
+    Math.abs(deal.stop_loss - breakevenPrice) < 0.00001;
+
   if (isOpen && isCurrentActiveCoin && isPriceValid) {
     isSlTriggered = isLong
       ? livePrice <= deal.stop_loss
@@ -188,11 +193,6 @@ export function JournalRow({
           : statusUpper === "LOSS"
             ? deal.stop_loss
             : deal.entry_price;
-
-      const actualCloseRate =
-        statusUpper === "CLOSED" ? closeFeeRate : closeFeeRate;
-      const actualTotalRate = openFeeRate + actualCloseRate;
-
       if (statusUpper === "CLOSED") {
         const parsedPrice = deal.closed_at_price
           ? parseFloat(String(deal.closed_at_price))
@@ -204,15 +204,13 @@ export function JournalRow({
               ? livePrice
               : deal.entry_price;
       }
-
       const cryptoQty =
         deal.entry_price > 0 ? deal.volume / deal.entry_price : 0;
       const priceDiff = isLong
         ? targetPrice - deal.entry_price
         : deal.entry_price - targetPrice;
-
       const finalPnlUsdt =
-        priceDiff * cryptoQty - deal.volume * actualTotalRate;
+        priceDiff * cryptoQty - deal.volume * (openFeeRate + closeFeeRate);
       const finalRoi =
         deal.margin > 0.01 ? (finalPnlUsdt / deal.margin) * 100 : 0;
 
@@ -238,6 +236,34 @@ export function JournalRow({
     }
   }
 
+  const handleMoveToBreakevenClick = async () => {
+    if (isMovingToBu || isAlreadyInBreakeven) return;
+    setIsMovingToBu(true);
+    try {
+      const res = await fetch("/api/journal", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: deal.id,
+          action: "MOVE_TO_BREAKEVEN",
+          stop_loss: breakevenPrice,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      toast.add({
+        title: "Риск снят",
+        description: `Stop Loss по паре ${deal.coin} перенесен в безубыток.`,
+        type: "success",
+      });
+      // @ts-ignore
+      window.dispatchEvent(new Event("refresh-trading-journal"));
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsMovingToBu(false);
+    }
+  };
+
   let dStr = "--.--.--",
     tStr = "--:--";
   if (deal.created_at) {
@@ -252,15 +278,16 @@ export function JournalRow({
     isCurrentActiveCoin && isOpen
       ? "bg-amber-500/5 dark:bg-amber-500/10 hover:bg-amber-500/15"
       : !isOpen
-        ? "opacity-55 hover:bg-muted/40 dark:hover:bg-muted/10 hover:opacity-100"
-        : "hover:bg-muted/40 dark:hover:bg-muted/10";
+        ? "opacity-55 hover:bg-muted/40 hover:opacity-100"
+        : "hover:bg-muted/40";
   return (
     <TableRow
       className={`transition-all border-b border-border/10 ${rowClass}`}
     >
       <TableCell className="py-2 px-1.5 sm:px-3 relative pl-3.5 sm:pl-5">
         <div
-          className={`absolute left-0 top-0 bottom-0 transition-all duration-300 ${isLong ? "w-1 bg-emerald-500" : "w-1 bg-rose-500"} ${isCurrentActiveCoin && isOpen ? "w-1.5" : ""}`}
+          className={`absolute left-0 top-0 bottom-0 transition-all duration-300 ${isLong ? "bg-emerald-500" : "bg-rose-500"} ${isCurrentActiveCoin && isOpen ? "w-1.5" : ""}`}
+          style={{ width: isCurrentActiveCoin && isOpen ? "6px" : "4px" }}
         />
         <div className="flex items-start gap-1">
           {deal.status?.toUpperCase() === "PROFIT" ||
@@ -341,6 +368,29 @@ export function JournalRow({
         <div className="flex items-center justify-end gap-0.5">
           {isOpen && (
             <>
+              {isBreakevenPassed &&
+                isCurrentActiveCoin &&
+                isPriceValid &&
+                !isAlreadyInBreakeven && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    disabled={isMovingToBu}
+                    onClick={handleMoveToBreakevenClick}
+                    className="h-7 w-7 text-amber-500 hover:bg-amber-500 hover:text-white rounded-md animate-pulse"
+                    title="Перенести Stop Loss в безубыток"
+                  >
+                    <ShieldAlert className="size-3.5" />
+                  </Button>
+                )}
+              {isAlreadyInBreakeven && isOpen && (
+                <div
+                  className="h-7 w-7 flex items-center justify-center text-emerald-500"
+                  title="Позиция защищена (в БУ)"
+                >
+                  <ShieldCheck className="size-3.5" />
+                </div>
+              )}
               <Button
                 size="icon"
                 variant="ghost"

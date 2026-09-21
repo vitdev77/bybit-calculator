@@ -34,7 +34,6 @@ export const AVAILABLE_COINS = [
   "NEARUSDT",
   "LINKUSDT",
 ];
-
 export default function CoinSelector({
   selectedCoin,
   onCoinChange,
@@ -43,9 +42,17 @@ export default function CoinSelector({
 }: CoinSelectorProps) {
   return (
     <div className="space-y-1.5 w-full">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full items-center">
-        <div className="space-y-1 w-full">
-          <Label htmlFor="coin-select" className="text-xs sm:text-sm">
+      {/* 
+        ФИКС РЕГЛАМЕНТА: grid-cols-2 жестко держит элементы в одну линию.
+        gap-1.5 уменьшен, чтобы на узких экранах инпуты не сжимались.
+      */}
+      <div className="grid grid-cols-2 gap-1.5 sm:gap-2 w-full items-center">
+        {/* ЛЕВАЯ КОЛОНКА: Торговая пара */}
+        <div className="space-y-1 w-full min-w-0">
+          <Label
+            htmlFor="coin-select"
+            className="text-[10px] sm:text-xs truncate block"
+          >
             Торговая пара
           </Label>
           <Select
@@ -56,9 +63,9 @@ export default function CoinSelector({
           >
             <SelectTrigger
               id="coin-select"
-              className="h-9! m-0! w-full bg-background border border-input shadow-none text-xs sm:text-sm"
+              className="h-9! m-0! w-full bg-background border border-input shadow-none text-[11px] sm:text-sm px-1.5 sm:px-2.5"
             >
-              <SelectValue placeholder="Выберите монету" />
+              <SelectValue placeholder="Монета" />
             </SelectTrigger>
             <SelectContent>
               {AVAILABLE_COINS.map((coin) => (
@@ -74,13 +81,16 @@ export default function CoinSelector({
           </Select>
         </div>
 
-        <div className="space-y-1 w-full">
-          <Label className="text-xs sm:text-sm">Тип ордера</Label>
+        {/* ПРАВАЯ КОЛОНКА: Тип ордера */}
+        <div className="space-y-1 w-full min-w-0">
+          <Label className="text-[10px] sm:text-xs truncate block">
+            Тип ордера
+          </Label>
           <ButtonGroup className="w-full h-9 flex">
             <Button
               type="button"
               variant={orderType === "MARKET" ? "default" : "outline"}
-              className={`flex-1 h-full text-xs font-semibold shadow-none border border-input ${
+              className={`flex-1 h-full text-[11px] sm:text-xs px-1 font-semibold shadow-none border border-input ${
                 orderType === "MARKET" ? "font-bold" : ""
               }`}
               onClick={() => setOrderType("MARKET")}
@@ -90,7 +100,7 @@ export default function CoinSelector({
             <Button
               type="button"
               variant={orderType === "LIMIT" ? "default" : "outline"}
-              className={`flex-1 h-full text-xs font-semibold shadow-none border border-input ${
+              className={`flex-1 h-full text-[11px] sm:text-xs px-1 font-semibold shadow-none border border-input ${
                 orderType === "LIMIT" ? "font-bold" : ""
               }`}
               onClick={() => setOrderType("LIMIT")}

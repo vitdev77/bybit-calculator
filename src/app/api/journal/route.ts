@@ -1,17 +1,13 @@
 import { NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
 
-// Железобетонно отключаем серверный кэш Next.js для журнала сделок
 export const dynamic = "force-dynamic";
 
 const sql = neon(process.env.DATABASE_URL || "");
-
-// Изолируем проверку и создание структуры, чтобы не спамить базу тяжелыми DDL-блокировками
 let isTableVerified = false;
 
 async function ensureTableExists() {
   if (isTableVerified) return;
-
   try {
     await sql`
       CREATE TABLE IF NOT EXISTS deals (
@@ -29,15 +25,10 @@ async function ensureTableExists() {
         status VARCHAR(20) DEFAULT 'OPEN'
       );
     `;
-
-    await sql`
-      ALTER TABLE deals ADD COLUMN IF NOT EXISTS closed_at_price DOUBLE PRECISION;
-    `;
-
-    isTableVerified = true; // Фиксируем успешную проверку схемы в памяти инстанса
+    await sql`ALTER TABLE deals ADD COLUMN IF NOT EXISTS closed_at_price DOUBLE PRECISION;`;
+    isTableVerified = true;
   } catch (err) {
     console.error("Database Migration Error:", err);
-    // Не блокируем рантайм, если таблица уже создана сторонним процессом
   }
 }
 
@@ -78,7 +69,6 @@ export async function POST(request: Request) {
     const coin = String(body.coin);
     const side = String(body.side);
     const order_type = String(body.order_type);
-
     const entry_price = parseFloat(Number(body.entry_price).toFixed(6));
     const stop_loss = parseFloat(Number(body.stop_loss).toFixed(6));
     const take_profit = parseFloat(Number(body.take_profit).toFixed(6));
@@ -86,7 +76,6 @@ export async function POST(request: Request) {
     const margin = parseFloat(Number(body.margin).toFixed(2));
     const leverage = parseInt(body.leverage, 10);
 
-    // ФИКС: Для коинов с высокой точностью (DOGE, XRP) используем более строгую проверку равенства цен
     const priceEpsilon =
       coin.includes("DOGE") || coin.includes("XRP") || coin.includes("SUI")
         ? 0.000001
@@ -117,7 +106,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
-
 export async function PATCH(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
@@ -127,39 +115,44 @@ export async function PATCH(request: Request) {
       );
     }
     await ensureTableExists();
-
     const body = await request.json();
-    if (!body.id || !body.status) {
-      return NextResponse.json(
-        { error: "Пропущен id или статус" },
-        { status: 400 },
-      );
+
+    if (!body.id) {
+      return NextResponse.json({ error: "Пропущен id" }, { status: 400 });
     }
 
     const targetId = parseInt(body.id, 10);
-    const targetStatus = String(body.status);
 
+    // ФИКС: Переносим Stop Loss в безубыток без изменения статуса OPEN
+    if (body.action === "MOVE_TO_BREAKEVEN" && body.stop_loss !== undefined) {
+      const nextSl = parseFloat(Number(body.stop_loss).toFixed(6));
+      const result = await sql`
+        UPDATE deals 
+        SET stop_loss = ${nextSl} 
+        WHERE id = ${targetId} AND status = 'OPEN'
+        RETURNING *;
+      `;
+      return NextResponse.json({ success: true, data: result });
+    }
+
+    if (!body.status) {
+      return NextResponse.json({ error: "Пропущен статус" }, { status: 400 });
+    }
+
+    const targetStatus = String(body.status);
     const closedAtPrice =
       body.closed_at_price !== undefined && body.closed_at_price !== null
         ? parseFloat(Number(body.closed_at_price).toFixed(6))
         : null;
 
     let result;
-
     if (targetStatus === "CLOSED" && closedAtPrice !== null) {
       result = await sql`
-        UPDATE deals 
-        SET status = ${targetStatus}, closed_at_price = ${closedAtPrice} 
-        WHERE id = ${targetId} 
-        RETURNING *;
+        UPDATE deals SET status = ${targetStatus}, closed_at_price = ${closedAtPrice} WHERE id = ${targetId} RETURNING *;
       `;
     } else {
-      result = await sql`
-        UPDATE deals 
-        SET status = ${targetStatus} 
-        WHERE id = ${targetId} 
-        RETURNING *;
-      `;
+      result =
+        await sql`UPDATE deals SET status = ${targetStatus} WHERE id = ${targetId} RETURNING *;`;
     }
 
     return NextResponse.json({ success: true, data: result });

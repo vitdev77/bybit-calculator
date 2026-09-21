@@ -8,6 +8,7 @@ interface JournalTableProps {
   filteredDeals: any[];
   renderDealRow: (deal: any) => React.ReactNode;
 }
+
 export function JournalTable({
   filteredDeals,
   renderDealRow,
@@ -21,8 +22,13 @@ export function JournalTable({
   }
 
   return (
-    <div className="w-full rounded-xl border border-border/50 overflow-x-auto bg-background shadow-sm scrollbar-thin">
-      <Table className="w-full text-xs min-w-180">
+    /* 
+      ФИКС: max-h-[505px] жестко лимитирует высоту под шапку и 10 строк сделок.
+      overflow-y-auto активирует плавный скроллбар, если позиций больше 10.
+      scrollbar-thin делает прокрутку аккуратной и незаметной в темной теме.
+    */
+    <div className="w-full rounded-xl border border-border/50 max-h-126.25 overflow-y-auto overflow-x-auto bg-background shadow-sm scrollbar-thin">
+      <Table className="w-full text-xs min-w-180 relative">
         <JournalHeader />
         <TableBody>{filteredDeals.map(renderDealRow)}</TableBody>
       </Table>
