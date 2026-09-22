@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Copy, Check, PlusCircle } from "lucide-react";
+import { Copy, Check, PlusCircle, Loader } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 
 interface ResultsDisplayProps {
@@ -379,7 +379,11 @@ export default function ResultsDisplay({
               : "bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-500/10 cursor-pointer active:scale-[0.98]"
           }`}
         >
-          <PlusCircle className="size-4 shrink-0" />
+          {isSaving ? (
+            <Loader className="size-4 shrink-0 animate-spin" />
+          ) : (
+            <PlusCircle className="size-4 shrink-0" />
+          )}
           <span>{isSaving ? "Сохранение..." : "Зафиксировать в журнал"}</span>
         </button>
       </div>

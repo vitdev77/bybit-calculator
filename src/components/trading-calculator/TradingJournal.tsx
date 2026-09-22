@@ -241,7 +241,7 @@ export default function TradingJournal({
     monitorStatusBar = (
       <div className="w-full px-1 select-none">
         <Skeleton className="w-full h-52 rounded-xl flex items-center justify-center border border-border/30">
-          <span className="text-xs font-bold tracking-wider text-muted-foreground/60 animate-pulse">
+          <span className="text-xs text-muted-foreground/60">
             Загрузка данных...
           </span>
         </Skeleton>
@@ -343,7 +343,7 @@ export default function TradingJournal({
         <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
           <span>Рантайм-карта ордера {activeCoin}</span>
           <span
-            className={`px-2 py-0.5 rounded flex items-center gap-1 text-[9px] font-black tracking-wide ${statusTopBadgeClass}`}
+            className={`px-2 py-0.5 rounded flex items-center gap-1 font-black tracking-wide ${statusTopBadgeClass}`}
           >
             <StatusTopIcon className="size-3 shrink-0" />
             <span>{statusText}</span>

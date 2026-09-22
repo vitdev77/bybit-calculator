@@ -178,7 +178,7 @@ export async function DELETE(request: Request) {
       await sql`TRUNCATE TABLE deals;`;
       return NextResponse.json({
         success: true,
-        message: "Журнал полностью зачищен",
+        message: "Журнал полностью очищен",
       });
     }
 

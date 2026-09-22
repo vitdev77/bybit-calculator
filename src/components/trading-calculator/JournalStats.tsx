@@ -38,7 +38,6 @@ export function JournalStats({
 }: JournalStatsProps) {
   return (
     <div className="flex items-center gap-2.5 sm:gap-4 text-[11px] sm:text-xs justify-between sm:justify-end w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-      {/* ВОЗВРАЩЕНО НАЗАД: Вся статистика имеет исходный лаконичный вид, дубли убраны */}
       <div className="text-center">
         <span className="text-muted-foreground block text-[9px] uppercase tracking-wider">
           Всего
@@ -100,7 +99,7 @@ export function JournalStats({
 
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Уничтожить весь журнал?</AlertDialogTitle>
+                <AlertDialogTitle>Очистить весь журнал?</AlertDialogTitle>
                 <AlertDialogDescription>
                   Это действие безвозвратно удалит всю историю Вашей торговли из
                   базы данных.
