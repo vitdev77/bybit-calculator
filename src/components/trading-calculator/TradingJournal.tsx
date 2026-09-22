@@ -72,6 +72,20 @@ export default function TradingJournal({
     Record<number, { pnl: number; roi: number }>
   >({});
 
+  const [sessionTakes, setSessionTakes] = useState(() => {
+    if (typeof window !== "undefined") {
+      return Number(localStorage.getItem("journal_session_takes") || 0);
+    }
+    return 0;
+  });
+
+  const [sessionStops, setSessionStops] = useState(() => {
+    if (typeof window !== "undefined") {
+      return Number(localStorage.getItem("journal_session_stops") || 0);
+    }
+    return 0;
+  });
+
   const openDealsCount = deals.filter(
     (d) => d.status?.toUpperCase() === "OPEN",
   ).length;
@@ -85,7 +99,6 @@ export default function TradingJournal({
     const timer = setTimeout(() => setIsChangingCoin(false), 350);
     return () => clearTimeout(timer);
   }, [activeCoin]);
-
   const fetchJournal = useCallback(async () => {
     try {
       const res = await fetch("/api/journal", {
@@ -99,6 +112,42 @@ export default function TradingJournal({
         : data.data && Array.isArray(data.data)
           ? data.data
           : [];
+
+      if (deals.length > 0 && cleanArray.length === deals.length) {
+        cleanArray.forEach((newDeal: Deal) => {
+          const oldDeal = deals.find((o) => o.id === newDeal.id);
+          if (
+            oldDeal &&
+            oldDeal.status === "OPEN" &&
+            newDeal.status !== "OPEN"
+          ) {
+            if (newDeal.status === "PROFIT") {
+              setSessionTakes((prev) => {
+                const next = prev + 1;
+                localStorage.setItem("journal_session_takes", String(next));
+                return next;
+              });
+              toast.add({
+                title: "💥 ТЕЙК-ПРОФИТ СРАБОТАЛ!",
+                description: `${newDeal.coin} закрылся в плюс!`,
+                type: "success",
+              });
+            } else if (newDeal.status === "LOSS") {
+              setSessionStops((prev) => {
+                const next = prev + 1;
+                localStorage.setItem("journal_session_stops", String(next));
+                return next;
+              });
+              toast.add({
+                title: "⚠️ СТОП-ЛОСС СРАБОТАЛ",
+                description: `${newDeal.coin} закрылся по стопу.`,
+                type: "warning",
+              });
+            }
+          }
+        });
+      }
+
       setDeals(cleanArray);
 
       const openCount = cleanArray.filter(
@@ -113,7 +162,7 @@ export default function TradingJournal({
     } finally {
       setLoading(false);
     }
-  }, [onDealsCountChange]);
+  }, [onDealsCountChange, deals]);
 
   useEffect(() => {
     fetchJournal();
@@ -121,6 +170,7 @@ export default function TradingJournal({
     return () =>
       window.removeEventListener("refresh-trading-journal", fetchJournal);
   }, [fetchJournal]);
+
   const exportToCSV = () => {
     if (!deals || deals.length === 0) return;
     const headers = [
@@ -169,7 +219,6 @@ export default function TradingJournal({
     link.click();
     document.body.removeChild(link);
   };
-
   const handleUpdateStatus = async (
     id: number,
     status: "PROFIT" | "LOSS" | "CLOSED",
@@ -229,6 +278,7 @@ export default function TradingJournal({
       console.error(e);
     }
   };
+
   const activeOpenDeal = deals.find(
     (d) => d.status?.toUpperCase() === "OPEN" && d.coin === activeCoin,
   );
@@ -291,7 +341,6 @@ export default function TradingJournal({
       const absPct = getPercent(targetPrice);
       return isLong ? absPct : 100 - absPct;
     };
-
     const slPct = getVisualPercent(activeOpenDeal.stop_loss);
     const entryPct = getVisualPercent(activeOpenDeal.entry_price);
     const buPct = getVisualPercent(bPrice);
@@ -340,6 +389,7 @@ export default function TradingJournal({
       statusTopBadgeClass = "bg-cyan-500/10 text-cyan-500";
       statusText = "В БЕЗУБЫТКЕ";
     }
+
     monitorStatusBar = (
       <div className="w-full space-y-2.5 pt-2 px-1 select-none">
         <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
@@ -356,31 +406,29 @@ export default function TradingJournal({
           style={{
             backgroundImage: `
               linear-gradient(to right, rgba(120, 119, 198, 0.05) 1px, transparent 1px),
-              linear-gradient(to bottom, rgba(120, 119, 198, 0.05) 1px, transparent 1px),
-              linear-gradient(to right, rgba(120, 119, 198, 0.02) 1px, transparent 1px),
-              linear-gradient(to bottom, rgba(120, 119, 198, 0.02) 1px, transparent 1px)
+              linear-gradient(to bottom, rgba(120, 119, 198, 0.05) 1px, transparent 1px)
             `,
-            backgroundSize: "40px 40px, 40px 40px, 8px 8px, 8px 8px",
+            backgroundSize: "40px 40px",
             backgroundPosition: "center center",
           }}
         >
           <div className="relative w-full h-0.75 rounded-full flex items-center">
             <div
-              className="absolute h-full bg-rose-500 border border-rose-500/10 shadow-[0_0_4px_rgba(244,63,94,0.2)] rounded-l-full"
+              className="absolute h-full bg-rose-500 border border-rose-500/10 rounded-l-full"
               style={{
                 left: `${Math.min(slPct, entryPct)}%`,
                 width: `${Math.abs(entryPct - slPct)}%`,
               }}
             />
             <div
-              className="absolute h-full bg-amber-500 border border-amber-500/10 shadow-[0_0_4px_rgba(245,158,11,0.2)]"
+              className="absolute h-full bg-amber-500 border border-amber-500/10"
               style={{
                 left: `${Math.min(entryPct, buPct)}%`,
                 width: `${Math.abs(buPct - entryPct)}%`,
               }}
             />
             <div
-              className="absolute h-full bg-emerald-500 border border-emerald-500/10 shadow-[0_0_4px_rgba(16,185,129,0.2)] rounded-r-full"
+              className="absolute h-full bg-emerald-500 border border-emerald-500/10 rounded-r-full"
               style={{
                 left: `${Math.min(buPct, tpPct)}%`,
                 width: `${Math.abs(tpPct - buPct)}%`,
@@ -571,27 +619,72 @@ export default function TradingJournal({
   return (
     <div className="w-full bg-transparent flex flex-col px-0.5 sm:px-6 space-y-4">
       <div className="py-3 sm:py-4 border-b border-border/40 flex flex-col gap-3 sm:flex-row sm:items-center justify-between bg-transparent select-none mx-1 sm:mx-0">
-        <div className="flex flex-col min-w-0 pr-2 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-base sm:text-lg font-black tracking-tight text-foreground truncate">
-              Открытые сделки ({openDealsCount})
-            </h2>
-            {activeOpenDeal && livePrice > 0 && (
-              <div className="flex items-center gap-1.5 shrink-0 bg-muted/40 dark:bg-muted/10 border border-border/30 rounded-lg px-2 py-0.5 text-[11px] font-bold">
-                <span className="text-foreground">{activeOpenDeal.coin}</span>
-                <span
-                  className={`text-[9px] px-1 rounded text-white ${activeOpenDeal.side === "BUY" ? "bg-emerald-500" : "bg-rose-500"}`}
-                >
-                  {activeOpenDeal.side === "BUY" ? "LONG" : "SHORT"}
-                </span>
-                <span
-                  className={`ml-1 font-black ${isHeaderProfit ? "text-emerald-500" : "text-rose-500"}`}
-                >
-                  {isHeaderProfit ? "+" : ""}
-                  {activeDealStoredPnL.roi.toFixed(2)}% (
-                  {isHeaderProfit ? "+" : ""}
-                  {activeDealStoredPnL.pnl.toFixed(3)} USDT)
-                </span>
+        <div className="flex flex-col min-w-0 pr-2 flex-1 w-full">
+          <div className="flex flex-wrap items-center gap-2 w-full">
+            {sessionTakes > 0 && (
+              <button
+                onClick={() => {
+                  setSessionTakes(0);
+                  localStorage.removeItem("journal_session_takes");
+                }}
+                className="inline-flex items-center justify-center bg-purple-500/10 text-purple-500 border border-purple-500/20 text-[10px] font-black px-1.5 py-0.5 rounded-md animate-pulse cursor-pointer"
+              >
+                +{sessionTakes} TAKE
+              </button>
+            )}
+            {sessionStops > 0 && (
+              <button
+                onClick={() => {
+                  setSessionStops(0);
+                  localStorage.removeItem("journal_session_stops");
+                }}
+                className="inline-flex items-center justify-center bg-rose-500/10 text-rose-500 border border-rose-500/20 text-[10px] font-black px-1.5 py-0.5 rounded-md animate-pulse cursor-pointer"
+              >
+                -{sessionStops} STOP
+              </button>
+            )}
+
+            {/* 
+              ФИКС МОБИЛЬНОГО РАДАРА: flex-col на мобильных строит блок в два яруса, 
+              предотвращая горизонтальную обрезку. sm:flex-row возвращает в один ряд на ПК.
+            */}
+            {activeCoin && livePrice > 0 && (
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2 w-full sm:w-auto bg-cyan-950/10 dark:bg-cyan-950/30 border border-cyan-500/30 shadow-[0_0_8px_rgba(6,182,212,0.05)] rounded-xl p-2 sm:px-2.5 sm:py-1 text-[11px] font-bold">
+                {/* Верхний ярус (мобильные) / Левая часть (ПК) */}
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-500" />
+                  </span>
+                  <span className="text-cyan-600 dark:text-cyan-400 text-[9px] font-black tracking-wider uppercase">
+                    {activeOpenDeal ? "МОНИТОРИНГ" : "ВЫБРАНО"}
+                  </span>
+                  <div className="h-3 w-px bg-border/40 mx-0.5 hidden sm:block" />
+                  <span className="text-foreground font-black ml-1 sm:ml-0">
+                    {activeCoin}
+                  </span>
+                  {activeOpenDeal && (
+                    <span
+                      className={`text-[9px] px-1 rounded text-white font-black tracking-wide ${activeOpenDeal.side === "BUY" ? "bg-emerald-500" : "bg-rose-500"}`}
+                    >
+                      {activeOpenDeal.side === "BUY" ? "LONG" : "SHORT"}
+                    </span>
+                  )}
+                </div>
+
+                {/* Нижний ярус (мобильные) / Правая часть (ПК) */}
+                {activeOpenDeal && (
+                  <div className="flex items-center pl-3.5 sm:pl-0 border-t border-border/10 sm:border-0 pt-1.5 sm:pt-0 mt-1 sm:mt-0">
+                    <span
+                      className={`font-black tracking-tight ${isHeaderProfit ? "text-emerald-500" : "text-rose-500"}`}
+                    >
+                      {isHeaderProfit ? "+" : ""}
+                      {activeDealStoredPnL.roi.toFixed(2)}% (
+                      {isHeaderProfit ? "+" : ""}
+                      {activeDealStoredPnL.pnl.toFixed(3)} USDT)
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -607,49 +700,34 @@ export default function TradingJournal({
           handleClearAllDeals={handleClearAllDeals}
         />
       </div>
-      {/* ФИКС: УБРАЛИ ОТДЕЛЬНЫЙ ВНЕШНИЙ РЯД С ФИЛЬТРАМИ JournalFilters */}
       {monitorStatusBar}
       <div className="py-2 overflow-hidden">
-        {loading ? (
-          <div className="w-full rounded-xl border border-border/50 bg-background shadow-sm p-4 space-y-3">
-            <div className="grid grid-cols-6 gap-4 pb-2 border-b border-border/20">
-              <Skeleton className="h-4 w-16" />
-              <Skeleton className="h-4 w-12" />
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-4 w-16 md:ml-auto" />
-            </div>
-          </div>
-        ) : (
-          /* ПЕРЕДАЕМ СТЕЙТЫ УПРАВЛЕНИЯ ФИЛЬТРАЦИЕЙ ВНУТРЬ ТАБЛИЦЫ */
-          <JournalTable
-            filteredDeals={filteredDeals}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            statusFilter={statusFilter}
-            setStatusFilter={setStatusFilter}
-            renderDealRow={(deal) => {
-              const prec = JOURNAL_PRECISION_MAP[deal.coin] ?? 4;
-              return (
-                <JournalRow
-                  key={deal.id}
-                  deal={deal}
-                  livePrice={livePrice}
-                  activeCoin={activeCoin}
-                  precision={prec}
-                  frozenPnL={frozenPnL}
-                  setFrozenPnL={setFrozenPnL}
-                  onCoinSelect={onCoinSelect}
-                  handleUpdateStatus={handleUpdateStatus}
-                  handleDeleteDeal={handleDeleteDeal}
-                  activeDeleteId={activeDeleteId}
-                  setActiveDeleteId={setActiveDeleteId}
-                />
-              );
-            }}
-          />
-        )}
+        <JournalTable
+          filteredDeals={filteredDeals}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          statusFilter={statusFilter}
+          setStatusFilter={setStatusFilter}
+          renderDealRow={(deal) => {
+            const prec = JOURNAL_PRECISION_MAP[deal.coin] ?? 4;
+            return (
+              <JournalRow
+                key={deal.id}
+                deal={deal}
+                livePrice={livePrice}
+                activeCoin={activeCoin}
+                precision={prec}
+                frozenPnL={frozenPnL}
+                setFrozenPnL={setFrozenPnL}
+                onCoinSelect={onCoinSelect}
+                handleUpdateStatus={handleUpdateStatus}
+                handleDeleteDeal={handleDeleteDeal}
+                activeDeleteId={activeDeleteId}
+                setActiveDeleteId={setActiveDeleteId}
+              />
+            );
+          }}
+        />
       </div>
     </div>
   );
