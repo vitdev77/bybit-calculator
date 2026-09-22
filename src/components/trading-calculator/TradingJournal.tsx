@@ -240,7 +240,8 @@ export default function TradingJournal({
 
   return (
     <div className="w-full bg-transparent flex flex-col px-0.5 sm:px-6 space-y-4">
-      <div className="py-3 sm:py-4 border-b border-border/40 flex flex-col gap-3.5 sm:flex-row sm:items-center justify-between bg-transparent select-none mx-1 sm:mx-0">
+      {/* ФИКС СТРУКТУРЫ: Класс flex-col-reverse на мобильных пускает JournalStats НАВЕРХ, а Live-радар уходит строго ПОД него */}
+      <div className="py-3 sm:py-4 border-b border-border/40 flex flex-col-reverse gap-3.5 sm:flex-row sm:items-center justify-between bg-transparent select-none mx-1 sm:mx-0">
         <div className="flex items-center gap-3 min-w-0 pr-2 flex-1 w-full">
           {activeOpenDeal && livePrice > 0 && (
             <div className="grid grid-cols-2 sm:flex sm:items-center gap-x-3 gap-y-1.5 w-full sm:w-auto text-[10px] font-bold bg-transparent">
@@ -249,7 +250,6 @@ export default function TradingJournal({
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-500" />
                 </span>
-                {/* ФИКС СЕЛЕКТОРА: Заменен нерабочий класс 'xs:inline' на нативный 'sm:inline' */}
                 <span className="text-cyan-600 dark:text-cyan-400 text-[9px] font-black tracking-wider uppercase hidden sm:inline mr-0.5">
                   Live
                 </span>
