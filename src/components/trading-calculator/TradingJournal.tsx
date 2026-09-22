@@ -1,20 +1,11 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import { JournalStats } from "./JournalStats";
 import { JournalTable } from "./JournalTable";
 import { JournalRow } from "./JournalRow";
-import {
-  TrendingUp,
-  TrendingDown,
-  Activity,
-  LogIn,
-  ShieldCheck,
-  Rocket,
-  AlertTriangle,
-} from "lucide-react";
+import { OrderRuntimeMap } from "./OrderRuntimeMap";
 
 interface Deal {
   id: number;
@@ -72,20 +63,6 @@ export default function TradingJournal({
     Record<number, { pnl: number; roi: number }>
   >({});
 
-  const [sessionTakes, setSessionTakes] = useState(() => {
-    if (typeof window !== "undefined") {
-      return Number(localStorage.getItem("journal_session_takes") || 0);
-    }
-    return 0;
-  });
-
-  const [sessionStops, setSessionStops] = useState(() => {
-    if (typeof window !== "undefined") {
-      return Number(localStorage.getItem("journal_session_stops") || 0);
-    }
-    return 0;
-  });
-
   const openDealsCount = deals.filter(
     (d) => d.status?.toUpperCase() === "OPEN",
   ).length;
@@ -99,6 +76,7 @@ export default function TradingJournal({
     const timer = setTimeout(() => setIsChangingCoin(false), 350);
     return () => clearTimeout(timer);
   }, [activeCoin]);
+
   const fetchJournal = useCallback(async () => {
     try {
       const res = await fetch("/api/journal", {
@@ -112,42 +90,6 @@ export default function TradingJournal({
         : data.data && Array.isArray(data.data)
           ? data.data
           : [];
-
-      if (deals.length > 0 && cleanArray.length === deals.length) {
-        cleanArray.forEach((newDeal: Deal) => {
-          const oldDeal = deals.find((o) => o.id === newDeal.id);
-          if (
-            oldDeal &&
-            oldDeal.status === "OPEN" &&
-            newDeal.status !== "OPEN"
-          ) {
-            if (newDeal.status === "PROFIT") {
-              setSessionTakes((prev) => {
-                const next = prev + 1;
-                localStorage.setItem("journal_session_takes", String(next));
-                return next;
-              });
-              toast.add({
-                title: "💥 ТЕЙК-ПРОФИТ СРАБОТАЛ!",
-                description: `${newDeal.coin} закрылся в плюс!`,
-                type: "success",
-              });
-            } else if (newDeal.status === "LOSS") {
-              setSessionStops((prev) => {
-                const next = prev + 1;
-                localStorage.setItem("journal_session_stops", String(next));
-                return next;
-              });
-              toast.add({
-                title: "⚠️ СТОП-ЛОСС СРАБОТАЛ",
-                description: `${newDeal.coin} закрылся по стопу.`,
-                type: "warning",
-              });
-            }
-          }
-        });
-      }
-
       setDeals(cleanArray);
 
       const openCount = cleanArray.filter(
@@ -162,7 +104,7 @@ export default function TradingJournal({
     } finally {
       setLoading(false);
     }
-  }, [onDealsCountChange, deals]);
+  }, [onDealsCountChange]);
 
   useEffect(() => {
     fetchJournal();
@@ -170,20 +112,19 @@ export default function TradingJournal({
     return () =>
       window.removeEventListener("refresh-trading-journal", fetchJournal);
   }, [fetchJournal]);
-
   const exportToCSV = () => {
     if (!deals || deals.length === 0) return;
     const headers = [
       "ID",
-      "Дата создания",
-      "Торговая пара",
-      "Тип ордера",
-      "Объем (USDT)",
-      "Маржа (USDT)",
+      "Дата",
+      "Пара",
+      "Тип",
+      "Объем",
+      "Маржа",
       "Плечо",
-      "Цена входа",
-      "Stop Loss",
-      "Take Profit",
+      "Вход",
+      "SL",
+      "TP",
       "Статус",
     ];
     const rows = deals.map((d) => [
@@ -219,6 +160,7 @@ export default function TradingJournal({
     link.click();
     document.body.removeChild(link);
   };
+
   const handleUpdateStatus = async (
     id: number,
     status: "PROFIT" | "LOSS" | "CLOSED",
@@ -282,315 +224,6 @@ export default function TradingJournal({
   const activeOpenDeal = deals.find(
     (d) => d.status?.toUpperCase() === "OPEN" && d.coin === activeCoin,
   );
-  let monitorStatusBar = null;
-
-  if (isChangingCoin || (loading && activeCoin)) {
-    monitorStatusBar = (
-      <div className="w-full space-y-2.5 pt-2 px-1 select-none">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-3 w-44 rounded" />
-          <Skeleton className="h-4.5 w-32 rounded-md" />
-        </div>
-        <Skeleton className="w-full h-52 rounded-xl border border-border/30" />
-      </div>
-    );
-  } else if (
-    activeOpenDeal &&
-    livePrice > 0 &&
-    activeOpenDeal.stop_loss &&
-    activeOpenDeal.take_profit
-  ) {
-    const isLong = activeOpenDeal.side === "BUY";
-    const isSpot = activeOpenDeal.leverage === 1;
-    const openFeeRate = isSpot
-      ? activeOpenDeal.order_type === "LIMIT"
-        ? 0.00075
-        : 0.00135
-      : activeOpenDeal.order_type === "LIMIT"
-        ? 0.000324
-        : 0.0009;
-    const closeFeeRate = isSpot ? 0.00135 : 0.0009;
-    const totalFeeRate = openFeeRate + closeFeeRate;
-
-    const bPrice = isLong
-      ? activeOpenDeal.entry_price * ((1 + openFeeRate) / (1 - closeFeeRate))
-      : activeOpenDeal.entry_price * ((1 - openFeeRate) / (1 + closeFeeRate));
-
-    const isBuPassed = isLong ? livePrice >= bPrice : livePrice <= bPrice;
-    const pr = JOURNAL_PRECISION_MAP[activeCoin] ?? 4;
-
-    const minScalePrice = Math.min(
-      activeOpenDeal.stop_loss,
-      activeOpenDeal.take_profit,
-    );
-    const maxScalePrice = Math.max(
-      activeOpenDeal.stop_loss,
-      activeOpenDeal.take_profit,
-    );
-    const totalRange = maxScalePrice - minScalePrice;
-
-    const getPercent = (targetPrice: number) => {
-      if (totalRange <= 0) return 50;
-      return Math.min(
-        Math.max(((targetPrice - minScalePrice) / totalRange) * 100, 0),
-        100,
-      );
-    };
-
-    const getVisualPercent = (targetPrice: number) => {
-      const absPct = getPercent(targetPrice);
-      return isLong ? absPct : 100 - absPct;
-    };
-    const slPct = getVisualPercent(activeOpenDeal.stop_loss);
-    const entryPct = getVisualPercent(activeOpenDeal.entry_price);
-    const buPct = getVisualPercent(bPrice);
-    const tpPct = getVisualPercent(activeOpenDeal.take_profit);
-    const livePct = getVisualPercent(livePrice);
-
-    const isTakeProfitBroken = isLong
-      ? livePrice > activeOpenDeal.take_profit
-      : livePrice < activeOpenDeal.take_profit;
-    const isStopLossBroken = isLong
-      ? livePrice < activeOpenDeal.stop_loss
-      : livePrice > activeOpenDeal.stop_loss;
-
-    let liveTranslateX = -50;
-    if (livePct < 20) liveTranslateX = -50 + (20 - livePct) * 2.5;
-    else if (livePct > 80) liveTranslateX = -50 - (livePct - 80) * 2.5;
-
-    const isMovingToProfit = isLong
-      ? livePrice > activeOpenDeal.entry_price
-      : livePrice < activeOpenDeal.entry_price;
-    let liveBgClass = "bg-zinc-500";
-    let liveTextClass = "text-zinc-600 dark:text-zinc-300 border-zinc-500/20";
-    if (isBuPassed) {
-      liveBgClass = "bg-cyan-500";
-      liveTextClass = "text-cyan-600 dark:text-cyan-400 border-cyan-500/20";
-    }
-
-    let StatusTopIcon = Activity;
-    let statusTopBadgeClass = "bg-amber-500/10 text-amber-500";
-    let statusText = "В СПРЕДЕ КОМИССИЙ";
-
-    if (isTakeProfitBroken) {
-      StatusTopIcon = Rocket;
-      statusTopBadgeClass = "bg-purple-500/10 text-purple-500";
-      statusText = "ЦЕЛЬ ДОСТИГНУТА";
-    } else if (isStopLossBroken) {
-      StatusTopIcon = AlertTriangle;
-      statusTopBadgeClass = "bg-rose-500/10 text-rose-500";
-      statusText = "STOP LOSS ПРОБИТ";
-    } else if (!isMovingToProfit) {
-      StatusTopIcon = TrendingDown;
-      statusTopBadgeClass = "bg-rose-500/10 text-rose-500";
-      statusText = "В ЗОНЕ УБЫТКА";
-    } else if (isBuPassed) {
-      StatusTopIcon = ShieldCheck;
-      statusTopBadgeClass = "bg-cyan-500/10 text-cyan-500";
-      statusText = "В БЕЗУБЫТКЕ";
-    }
-
-    monitorStatusBar = (
-      <div className="w-full space-y-2.5 pt-2 px-1 select-none">
-        <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
-          <span>Рантайм-карта ордера {activeCoin}</span>
-          <span
-            className={`px-2 py-0.5 rounded flex items-center gap-1 font-black tracking-wide ${statusTopBadgeClass}`}
-          >
-            <StatusTopIcon className="size-3 shrink-0" />
-            <span>{statusText}</span>
-          </span>
-        </div>
-        <div
-          className="relative w-full bg-muted/10 dark:bg-black/40 border border-border/30 rounded-xl px-4 pt-20 pb-16 sm:px-6 flex flex-col justify-center h-52 shadow-inner overflow-hidden"
-          style={{
-            backgroundImage: `
-              linear-gradient(to right, rgba(120, 119, 198, 0.05) 1px, transparent 1px),
-              linear-gradient(to bottom, rgba(120, 119, 198, 0.05) 1px, transparent 1px)
-            `,
-            backgroundSize: "40px 40px",
-            backgroundPosition: "center center",
-          }}
-        >
-          <div className="relative w-full h-0.75 rounded-full flex items-center">
-            <div
-              className="absolute h-full bg-rose-500 border border-rose-500/10 rounded-l-full"
-              style={{
-                left: `${Math.min(slPct, entryPct)}%`,
-                width: `${Math.abs(entryPct - slPct)}%`,
-              }}
-            />
-            <div
-              className="absolute h-full bg-amber-500 border border-amber-500/10"
-              style={{
-                left: `${Math.min(entryPct, buPct)}%`,
-                width: `${Math.abs(buPct - entryPct)}%`,
-              }}
-            />
-            <div
-              className="absolute h-full bg-emerald-500 border border-emerald-500/10 rounded-r-full"
-              style={{
-                left: `${Math.min(buPct, tpPct)}%`,
-                width: `${Math.abs(tpPct - buPct)}%`,
-              }}
-            />
-            <div
-              className="absolute size-2 bg-rose-500 rounded-full border border-background shadow-sm"
-              style={{ left: `${slPct}%`, transform: "translateX(-50%)" }}
-            />
-            <div
-              className="absolute size-2 bg-foreground rounded-full border border-background shadow-sm"
-              style={{ left: `${entryPct}%`, transform: "translateX(-50%)" }}
-            />
-            <div
-              className="absolute size-1.5 bg-amber-500 rounded-full border border-background shadow-sm"
-              style={{ left: `${buPct}%`, transform: "translateX(-50%)" }}
-            />
-            <div
-              className="absolute size-2 bg-emerald-500 rounded-full border border-background shadow-sm"
-              style={{ left: `${tpPct}%`, transform: "translateX(-100%)" }}
-            />
-
-            {!isTakeProfitBroken && !isStopLossBroken && (
-              <div
-                className="absolute flex flex-col items-center z-20 transition-all duration-700 ease-out"
-                style={{
-                  left: `${livePct}%`,
-                  transform: `translateX(${liveTranslateX}%)`,
-                }}
-              >
-                <div
-                  className={`size-2.5 rounded-full border border-background shadow-md ${liveBgClass}`}
-                />
-                <div
-                  className={`absolute -top-9 bg-background border rounded overflow-hidden shadow-sm text-[10px] h-5 z-30 flex items-center ${liveTextClass}`}
-                >
-                  <span
-                    className={`h-full px-2 flex items-center text-white ${liveBgClass}`}
-                  >
-                    <Activity className="size-3 shrink-0" />
-                  </span>
-                  <span className="pl-1.5 pr-1.5 font-bold flex items-center gap-1.5">
-                    {!isMovingToProfit && (
-                      <TrendingDown className="size-3 text-rose-500 shrink-0 scale-x-[-1]" />
-                    )}
-                    <span>{livePrice.toFixed(pr)}</span>
-                    {isMovingToProfit && (
-                      <TrendingUp className="size-3 text-cyan-500 shrink-0" />
-                    )}
-                  </span>
-                </div>
-                <div className="absolute -top-3 border-l border-muted-foreground/30 h-3 border-dashed" />
-              </div>
-            )}
-            <div
-              className="absolute bottom-0 border-l border-rose-500/20 h-10 border-dashed -translate-x-1/2"
-              style={{ left: `${slPct}%` }}
-            />
-            <div
-              className="absolute bottom-0 border-l border-emerald-500/20 h-10 border-dashed -translate-x-1/2"
-              style={{ left: `${tpPct}%` }}
-            />
-            <div
-              className="absolute top-0 border-l border-muted-foreground/30 h-3.5 border-dashed -translate-x-1/2"
-              style={{ left: `${entryPct}%` }}
-            />
-            <div
-              className="absolute top-0 border-l border-amber-500/20 h-11 border-dashed -translate-x-1/2"
-              style={{ left: `${buPct}%` }}
-            />
-
-            <div
-              className="absolute bottom-11 flex items-center bg-background border border-border/60 rounded overflow-hidden shadow-sm text-[10px] h-5"
-              style={{ left: `${slPct}%` }}
-            >
-              <span className="h-full px-1.5 flex items-center bg-rose-500 text-white text-[8px] font-black uppercase tracking-wider">
-                SL
-              </span>
-              <span className="px-1.5 font-bold text-foreground/90">
-                {activeOpenDeal.stop_loss.toFixed(pr)}
-              </span>
-            </div>
-            {isStopLossBroken && (
-              <div
-                className="absolute bottom-17 flex items-center bg-background border border-rose-500/30 rounded overflow-hidden shadow-[0_0_10px_rgba(225,29,72,0.1)] text-[10px] h-5 z-40"
-                style={{ left: `${slPct}%` }}
-              >
-                <span className="h-full px-2 flex items-center bg-rose-600 text-white">
-                  <AlertTriangle className="size-3 shrink-0" />
-                </span>
-                <span className="px-2 font-black text-rose-600 dark:text-rose-400">
-                  {livePrice.toFixed(pr)}
-                </span>
-              </div>
-            )}
-            <div
-              className="absolute bottom-11 flex items-center bg-background border border-border/60 rounded overflow-hidden shadow-sm text-[10px] h-5"
-              style={{ left: `${tpPct}%`, transform: "translateX(-100%)" }}
-            >
-              <span className="h-full px-1.5 flex items-center bg-emerald-500 text-white text-[8px] font-black uppercase tracking-wider">
-                TP
-              </span>
-              <span className="px-1.5 font-bold text-foreground/90">
-                {activeOpenDeal.take_profit.toFixed(pr)}
-              </span>
-            </div>
-            {isTakeProfitBroken && (
-              <div
-                className="absolute bottom-17 flex items-center bg-background border border-purple-500/30 rounded overflow-hidden shadow-[0_0_10px_rgba(147,51,234,0.1)] text-[10px] h-5 z-40"
-                style={{ left: `${tpPct}%`, transform: "translateX(-100%)" }}
-              >
-                <span className="px-2 font-black text-purple-600 dark:text-purple-400">
-                  {livePrice.toFixed(pr)}
-                </span>
-                <span className="h-full px-2 flex items-center bg-purple-600 text-white">
-                  <Rocket className="size-3 shrink-0" />
-                </span>
-              </div>
-            )}
-            <div
-              className="absolute top-3.75 flex items-center bg-background border border-border/60 rounded overflow-hidden shadow-sm text-[10px] h-5"
-              style={{
-                left: `${entryPct}%`,
-                transform:
-                  entryPct < 15
-                    ? "translateX(0%)"
-                    : entryPct > 85
-                      ? "translateX(-100%)"
-                      : "translateX(-50%)",
-              }}
-            >
-              <span className="h-full px-2 flex items-center bg-primary text-primary-foreground">
-                <LogIn className="size-3 shrink-0" />
-              </span>
-              <span className="px-1.5 font-bold text-foreground/90">
-                {activeOpenDeal.entry_price.toFixed(pr)}
-              </span>
-            </div>
-            <div
-              className="absolute top-11.25 flex items-center bg-background border border-border/60 rounded overflow-hidden shadow-sm text-[10px] h-5"
-              style={{
-                left: `${buPct}%`,
-                transform:
-                  buPct < 15
-                    ? "none"
-                    : buPct > 85
-                      ? "translateX(-100%)"
-                      : "translateX(-50%)",
-              }}
-            >
-              <span className="h-full px-2 flex items-center bg-amber-500 text-white">
-                <ShieldCheck className="size-3 shrink-0" />
-              </span>
-              <span className="px-1.5 font-bold text-foreground/90">
-                {bPrice.toFixed(pr)}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
   const filteredDeals = deals.filter(
     (d) =>
       d.coin.toLowerCase().includes(searchQuery.toLowerCase()) &&
@@ -599,108 +232,85 @@ export default function TradingJournal({
           ? d.status?.toUpperCase() === "OPEN"
           : d.status?.toUpperCase() !== "OPEN")),
   );
-
-  const totalDealsCount = deals.length;
-  const profitDeals = deals.filter(
-    (d) => d.status?.toUpperCase() === "PROFIT",
-  ).length;
-  const lossDeals = deals.filter(
-    (d) => d.status?.toUpperCase() === "LOSS",
-  ).length;
-  const manualClosedDeals = deals.filter(
-    (d) => d.status?.toUpperCase() === "CLOSED",
-  ).length;
-
   const activeDealStoredPnL = activeOpenDeal
     ? frozenPnL[activeOpenDeal.id] || { pnl: 0, roi: 0 }
     : { pnl: 0, roi: 0 };
   const isHeaderProfit = activeDealStoredPnL.pnl >= 0;
+  const pr = JOURNAL_PRECISION_MAP[activeCoin] ?? 4;
 
   return (
     <div className="w-full bg-transparent flex flex-col px-0.5 sm:px-6 space-y-4">
-      <div className="py-3 sm:py-4 border-b border-border/40 flex flex-col gap-3 sm:flex-row sm:items-center justify-between bg-transparent select-none mx-1 sm:mx-0">
-        <div className="flex flex-col min-w-0 pr-2 flex-1 w-full">
-          <div className="flex flex-wrap items-center gap-2 w-full">
-            {sessionTakes > 0 && (
-              <button
-                onClick={() => {
-                  setSessionTakes(0);
-                  localStorage.removeItem("journal_session_takes");
-                }}
-                className="inline-flex items-center justify-center bg-purple-500/10 text-purple-500 border border-purple-500/20 text-[10px] font-black px-1.5 py-0.5 rounded-md animate-pulse cursor-pointer"
-              >
-                +{sessionTakes} TAKE
-              </button>
-            )}
-            {sessionStops > 0 && (
-              <button
-                onClick={() => {
-                  setSessionStops(0);
-                  localStorage.removeItem("journal_session_stops");
-                }}
-                className="inline-flex items-center justify-center bg-rose-500/10 text-rose-500 border border-rose-500/20 text-[10px] font-black px-1.5 py-0.5 rounded-md animate-pulse cursor-pointer"
-              >
-                -{sessionStops} STOP
-              </button>
-            )}
+      <div className="py-3 sm:py-4 border-b border-border/40 flex flex-col gap-3.5 sm:flex-row sm:items-center justify-between bg-transparent select-none mx-1 sm:mx-0">
+        <div className="flex items-center gap-3 min-w-0 pr-2 flex-1 w-full">
+          {activeOpenDeal && livePrice > 0 && (
+            <div className="grid grid-cols-2 sm:flex sm:items-center gap-x-3 gap-y-1.5 w-full sm:w-auto text-[10px] font-bold bg-transparent">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="relative flex h-1.5 w-1.5 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-500" />
+                </span>
+                {/* ФИКС СЕЛЕКТОРА: Заменен нерабочий класс 'xs:inline' на нативный 'sm:inline' */}
+                <span className="text-cyan-600 dark:text-cyan-400 text-[9px] font-black tracking-wider uppercase hidden sm:inline mr-0.5">
+                  Live
+                </span>
+                <span className="text-foreground font-black tracking-tight">
+                  {activeCoin}
+                </span>
+                <span className="text-muted-foreground/60 font-medium">
+                  <span className="hidden sm:inline">Price: </span>
+                  <span className="inline sm:hidden">P: </span>
+                  {livePrice.toFixed(pr)}
+                </span>
+              </div>
 
-            {/* 
-              ФИКС МОБИЛЬНОГО РАДАРА: flex-col на мобильных строит блок в два яруса, 
-              предотвращая горизонтальную обрезку. sm:flex-row возвращает в один ряд на ПК.
-            */}
-            {activeCoin && livePrice > 0 && (
-              <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2 w-full sm:w-auto bg-cyan-950/10 dark:bg-cyan-950/30 border border-cyan-500/30 shadow-[0_0_8px_rgba(6,182,212,0.05)] rounded-xl p-2 sm:px-2.5 sm:py-1 text-[11px] font-bold">
-                {/* Верхний ярус (мобильные) / Левая часть (ПК) */}
-                <div className="flex items-center gap-2">
-                  <span className="relative flex h-1.5 w-1.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-500" />
-                  </span>
-                  <span className="text-cyan-600 dark:text-cyan-400 text-[9px] font-black tracking-wider uppercase">
-                    {activeOpenDeal ? "МОНИТОРИНГ" : "ВЫБРАНО"}
-                  </span>
-                  <div className="h-3 w-px bg-border/40 mx-0.5 hidden sm:block" />
-                  <span className="text-foreground font-black ml-1 sm:ml-0">
-                    {activeCoin}
-                  </span>
-                  {activeOpenDeal && (
-                    <span
-                      className={`text-[9px] px-1 rounded text-white font-black tracking-wide ${activeOpenDeal.side === "BUY" ? "bg-emerald-500" : "bg-rose-500"}`}
-                    >
-                      {activeOpenDeal.side === "BUY" ? "LONG" : "SHORT"}
-                    </span>
-                  )}
-                </div>
-
-                {/* Нижний ярус (мобильные) / Правая часть (ПК) */}
-                {activeOpenDeal && (
-                  <div className="flex items-center pl-3.5 sm:pl-0 border-t border-border/10 sm:border-0 pt-1.5 sm:pt-0 mt-1 sm:mt-0">
-                    <span
-                      className={`font-black tracking-tight ${isHeaderProfit ? "text-emerald-500" : "text-rose-500"}`}
-                    >
-                      {isHeaderProfit ? "+" : ""}
-                      {activeDealStoredPnL.roi.toFixed(2)}% (
-                      {isHeaderProfit ? "+" : ""}
+              <div className="flex items-center gap-1.5 flex-wrap justify-end sm:justify-start">
+                <span
+                  className={`text-[8px] px-1 rounded text-white font-black leading-none py-0.5 ${activeOpenDeal.side === "BUY" ? "bg-emerald-500" : "bg-rose-500"}`}
+                >
+                  {activeOpenDeal.side === "BUY" ? "L" : "S"}
+                </span>
+                <span className="text-muted-foreground/60 font-medium">
+                  <span className="hidden sm:inline">Vol: </span>
+                  <span className="inline sm:hidden">V: </span>
+                  {activeOpenDeal.volume.toFixed(2)}
+                </span>
+                <div className="flex items-center font-black sm:ml-1">
+                  <div className="h-2.5 w-px bg-border/40 mx-1.5 hidden sm:block" />
+                  <span
+                    className={
+                      isHeaderProfit ? "text-emerald-500" : "text-rose-500"
+                    }
+                  >
+                    {isHeaderProfit ? "+" : ""}
+                    {activeDealStoredPnL.roi.toFixed(2)}%
+                    <span className="text-[9px] font-medium opacity-80 ml-0.5">
+                      ({isHeaderProfit ? "+" : ""}
                       {activeDealStoredPnL.pnl.toFixed(3)} USDT)
                     </span>
-                  </div>
-                )}
+                  </span>
+                </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
         <JournalStats
-          totalDeals={totalDealsCount}
-          profitDeals={profitDeals}
-          lossDeals={lossDeals}
-          manualClosedDeals={manualClosedDeals}
+          totalDeals={deals.length}
+          profitDeals={deals.filter((d) => d.status === "PROFIT").length}
+          lossDeals={deals.filter((d) => d.status === "LOSS").length}
+          manualClosedDeals={deals.filter((d) => d.status === "CLOSED").length}
           isClearOpen={isClearOpen}
           setIsClearOpen={setIsClearOpen}
           exportToCSV={exportToCSV}
           handleClearAllDeals={handleClearAllDeals}
         />
       </div>
-      {monitorStatusBar}
+
+      <OrderRuntimeMap
+        activeOpenDeal={activeOpenDeal}
+        livePrice={livePrice}
+        precision={pr}
+      />
+
       <div className="py-2 overflow-hidden">
         <JournalTable
           filteredDeals={filteredDeals}
