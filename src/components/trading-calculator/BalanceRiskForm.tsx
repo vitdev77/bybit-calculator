@@ -40,12 +40,10 @@ export default function BalanceRiskForm({
 }: BalanceRiskFormProps) {
   const partsPresets = [1, 2, 3, 5, 10];
 
-  // Создаем ссылки для нативного перехвата прокрутки мыши
   const balanceRef = useRef<HTMLInputElement>(null);
   const riskRef = useRef<HTMLInputElement>(null);
   const leverageRef = useRef<HTMLInputElement>(null);
 
-  // НАМЕРТВО ИСПРАВЛЯЕМ ОШИБКУ UNABLE TO PREVENTDEFAULT
   useEffect(() => {
     const handleBalanceWheel = (e: WheelEvent) => {
       e.preventDefault();
@@ -70,7 +68,6 @@ export default function BalanceRiskForm({
     const rEl = riskRef.current;
     const lEl = leverageRef.current;
 
-    // Подключаем слушатели в АКТИВНОМ режиме (passive: false)
     if (bEl)
       bEl.addEventListener("wheel", handleBalanceWheel, { passive: false });
     if (rEl) rEl.addEventListener("wheel", handleRiskWheel, { passive: false });
@@ -91,15 +88,14 @@ export default function BalanceRiskForm({
     setRiskPercent,
     setLeverage,
   ]);
-
   return (
     <div className="space-y-4">
-      {/* КНОПКИ НАПРАВЛЕНИЯ ПОЗИЦИИ */}
+      {/* КНОПКИ НАПРАВЛЕНИЯ ПОЗИЦИИ (Увеличены на мобильных до h-12) */}
       <div className="grid grid-cols-2 gap-2.5">
         <button
           type="button"
           onClick={() => setSide("BUY")}
-          className={`h-11 sm:h-12 rounded-xl text-sm sm:text-base font-black transition-all cursor-pointer select-none tracking-wider ${
+          className={`h-12 sm:h-11 rounded-xl text-sm sm:text-base font-black transition-all cursor-pointer select-none tracking-wider ${
             side === "BUY"
               ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 active:scale-[0.98]"
               : "bg-muted/40 hover:bg-muted/60 text-muted-foreground"
@@ -110,7 +106,7 @@ export default function BalanceRiskForm({
         <button
           type="button"
           onClick={() => setSide("SELL")}
-          className={`h-11 sm:h-12 rounded-xl text-sm sm:text-base font-black transition-all cursor-pointer select-none tracking-wider ${
+          className={`h-12 sm:h-11 rounded-xl text-sm sm:text-base font-black transition-all cursor-pointer select-none tracking-wider ${
             side === "SELL"
               ? "bg-rose-500 text-white shadow-lg shadow-rose-500/20 active:scale-[0.98]"
               : "bg-muted/40 hover:bg-muted/60 text-muted-foreground"
@@ -119,6 +115,7 @@ export default function BalanceRiskForm({
           SHORT (SELL)
         </button>
       </div>
+
       {/* ТРЕХКОЛОНОЧНЫЙ РЯД КЛЮЧЕВЫХ ПАРАМЕТРОВ ОРДЕРА */}
       <div className="grid grid-cols-3 gap-2 sm:gap-3 items-start">
         {/* ДЕПОЗИТ */}
@@ -135,7 +132,7 @@ export default function BalanceRiskForm({
               const val = parseFloat(e.target.value);
               setBalance(isNaN(val) || val < 0 ? 0 : val);
             }}
-            className={`h-9 text-xs font-bold transition-all ${
+            className={`h-9.5 sm:h-9 text-xs font-bold transition-all ${
               balance <= 0
                 ? "border-rose-500/60 ring-2 ring-rose-500/20 text-rose-500 bg-rose-500/5"
                 : "bg-muted/20 border-border/40"
@@ -159,7 +156,7 @@ export default function BalanceRiskForm({
               const val = parseFloat(e.target.value);
               setRiskPercent(isNaN(val) || val < 0 ? 0 : val);
             }}
-            className={`h-9 text-xs font-bold transition-all ${
+            className={`h-9.5 sm:h-9 text-xs font-bold transition-all ${
               riskPercent > 5
                 ? "border-rose-500/60 ring-2 ring-rose-500/20 text-rose-500 bg-rose-500/5"
                 : riskPercent === 0
@@ -186,7 +183,7 @@ export default function BalanceRiskForm({
                 if (val > maxSafeLeverage) val = maxSafeLeverage;
                 setLeverage(val);
               }}
-              className={`h-9 text-xs font-bold transition-all bg-muted/20 border-border/40 ${
+              className={`h-9.5 sm:h-9 text-xs font-bold transition-all bg-muted/20 border-border/40 ${
                 isLeverageModified
                   ? "border-amber-500/60 ring-2 ring-amber-500/20 text-amber-500 pr-7"
                   : "pr-2"
@@ -197,7 +194,7 @@ export default function BalanceRiskForm({
                 type="button"
                 variant="ghost"
                 onClick={onAutoLeverage}
-                className="absolute right-0.5 h-7 w-7 p-0 text-amber-500 hover:text-amber-600 bg-transparent flex items-center justify-center rounded-md hover:bg-amber-500/10 transition-colors"
+                className="absolute right-0.5 h-8 w-7 p-0 text-amber-500 hover:text-amber-600 bg-transparent flex items-center justify-center rounded-md hover:bg-amber-500/10 transition-colors"
                 title="Вернуть расчетное идеальное плечо"
               >
                 <RotateCcw className="size-3.5 shrink-0" />
@@ -217,8 +214,8 @@ export default function BalanceRiskForm({
           onValueChange={(val) => setPartsCount(Number(val) || 1)}
           className="w-full"
         >
-          <TabsList className="w-full h-9 grid grid-cols-5 p-0.5 bg-muted/40 dark:bg-muted/10 border border-border/40 rounded-xl shadow-inner">
-            {partsPresets.map((preset) => (
+          <TabsList className="w-full h-9.5 sm:h-9 grid grid-cols-5 p-0.5 bg-muted/40 dark:bg-muted/10 border border-border/40 rounded-xl shadow-inner">
+            {[1, 2, 3, 5, 10].map((preset) => (
               <TabsTrigger
                 key={`preset-${preset}`}
                 value={String(preset)}

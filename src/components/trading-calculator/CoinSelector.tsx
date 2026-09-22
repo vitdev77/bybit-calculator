@@ -34,6 +34,7 @@ export const AVAILABLE_COINS = [
   "NEARUSDT",
   "LINKUSDT",
 ];
+
 export default function CoinSelector({
   selectedCoin,
   onCoinChange,
@@ -42,16 +43,13 @@ export default function CoinSelector({
 }: CoinSelectorProps) {
   return (
     <div className="space-y-1.5 w-full">
-      {/* 
-        ФИКС РЕГЛАМЕНТА: grid-cols-2 жестко держит элементы в одну линию.
-        gap-1.5 уменьшен, чтобы на узких экранах инпуты не сжимались.
-      */}
-      <div className="grid grid-cols-2 gap-1.5 sm:gap-2 w-full items-center">
+      {/* СЕТКА ПАРАМЕТРОВ: Жестко держит элементы в одну линию */}
+      <div className="grid grid-cols-2 gap-2.5 w-full items-center">
         {/* ЛЕВАЯ КОЛОНКА: Торговая пара */}
         <div className="space-y-1 w-full min-w-0">
           <Label
             htmlFor="coin-select"
-            className="text-[10px] sm:text-xs truncate block"
+            className="text-[10px] sm:text-xs text-muted-foreground truncate block font-bold uppercase tracking-wider"
           >
             Торговая пара
           </Label>
@@ -61,32 +59,36 @@ export default function CoinSelector({
               if (value) onCoinChange(value);
             }}
           >
+            {/* ФИКС ВЫСОТЫ: Перебиваем базовый класс на h-9! для мобильных */}
             <SelectTrigger
               id="coin-select"
-              className="h-9! m-0! w-full bg-background border border-input shadow-none text-[11px] sm:text-sm px-1.5 sm:px-2.5"
+              className="w-full bg-background border border-input shadow-none text-[11px] sm:text-sm px-2 h-9! md:h-8!"
             >
               <SelectValue placeholder="Монета" />
             </SelectTrigger>
             <SelectContent>
-              {AVAILABLE_COINS.map((coin) => (
-                <SelectItem
-                  key={coin}
-                  value={coin}
-                  className="text-xs sm:text-sm"
-                >
-                  {coin}
-                </SelectItem>
-              ))}
+              {AVAILABLE_COINS.map((coin) => {
+                return (
+                  <SelectItem
+                    key={coin}
+                    value={coin}
+                    className="text-xs sm:text-sm"
+                  >
+                    {coin}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </div>
 
         {/* ПРАВАЯ КОЛОНКА: Тип ордера */}
         <div className="space-y-1 w-full min-w-0">
-          <Label className="text-[10px] sm:text-xs truncate block">
+          <Label className="text-[10px] sm:text-xs text-muted-foreground truncate block font-bold uppercase tracking-wider">
             Тип ордера
           </Label>
-          <ButtonGroup className="w-full h-9 flex">
+          {/* ФИКС ВЫСОТЫ: Приводим к абсолютно идентичному размеру h-9 на мобильных */}
+          <ButtonGroup className="w-full flex h-9 md:h-8">
             <Button
               type="button"
               variant={orderType === "MARKET" ? "default" : "outline"}
