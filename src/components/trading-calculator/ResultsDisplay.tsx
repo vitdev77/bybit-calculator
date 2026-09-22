@@ -43,11 +43,15 @@ export default function ResultsDisplay({
   const [copiedTP, setCopiedTP] = useState(false);
   const [copiedSL, setCopiedSL] = useState(false);
 
-  const totalFeeRate = (orderType === "LIMIT" ? 0.0002 : 0.00055) + 0.00055;
+  // Ставки VIP 0: Maker 0.02% / Taker 0.055%
+  const isSpot = results.selectedLeverage === 1;
+  const openFeeRate = isSpot ? 0.001 : orderType === "LIMIT" ? 0.0002 : 0.00055;
+  const closeFeeRate = isSpot ? 0.001 : 0.00055;
 
+  // Точная цена безубытка для VIP 0
   const breakevenPrice = isLong
-    ? entryPrice * (1 + totalFeeRate)
-    : entryPrice * (1 - totalFeeRate);
+    ? entryPrice * ((1 + openFeeRate) / (1 - closeFeeRate))
+    : entryPrice * ((1 - openFeeRate) / (1 + closeFeeRate));
 
   const cryptoPrecision =
     results.decimals === 2 ? 3 : results.decimals === 5 ? 1 : 2;
@@ -58,7 +62,6 @@ export default function ResultsDisplay({
       : 0;
 
   const maxLossPercent = (results.riskAmount / (results.marginUsed || 1)) * 100;
-
   const handleCopy = (
     value: number,
     type: "entry" | "volume" | "tp" | "sl",
@@ -83,6 +86,7 @@ export default function ResultsDisplay({
       setTimeout(() => setCopiedSL(false), 2000);
     }
   };
+
   const handleSaveToJournal = async () => {
     if (entryPrice <= 0 || results.positionSizeUsdt <= 0) return;
     setIsSaving(true);
@@ -169,7 +173,6 @@ export default function ResultsDisplay({
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
             Параметры для ордера Bybit
           </span>
-
           <div className="flex items-center gap-1.5">
             <span
               style={{ padding: "0px 4px" }}
@@ -335,6 +338,7 @@ export default function ResultsDisplay({
           </div>
         </div>
       </div>
+
       {/* СЕКЦИЯ 3: Параметры маржинального объема позиции */}
       <div className="grid grid-cols-3 gap-2 border-t border-border/30 pt-2.5 items-center text-center">
         <div className="flex flex-col justify-center min-h-10.5">
@@ -365,7 +369,7 @@ export default function ResultsDisplay({
         </div>
       </div>
 
-      {/* СЕКЦИЯ 4: Кнопка фиксации сделки (Увеличена до h-11 sm:h-12, шрифт text-sm) */}
+      {/* СЕКЦИЯ 4: Кнопка фиксации сделки */}
       <div className="w-full pt-1">
         <button
           type="button"

@@ -83,6 +83,7 @@ interface TradingCalculatorProps {
   externalPartsCount: number;
   setExternalPartsCount: (v: number) => void;
 }
+
 export default function TradingCalculator({
   selectedCoin,
   setSelectedCoin,
@@ -114,7 +115,6 @@ export default function TradingCalculator({
       : 4;
   const maxSafeLeverage =
     selectedCoin === "BTCUSDT" || selectedCoin === "ETHUSDT" ? 100 : 50;
-
   const [results, setResults] = useState({
     riskAmount: 0,
     positionSizeCrypto: 0,
@@ -176,8 +176,16 @@ export default function TradingCalculator({
   const getCalculatedIdealLeverage = useCallback(() => {
     const baseRiskAmount = (balance * riskPercent) / 100;
     const allocatedMarginMax = balance / partsCount;
-    const openFeeRate = orderType === "MARKET" ? 0.0009 : 0.000324;
-    const totalFeeRate = openFeeRate + 0.0009;
+
+    // Ставки VIP 0: Maker 0.02% (0.0002) / Taker 0.055% (0.00055)
+    const isSpot = leverage === 1;
+    const openFeeRate = isSpot
+      ? 0.001
+      : orderType === "LIMIT"
+        ? 0.0002
+        : 0.00055;
+    const closeFeeRate = isSpot ? 0.001 : 0.00055;
+    const totalFeeRate = openFeeRate + closeFeeRate;
     const priceLossFactor = stopLossPercent / 100;
 
     const idealPositionSizeUsdt =
@@ -205,6 +213,7 @@ export default function TradingCalculator({
     orderType,
     stopLossPercent,
     maxSafeLeverage,
+    leverage,
   ]);
 
   useEffect(() => {
@@ -264,6 +273,7 @@ export default function TradingCalculator({
   const handlePriceApply = (price: number) => {
     if (price > 0) setEntryPrice(price);
   };
+
   const handleCoinChange = (newCoin: string) => {
     setSelectedCoin(newCoin);
   };
@@ -329,7 +339,6 @@ export default function TradingCalculator({
     partsCount,
     isLoaded,
   ]);
-
   useEffect(() => {
     if (entryPrice <= 0 || stopLossPercent <= 0 || balance <= 0) return;
 
@@ -347,11 +356,12 @@ export default function TradingCalculator({
         : 1 - (stopLossPercent * riskRewardRatio) / 100);
 
     const isSpot = leverage === 1;
-    const activeTaker = isSpot ? 0.00135 : 0.0009;
-    const activeMaker = isSpot ? 0.00075 : 0.000324;
-
-    const openFeeRate = orderType === "MARKET" ? activeTaker : activeMaker;
-    const closeFeeRate = activeTaker;
+    const openFeeRate = isSpot
+      ? 0.001
+      : orderType === "LIMIT"
+        ? 0.0002
+        : 0.00055;
+    const closeFeeRate = isSpot ? 0.001 : 0.00055;
     const totalFeeRate = openFeeRate + closeFeeRate;
     const priceLossFactor = stopLossPercent / 100;
 
@@ -364,9 +374,7 @@ export default function TradingCalculator({
     }
 
     const positionSizeCrypto = positionSizeUsdt / entryPrice;
-    const openFee = positionSizeUsdt * openFeeRate;
-    const closeFee = positionSizeUsdt * closeFeeRate;
-    const totalFeeUsdt = openFee + closeFee;
+    const totalFeeUsdt = positionSizeUsdt * totalFeeRate;
     const rawLossUsdt =
       positionSizeCrypto * Math.abs(entryPrice - stopLossPrice);
 
@@ -413,7 +421,7 @@ export default function TradingCalculator({
     maxSafeLeverage,
     partsCount,
   ]);
-  // Профессиональный скелетон-слой для предотвращения Layout Shift (Hydration Fix)
+
   if (!isLoaded) {
     return (
       <div className="w-full p-1.5 sm:p-4 space-y-3 sm:space-y-4 select-none">

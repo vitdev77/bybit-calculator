@@ -4,7 +4,6 @@ import React, { useEffect, useState, useCallback } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import { JournalStats } from "./JournalStats";
-import { JournalFilters } from "./JournalFilters";
 import { JournalTable } from "./JournalTable";
 import { JournalRow } from "./JournalRow";
 import {
@@ -122,7 +121,6 @@ export default function TradingJournal({
     return () =>
       window.removeEventListener("refresh-trading-journal", fetchJournal);
   }, [fetchJournal]);
-
   const exportToCSV = () => {
     if (!deals || deals.length === 0) return;
     const headers = [
@@ -236,15 +234,14 @@ export default function TradingJournal({
   );
   let monitorStatusBar = null;
 
-  // ИСПРАВЛЕНО: Убрали внешние паддинги и установили монолиту чистую высоту h-[208px]
   if (isChangingCoin || (loading && activeCoin)) {
     monitorStatusBar = (
-      <div className="w-full px-1 select-none">
-        <Skeleton className="w-full h-52 rounded-xl flex items-center justify-center border border-border/30">
-          <span className="text-xs text-muted-foreground/60">
-            Загрузка данных...
-          </span>
-        </Skeleton>
+      <div className="w-full space-y-2.5 pt-2 px-1 select-none">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-3 w-44 rounded" />
+          <Skeleton className="h-4.5 w-32 rounded-md" />
+        </div>
+        <Skeleton className="w-full h-52 rounded-xl border border-border/30" />
       </div>
     );
   } else if (
@@ -254,20 +251,21 @@ export default function TradingJournal({
     activeOpenDeal.take_profit
   ) {
     const isLong = activeOpenDeal.side === "BUY";
-    const openFeeRate =
-      activeOpenDeal.leverage === 1
-        ? activeOpenDeal.order_type === "LIMIT"
-          ? 0.00075
-          : 0.00135
-        : activeOpenDeal.order_type === "LIMIT"
-          ? 0.000324
-          : 0.0009;
-    const closeFeeRate = activeOpenDeal.leverage === 1 ? 0.00135 : 0.0009;
+    const isSpot = activeOpenDeal.leverage === 1;
+    const openFeeRate = isSpot
+      ? activeOpenDeal.order_type === "LIMIT"
+        ? 0.00075
+        : 0.00135
+      : activeOpenDeal.order_type === "LIMIT"
+        ? 0.000324
+        : 0.0009;
+    const closeFeeRate = isSpot ? 0.00135 : 0.0009;
     const totalFeeRate = openFeeRate + closeFeeRate;
 
     const bPrice = isLong
-      ? activeOpenDeal.entry_price * (1 + totalFeeRate)
-      : activeOpenDeal.entry_price * (1 - totalFeeRate);
+      ? activeOpenDeal.entry_price * ((1 + openFeeRate) / (1 - closeFeeRate))
+      : activeOpenDeal.entry_price * ((1 - openFeeRate) / (1 + closeFeeRate));
+
     const isBuPassed = isLong ? livePrice >= bPrice : livePrice <= bPrice;
     const pr = JOURNAL_PRECISION_MAP[activeCoin] ?? 4;
 
@@ -333,6 +331,10 @@ export default function TradingJournal({
       StatusTopIcon = AlertTriangle;
       statusTopBadgeClass = "bg-rose-500/10 text-rose-500";
       statusText = "STOP LOSS ПРОБИТ";
+    } else if (!isMovingToProfit) {
+      StatusTopIcon = TrendingDown;
+      statusTopBadgeClass = "bg-rose-500/10 text-rose-500";
+      statusText = "В ЗОНЕ УБЫТКА";
     } else if (isBuPassed) {
       StatusTopIcon = ShieldCheck;
       statusTopBadgeClass = "bg-cyan-500/10 text-cyan-500";
@@ -349,10 +351,20 @@ export default function TradingJournal({
             <span>{statusText}</span>
           </span>
         </div>
-        {/* ИСПРАВЛЕНО: Высота карты зафиксирована жестко на h-[208px], паддинги pt-20 pb-16 идеально центрируют ось */}
-        <div className="relative w-full bg-muted/20 border border-border/30 rounded-xl px-4 pt-20 pb-16 sm:px-6 flex flex-col justify-center h-52 shadow-sm">
+        <div
+          className="relative w-full bg-muted/10 dark:bg-black/40 border border-border/30 rounded-xl px-4 pt-20 pb-16 sm:px-6 flex flex-col justify-center h-52 shadow-inner overflow-hidden"
+          style={{
+            backgroundImage: `
+              linear-gradient(to right, rgba(120, 119, 198, 0.05) 1px, transparent 1px),
+              linear-gradient(to bottom, rgba(120, 119, 198, 0.05) 1px, transparent 1px),
+              linear-gradient(to right, rgba(120, 119, 198, 0.02) 1px, transparent 1px),
+              linear-gradient(to bottom, rgba(120, 119, 198, 0.02) 1px, transparent 1px)
+            `,
+            backgroundSize: "40px 40px, 40px 40px, 8px 8px, 8px 8px",
+            backgroundPosition: "center center",
+          }}
+        >
           <div className="relative w-full h-0.75 rounded-full flex items-center">
-            {/* 🔴 Сплошная красная линия: ЗОНА УБЫТКА */}
             <div
               className="absolute h-full bg-rose-500 border border-rose-500/10 shadow-[0_0_4px_rgba(244,63,94,0.2)] rounded-l-full"
               style={{
@@ -360,8 +372,6 @@ export default function TradingJournal({
                 width: `${Math.abs(entryPct - slPct)}%`,
               }}
             />
-
-            {/* 🟡 Сплошная желтая линия: Комиссионный спред */}
             <div
               className="absolute h-full bg-amber-500 border border-amber-500/10 shadow-[0_0_4px_rgba(245,158,11,0.2)]"
               style={{
@@ -369,8 +379,6 @@ export default function TradingJournal({
                 width: `${Math.abs(buPct - entryPct)}%`,
               }}
             />
-
-            {/* 🟢 Сплошная зеленая линия: ЗОНА ЧИСТОЙ ПРИБЫЛИ */}
             <div
               className="absolute h-full bg-emerald-500 border border-emerald-500/10 shadow-[0_0_4px_rgba(16,185,129,0.2)] rounded-r-full"
               style={{
@@ -378,8 +386,6 @@ export default function TradingJournal({
                 width: `${Math.abs(tpPct - buPct)}%`,
               }}
             />
-
-            {/* Круглые опорные узлы уровней на трехцветной прямой */}
             <div
               className="absolute size-2 bg-rose-500 rounded-full border border-background shadow-sm"
               style={{ left: `${slPct}%`, transform: "translateX(-50%)" }}
@@ -394,7 +400,7 @@ export default function TradingJournal({
             />
             <div
               className="absolute size-2 bg-emerald-500 rounded-full border border-background shadow-sm"
-              style={{ left: `${tpPct}%`, transform: "translateX(-50%)" }}
+              style={{ left: `${tpPct}%`, transform: "translateX(-100%)" }}
             />
 
             {!isTakeProfitBroken && !isStopLossBroken && (
@@ -445,6 +451,7 @@ export default function TradingJournal({
               className="absolute top-0 border-l border-amber-500/20 h-11 border-dashed -translate-x-1/2"
               style={{ left: `${buPct}%` }}
             />
+
             <div
               className="absolute bottom-11 flex items-center bg-background border border-border/60 rounded overflow-hidden shadow-sm text-[10px] h-5"
               style={{ left: `${slPct}%` }}
@@ -544,6 +551,7 @@ export default function TradingJournal({
           ? d.status?.toUpperCase() === "OPEN"
           : d.status?.toUpperCase() !== "OPEN")),
   );
+
   const totalDealsCount = deals.length;
   const profitDeals = deals.filter(
     (d) => d.status?.toUpperCase() === "PROFIT",
@@ -555,13 +563,38 @@ export default function TradingJournal({
     (d) => d.status?.toUpperCase() === "CLOSED",
   ).length;
 
+  const activeDealStoredPnL = activeOpenDeal
+    ? frozenPnL[activeOpenDeal.id] || { pnl: 0, roi: 0 }
+    : { pnl: 0, roi: 0 };
+  const isHeaderProfit = activeDealStoredPnL.pnl >= 0;
+
   return (
     <div className="w-full bg-transparent flex flex-col px-0.5 sm:px-6 space-y-4">
       <div className="py-3 sm:py-4 border-b border-border/40 flex flex-col gap-3 sm:flex-row sm:items-center justify-between bg-transparent select-none mx-1 sm:mx-0">
         <div className="flex flex-col min-w-0 pr-2 flex-1">
-          <h2 className="text-base sm:text-lg font-black tracking-tight text-foreground truncate">
-            Открытые сделки ({openDealsCount})
-          </h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-base sm:text-lg font-black tracking-tight text-foreground truncate">
+              Открытые сделки ({openDealsCount})
+            </h2>
+            {activeOpenDeal && livePrice > 0 && (
+              <div className="flex items-center gap-1.5 shrink-0 bg-muted/40 dark:bg-muted/10 border border-border/30 rounded-lg px-2 py-0.5 text-[11px] font-bold">
+                <span className="text-foreground">{activeOpenDeal.coin}</span>
+                <span
+                  className={`text-[9px] px-1 rounded text-white ${activeOpenDeal.side === "BUY" ? "bg-emerald-500" : "bg-rose-500"}`}
+                >
+                  {activeOpenDeal.side === "BUY" ? "LONG" : "SHORT"}
+                </span>
+                <span
+                  className={`ml-1 font-black ${isHeaderProfit ? "text-emerald-500" : "text-rose-500"}`}
+                >
+                  {isHeaderProfit ? "+" : ""}
+                  {activeDealStoredPnL.roi.toFixed(2)}% (
+                  {isHeaderProfit ? "+" : ""}
+                  {activeDealStoredPnL.pnl.toFixed(3)} USDT)
+                </span>
+              </div>
+            )}
+          </div>
         </div>
         <JournalStats
           totalDeals={totalDealsCount}
@@ -574,14 +607,7 @@ export default function TradingJournal({
           handleClearAllDeals={handleClearAllDeals}
         />
       </div>
-      <div className="py-2 sm:py-3 mx-1 sm:mx-0">
-        <JournalFilters
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
-        />
-      </div>
+      {/* ФИКС: УБРАЛИ ОТДЕЛЬНЫЙ ВНЕШНИЙ РЯД С ФИЛЬТРАМИ JournalFilters */}
       {monitorStatusBar}
       <div className="py-2 overflow-hidden">
         {loading ? (
@@ -594,32 +620,15 @@ export default function TradingJournal({
               <Skeleton className="h-4 w-20" />
               <Skeleton className="h-4 w-16 md:ml-auto" />
             </div>
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div
-                key={i}
-                className="grid grid-cols-6 gap-4 items-center py-1 border-b border-border/10 last:border-0"
-              >
-                <div className="flex items-center gap-2">
-                  <Skeleton className="size-3.5 rounded-full" />
-                  <Skeleton className="h-3 w-14" />
-                </div>
-                <Skeleton className="h-4 w-16" />
-                <Skeleton className="h-3 w-10" />
-                <div className="space-y-1">
-                  <Skeleton className="h-3 w-12" />
-                  <Skeleton className="h-2 w-16 opacity-60" />
-                </div>
-                <Skeleton className="h-4 w-16" />
-                <div className="flex justify-end gap-1">
-                  <Skeleton className="size-6 rounded-md" />
-                  <Skeleton className="size-6 rounded-md" />
-                </div>
-              </div>
-            ))}
           </div>
         ) : (
+          /* ПЕРЕДАЕМ СТЕЙТЫ УПРАВЛЕНИЯ ФИЛЬТРАЦИЕЙ ВНУТРЬ ТАБЛИЦЫ */
           <JournalTable
             filteredDeals={filteredDeals}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
             renderDealRow={(deal) => {
               const prec = JOURNAL_PRECISION_MAP[deal.coin] ?? 4;
               return (

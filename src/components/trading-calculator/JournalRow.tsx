@@ -75,6 +75,7 @@ export function JournalRow({
   const isOpen = deal.status?.toUpperCase() === "OPEN";
   const [isMovingToBu, setIsMovingToBu] = useState(false);
 
+  // Строго ваши комиссии: Спот 0.135%/0.075%, Фьючерсы Taker 0.09% / Maker 0.0324%
   const isSpot = deal.leverage === 1;
   const openFeeRate = isSpot
     ? deal.order_type === "LIMIT"
@@ -87,9 +88,10 @@ export function JournalRow({
   const closeFeeRate = isSpot ? 0.00135 : 0.0009;
   const totalFeeRate = openFeeRate + closeFeeRate;
 
+  // Точная цена безубытка по вашим комиссиям
   const breakevenPrice = isLong
-    ? deal.entry_price * (1 + totalFeeRate)
-    : deal.entry_price * (1 - totalFeeRate);
+    ? deal.entry_price * ((1 + openFeeRate) / (1 - closeFeeRate))
+    : deal.entry_price * ((1 - openFeeRate) / (1 + closeFeeRate));
 
   let pnlDisplay = null;
   const isCurrentActiveCoin = activeCoin === deal.coin;
@@ -103,7 +105,6 @@ export function JournalRow({
   let isBreakevenPassed = false;
   const isAlreadyInBreakeven =
     Math.abs(deal.stop_loss - breakevenPrice) < 0.00001;
-
   if (isOpen && isCurrentActiveCoin && isPriceValid) {
     isSlTriggered = isLong
       ? livePrice <= deal.stop_loss
@@ -209,8 +210,7 @@ export function JournalRow({
       const priceDiff = isLong
         ? targetPrice - deal.entry_price
         : deal.entry_price - targetPrice;
-      const finalPnlUsdt =
-        priceDiff * cryptoQty - deal.volume * (openFeeRate + closeFeeRate);
+      const finalPnlUsdt = priceDiff * cryptoQty - deal.volume * totalFeeRate;
       const finalRoi =
         deal.margin > 0.01 ? (finalPnlUsdt / deal.margin) * 100 : 0;
 
@@ -235,7 +235,6 @@ export function JournalRow({
       );
     }
   }
-
   const handleMoveToBreakevenClick = async () => {
     if (isMovingToBu || isAlreadyInBreakeven) return;
     setIsMovingToBu(true);
@@ -280,6 +279,7 @@ export function JournalRow({
       : !isOpen
         ? "opacity-55 hover:bg-muted/40 hover:opacity-100"
         : "hover:bg-muted/40";
+
   return (
     <TableRow
       className={`transition-all border-b border-border/10 ${rowClass}`}
