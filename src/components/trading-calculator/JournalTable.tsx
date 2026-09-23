@@ -5,7 +5,6 @@ import { Table, TableBody, TableRow } from "@/components/ui/table";
 import { JournalHeader } from "./JournalHeader";
 import { JournalFilters } from "./JournalFilters";
 
-// ФИКС ИНТЕРФЕЙСА: Оставляем только чистые пропсы фильтрации, без кнопок действий
 interface JournalTableProps {
   filteredDeals: any[];
   searchQuery: string;
@@ -13,6 +12,11 @@ interface JournalTableProps {
   statusFilter: string;
   setStatusFilter: (val: string) => void;
   renderDealRow: (deal: any) => React.ReactNode;
+  totalDeals: number;
+  isClearOpen: boolean;
+  setIsClearOpen: (open: boolean) => void;
+  exportToCSV: () => void;
+  handleClearAllDeals: () => void;
 }
 
 export function JournalTable({
@@ -22,16 +26,26 @@ export function JournalTable({
   statusFilter,
   setStatusFilter,
   renderDealRow,
+  totalDeals,
+  isClearOpen,
+  setIsClearOpen,
+  exportToCSV,
+  handleClearAllDeals,
 }: JournalTableProps) {
   return (
     <div className="w-full rounded-xl border border-border/50 bg-background shadow-xs overflow-hidden flex flex-col">
-      {/* ПАНЕЛЬ ФИЛЬТРАЦИИ: Отображает только строку поиска и вкладки статусов */}
+      {/* ИНТЕГРИРОВАННАЯ СТРОКА: Передаем функции кнопок в компонент фильтров */}
       <div className="w-full flex items-center justify-start bg-muted/30 dark:bg-muted/10 px-3.5 py-2.5 border-b border-border/30">
         <JournalFilters
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           statusFilter={statusFilter}
           setStatusFilter={setStatusFilter}
+          totalDeals={totalDeals}
+          isClearOpen={isClearOpen}
+          setIsClearOpen={setIsClearOpen}
+          exportToCSV={exportToCSV}
+          handleClearAllDeals={handleClearAllDeals}
         />
       </div>
 

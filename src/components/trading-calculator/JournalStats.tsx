@@ -1,27 +1,7 @@
 "use client";
 
 import React from "react";
-import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  Download,
-  Trash2,
-  Wallet,
-  Target,
-  Activity,
-  Flame,
-  History,
-} from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { Wallet, Target, Flame, History } from "lucide-react";
 import { cn } from "cn";
 
 interface Deal {
@@ -42,19 +22,9 @@ interface Deal {
 
 interface JournalStatsProps {
   deals: Deal[];
-  isClearOpen: boolean;
-  setIsClearOpen: (open: boolean) => void;
-  exportToCSV: () => void;
-  handleClearAllDeals: () => void;
 }
 
-export function JournalStats({
-  deals = [],
-  isClearOpen,
-  setIsClearOpen,
-  exportToCSV,
-  handleClearAllDeals,
-}: JournalStatsProps) {
+export function JournalStats({ deals = [] }: JournalStatsProps) {
   const totalDeals = deals.length;
   const profitDeals = deals.filter((d) => d.status === "PROFIT").length;
   const lossDeals = deals.filter((d) => d.status === "LOSS").length;
@@ -97,13 +67,10 @@ export function JournalStats({
   const winRate =
     closedCount > 0 ? Math.round((profitDeals / closedCount) * 100) : 0;
 
-  // ФИКС ОПРЕДЕЛЕНИЯ ЗНАКА: Сравниваем с учетом погрешности JavaScript
-  const isNetProfit = netPnL >= -0.00001;
-
   return (
-    <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3.5 w-full select-none text-xs">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 flex-1 items-center">
-        {/* КАРТОЧКА 1: ЧИСТЫЙ ДОХОД (Возвращен красивый стандарт .toFixed(2) безбагового вывода) */}
+    <div className="w-full select-none text-xs">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full items-center">
+        {/* КАРТОЧКА 1: ЧИСТЫЙ ДОХОД */}
         <div
           className={cn(
             "flex items-center gap-3.5 px-4 py-3 rounded-2xl justify-start border bg-linear-to-br shadow-inner h-14 w-full",
@@ -152,7 +119,7 @@ export function JournalStats({
             </span>
           </div>
         </div>
-        {/* КАРТОЧКА 3: ТРИГГЕРЫ СРАБАТЫВАНИЯ */}
+        {/* КАРТОЧКА 3: ТРИГГЕРЫ СРАБАТЫВАНИЯ УРОВНЕЙ */}
         <div className="flex items-center gap-3.5 px-4 py-3 rounded-2xl bg-muted/30 dark:bg-neutral-900/40 border border-border/20 text-muted-foreground justify-start h-14 w-full shadow-xs">
           <div className="p-1.5 rounded-lg bg-muted/60 dark:bg-neutral-800 shrink-0">
             <Flame className="size-4.5 text-amber-500/80" />
@@ -173,7 +140,7 @@ export function JournalStats({
           </div>
         </div>
 
-        {/* КАРТОЧКА 4: ВСЕГО ЗАПИСЕЙ */}
+        {/* КАРТОЧКА 4: ВСЕГО В ЖУРНАЛЕ */}
         <div className="flex items-center gap-3.5 px-4 py-3 rounded-2xl bg-muted/30 dark:bg-neutral-900/40 border border-border/20 text-muted-foreground justify-start h-14 w-full shadow-xs">
           <div className="p-1.5 rounded-lg bg-muted/60 dark:bg-neutral-800 shrink-0">
             <History className="size-4.5 text-violet-500/80" />
@@ -190,64 +157,6 @@ export function JournalStats({
             </span>
           </div>
         </div>
-      </div>
-
-      {/* ПАНЕЛЬ УПРАВЛЕНИЯ КНОПКАМИ */}
-      <div className="flex items-center justify-end gap-1.5 md:pl-2 border-t md:border-t-0 md:border-l border-border/20 pt-2 md:pt-0 shrink-0 w-full md:w-auto h-14">
-        {totalDeals > 0 && (
-          <Button
-            onClick={exportToCSV}
-            variant="outline"
-            size="icon"
-            className="size-9 rounded-xl text-muted-foreground border-border/60 bg-transparent hover:text-foreground hover:bg-muted/40 transition-colors shadow-none shrink-0"
-            title="Выгрузить журнал в формате CSV"
-          >
-            <Download className="size-4 shrink-0" />
-          </Button>
-        )}
-
-        {totalDeals > 0 && (
-          <AlertDialog open={isClearOpen} onOpenChange={setIsClearOpen}>
-            <AlertDialogTrigger
-              className={buttonVariants({
-                variant: "outline",
-                size: "icon",
-                className:
-                  "size-9 text-rose-600 border-rose-500/20 hover:bg-rose-600 hover:text-white rounded-xl p-0 transition-colors shadow-none bg-transparent shrink-0",
-              })}
-              title="Полная очистка облачной базы данных"
-            >
-              <Trash2 className="size-4 shrink-0" />
-            </AlertDialogTrigger>
-
-            <AlertDialogContent className="rounded-2xl max-w-xs sm:max-w-sm">
-              <AlertDialogHeader>
-                <AlertDialogTitle className="text-sm sm:text-base">
-                  Очистить весь журнал?
-                </AlertDialogTitle>
-                <AlertDialogDescription className="text-[11px] sm:text-xs">
-                  Это действие безвозвратно удалит всю историю Вашей торговли из
-                  облачной базы данных Neon DB.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter className="gap-1.5 sm:gap-2">
-                <AlertDialogCancel className="rounded-xl text-xs h-9 cursor-pointer">
-                  Отмена
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleClearAllDeals}
-                  className={buttonVariants({
-                    variant: "destructive",
-                    className:
-                      "rounded-xl text-xs h-9 bg-rose-600 hover:bg-rose-700 text-white border-none cursor-pointer flex items-center justify-center",
-                  })}
-                >
-                  Удалить всё
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        )}
       </div>
     </div>
   );
