@@ -12,6 +12,7 @@ import {
   Clock,
   ShieldAlert,
   ShieldCheck,
+  Eye,
 } from "lucide-react";
 import { TableCell, TableRow } from "@/components/ui/table";
 import {
@@ -42,6 +43,8 @@ interface Deal {
   leverage: number;
   status: "OPEN" | "PROFIT" | "LOSS" | "CLOSED";
   closed_at_price?: number | string | null;
+  tp_touched?: boolean;
+  sl_touched?: boolean;
 }
 
 interface JournalRowProps {
@@ -75,7 +78,6 @@ export function JournalRow({
   const isOpen = deal.status?.toUpperCase() === "OPEN";
   const [isMovingToBu, setIsMovingToBu] = useState(false);
 
-  // Строго ваши комиссии: Спот 0.135%/0.075%, Фьючерсы Taker 0.09% / Maker 0.0324%
   const isSpot = deal.leverage === 1;
   const openFeeRate = isSpot
     ? deal.order_type === "LIMIT"
@@ -88,7 +90,6 @@ export function JournalRow({
   const closeFeeRate = isSpot ? 0.00135 : 0.0009;
   const totalFeeRate = openFeeRate + closeFeeRate;
 
-  // Точная цена безубытка по вашим комиссиям
   const breakevenPrice = isLong
     ? deal.entry_price * ((1 + openFeeRate) / (1 - closeFeeRate))
     : deal.entry_price * ((1 - openFeeRate) / (1 + closeFeeRate));
@@ -164,8 +165,8 @@ export function JournalRow({
   }
 
   if (!pnlDisplay) {
-    const lastKnown = frozenPnL[deal.id] || { pnl: 0, roi: 0 };
     if (isOpen) {
+      const lastKnown = frozenPnL[deal.id] || { pnl: 0, roi: 0 };
       pnlDisplay = (
         <div className="flex flex-col text-right select-none opacity-45 relative w-full pl-5 sm:pl-6">
           <Pause className="size-2 text-muted-foreground absolute left-0.5 top-1.5" />
@@ -188,31 +189,27 @@ export function JournalRow({
       );
     } else {
       const statusUpper = deal.status?.toUpperCase();
-      let targetPrice =
-        statusUpper === "PROFIT"
-          ? deal.take_profit
-          : statusUpper === "LOSS"
-            ? deal.stop_loss
-            : deal.entry_price;
-      if (statusUpper === "CLOSED") {
-        const parsedPrice = deal.closed_at_price
-          ? parseFloat(String(deal.closed_at_price))
-          : 0;
+      const dbClosedPrice = deal.closed_at_price
+        ? parseFloat(String(deal.closed_at_price))
+        : 0;
+
+      let targetPrice = dbClosedPrice;
+      if (targetPrice <= 0) {
         targetPrice =
-          parsedPrice > 0
-            ? parsedPrice
-            : livePrice > 0
-              ? livePrice
+          statusUpper === "PROFIT"
+            ? deal.take_profit
+            : statusUpper === "LOSS"
+              ? deal.stop_loss
               : deal.entry_price;
       }
+
       const cryptoQty =
         deal.entry_price > 0 ? deal.volume / deal.entry_price : 0;
       const priceDiff = isLong
         ? targetPrice - deal.entry_price
         : deal.entry_price - targetPrice;
       const finalPnlUsdt = priceDiff * cryptoQty - deal.volume * totalFeeRate;
-      const finalRoi =
-        deal.margin > 0.01 ? (finalPnlUsdt / deal.margin) * 100 : 0;
+      const finalRoi = deal.margin > 0 ? (finalPnlUsdt / deal.margin) * 100 : 0;
 
       pnlDisplay = (
         <div className="flex flex-col text-right opacity-65 select-none w-full">
@@ -235,6 +232,7 @@ export function JournalRow({
       );
     }
   }
+
   const handleMoveToBreakevenClick = async () => {
     if (isMovingToBu || isAlreadyInBreakeven) return;
     setIsMovingToBu(true);
@@ -251,7 +249,7 @@ export function JournalRow({
       if (!res.ok) throw new Error();
       toast.add({
         title: "Риск снят",
-        description: `Stop Loss по паре ${deal.coin} перенесен в безубыток.`,
+        description: `Stop Loss перенесен в БУ.`,
         type: "success",
       });
       // @ts-ignore
@@ -279,7 +277,6 @@ export function JournalRow({
       : !isOpen
         ? "opacity-55 hover:bg-muted/40 hover:opacity-100"
         : "hover:bg-muted/40";
-
   return (
     <TableRow
       className={`transition-all border-b border-border/10 ${rowClass}`}
@@ -290,16 +287,10 @@ export function JournalRow({
           style={{ width: isCurrentActiveCoin && isOpen ? "6px" : "4px" }}
         />
         <div className="flex items-start gap-1">
-          {deal.status?.toUpperCase() === "PROFIT" ||
-          (isTpTriggered && isOpen) ? (
-            <CheckCircle2
-              className={`size-3 text-emerald-500 mt-0.5 ${isTpTriggered ? "animate-bounce" : ""}`}
-            />
-          ) : deal.status?.toUpperCase() === "LOSS" ||
-            (isSlTriggered && isOpen) ? (
-            <XCircle
-              className={`size-3 text-rose-500 mt-0.5 ${isSlTriggered ? "animate-pulse" : ""}`}
-            />
+          {deal.status?.toUpperCase() === "PROFIT" ? (
+            <CheckCircle2 className="size-3 text-emerald-500 mt-0.5" />
+          ) : deal.status?.toUpperCase() === "LOSS" ? (
+            <XCircle className="size-3 text-rose-500 mt-0.5" />
           ) : deal.status?.toUpperCase() === "CLOSED" ? (
             <Clock className="size-3 text-muted-foreground mt-0.5 opacity-60" />
           ) : (
@@ -341,24 +332,52 @@ export function JournalRow({
         {(deal.entry_price || 0).toFixed(precision)}
       </TableCell>
       <TableCell className="py-2 px-1.5 sm:px-3 text-[11px] sm:text-xs select-none">
-        <span
-          className={`inline-block transition-all duration-300 ${isBreakevenPassed ? "bg-amber-500 text-white font-normal rounded border border-amber-400/20 shadow-sm px-1" : "text-muted-foreground"}`}
-        >
+        <span className="text-muted-foreground">
           {breakevenPrice.toFixed(precision)}
         </span>
       </TableCell>
       <TableCell className="py-2 px-1.5 sm:px-3 select-none">
         <div className="flex flex-col gap-1 text-[11px] sm:text-xs items-start">
-          <span
-            className={`inline-block transition-all duration-300 ${isTpTriggered ? "bg-emerald-500 text-white font-normal rounded border border-emerald-400/20 shadow-sm px-1" : "text-muted-foreground/40"}`}
-          >
-            {(deal.take_profit ?? 0).toFixed(precision)}
-          </span>
-          <span
-            className={`inline-block transition-all duration-300 ${isSlTriggered ? "bg-rose-500 text-white font-normal rounded border border-rose-400/20 shadow-sm px-1" : "text-muted-foreground/40"}`}
-          >
-            {(deal.stop_loss ?? 0).toFixed(precision)}
-          </span>
+          {/* УРОВЕНЬ ТЕЙКА: Иконка глаза обернута в безопасный тег span с атрибутом title */}
+          <div className="flex items-center gap-1">
+            <span
+              className={
+                deal.tp_touched
+                  ? "text-emerald-500 font-bold"
+                  : "text-muted-foreground/40"
+              }
+            >
+              {(deal.take_profit ?? 0).toFixed(precision)}
+            </span>
+            {deal.tp_touched && (
+              <span
+                className="inline-flex cursor-help"
+                title="Было касание уровня!"
+              >
+                <Eye className="size-3 text-emerald-500 shrink-0" />
+              </span>
+            )}
+          </div>
+          {/* УРОВЕНЬ СТОПА: Иконка глаза обернута в безопасный тег span с атрибутом title */}
+          <div className="flex items-center gap-1">
+            <span
+              className={
+                deal.sl_touched
+                  ? "text-rose-500 font-bold"
+                  : "text-muted-foreground/40"
+              }
+            >
+              {(deal.stop_loss ?? 0).toFixed(precision)}
+            </span>
+            {deal.sl_touched && (
+              <span
+                className="inline-flex cursor-help"
+                title="Было касание уровня!"
+              >
+                <Eye className="size-3 text-rose-500 shrink-0" />
+              </span>
+            )}
+          </div>
         </div>
       </TableCell>
       <TableCell className="py-2 px-1.5 sm:px-3 relative min-w-22 sm:min-w-26.25">
@@ -377,7 +396,7 @@ export function JournalRow({
                     variant="ghost"
                     disabled={isMovingToBu}
                     onClick={handleMoveToBreakevenClick}
-                    className="h-7 w-7 text-amber-500 hover:bg-amber-500 hover:text-white rounded-md animate-pulse"
+                    className="h-7 w-7 text-amber-500 hover:bg-amber-500 hover:text-white rounded-md"
                     title="Перенести Stop Loss в безубыток"
                   >
                     <ShieldAlert className="size-3.5" />

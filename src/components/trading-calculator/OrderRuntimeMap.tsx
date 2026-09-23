@@ -16,12 +16,44 @@ interface OrderRuntimeMapProps {
   activeOpenDeal: any;
   livePrice: number;
   precision: number;
+  isChangingCoin?: boolean;
 }
+
 export function OrderRuntimeMap({
   activeOpenDeal,
   livePrice,
   precision,
+  isChangingCoin = false,
 }: OrderRuntimeMapProps) {
+  if (isChangingCoin && activeOpenDeal) {
+    return (
+      <div className="w-full space-y-2.5 pt-2 select-none animate-pulse">
+        <div className="flex items-center justify-between h-5 w-full">
+          <div className="h-3 bg-muted rounded w-32 sm:w-36" />
+          <div className="h-5 bg-muted/60 rounded w-24 sm:w-28" />
+        </div>
+        <div
+          className="relative w-full border border-border/30 rounded-2xl h-52 flex flex-col items-center justify-center p-6 shadow-xs overflow-hidden"
+          style={{
+            backgroundImage: `
+              radial-gradient(circle at 50% 50%, var(--color-muted) 0%, transparent 70%),
+              linear-gradient(rgba(120, 119, 198, 0.03) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(120, 119, 198, 0.03) 1px, transparent 1px)
+            `,
+            backgroundSize: "100% 100%, 16px 16px, 16px 16px",
+          }}
+        >
+          <div className="w-full h-0.75 bg-muted rounded-full relative" />
+          <div className="flex gap-16 justify-center w-full">
+            <div className="h-5 bg-muted rounded w-16" />
+            <div className="h-5 bg-muted rounded w-20" />
+            <div className="h-5 bg-muted rounded w-16" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (
     !activeOpenDeal ||
     livePrice <= 0 ||
@@ -30,7 +62,6 @@ export function OrderRuntimeMap({
   ) {
     return null;
   }
-
   const isLong = activeOpenDeal.side === "BUY";
   const isSpot = activeOpenDeal.leverage === 1;
   const openFeeRate = isSpot
@@ -82,39 +113,65 @@ export function OrderRuntimeMap({
   const isMovingToProfit = isLong
     ? livePrice > activeOpenDeal.entry_price
     : livePrice < activeOpenDeal.entry_price;
-  const liveBgClass = isBuPassed ? "bg-cyan-500" : "bg-zinc-500";
+
+  const liveBgClass = isBuPassed
+    ? "bg-cyan-500 shadow-md shadow-cyan-500/30"
+    : "bg-neutral-500 dark:bg-zinc-400 shadow-md shadow-neutral-500/20";
   const liveTextClass = isBuPassed
     ? "text-cyan-600 dark:text-cyan-400 border-cyan-500/20"
     : "text-zinc-600 dark:text-zinc-300 border-zinc-500/20";
 
   let StatusTopIcon = Activity;
-  let statusTopBadgeClass = "bg-amber-500/10 text-amber-500";
+  let statusTopBadgeClass =
+    "bg-amber-500/10 text-amber-500 border border-amber-500/10";
   let statusText = "В СПРЕДЕ КОМИССИЙ";
+
+  let watermarkText = "SPREAD";
+  let watermarkColorClass = "text-amber-500/4 dark:text-amber-500/7";
+  let dynamicMeshGlow = "rgba(245, 158, 11, 0.04)";
 
   if (isTakeProfitBroken) {
     StatusTopIcon = Rocket;
-    statusTopBadgeClass = "bg-purple-500/10 text-purple-500";
+    statusTopBadgeClass =
+      "bg-purple-500/10 text-purple-500 border border-purple-500/10";
     statusText = "ЦЕЛЬ ДОСТИГНУТА";
+    watermarkText = "TARGET";
+    watermarkColorClass = "text-purple-500/5 dark:text-purple-500/8";
+    dynamicMeshGlow = "rgba(168, 85, 247, 0.08)";
   } else if (isStopLossBroken) {
     StatusTopIcon = AlertTriangle;
-    statusTopBadgeClass = "bg-rose-500/10 text-rose-500";
+    statusTopBadgeClass =
+      "bg-rose-500/10 text-rose-500 border border-rose-500/10";
     statusText = "STOP LOSS ПРОБИТ";
+    watermarkText = "STOPPED";
+    watermarkColorClass = "text-rose-600/5 dark:text-rose-500/8";
+    dynamicMeshGlow = "rgba(239, 68, 68, 0.08)";
   } else if (!isMovingToProfit) {
     StatusTopIcon = TrendingDown;
-    statusTopBadgeClass = "bg-rose-500/10 text-rose-500";
+    statusTopBadgeClass =
+      "bg-rose-500/10 text-rose-500 border border-rose-500/10";
     statusText = "В ЗОНЕ УБЫТКА";
+    watermarkText = "DOWN";
+    watermarkColorClass = "text-rose-500/4 dark:text-rose-500/7";
+    dynamicMeshGlow = "rgba(244, 63, 94, 0.06)";
   } else if (isBuPassed) {
     StatusTopIcon = ShieldCheck;
-    statusTopBadgeClass = "bg-cyan-500/10 text-cyan-500";
+    statusTopBadgeClass =
+      "bg-cyan-500/10 text-cyan-500 border border-cyan-500/10";
     statusText = "В БЕЗУБЫТКЕ";
+    watermarkText = "BREAKEVEN";
+    watermarkColorClass = "text-cyan-500/5 dark:text-cyan-500/8";
+    dynamicMeshGlow = "rgba(6, 182, 212, 0.08)";
   }
-
   return (
     <div className="w-full space-y-2.5 pt-2 select-none">
-      <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
+      <div className="flex items-center justify-between h-5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
         <span>Рантайм-карта ордера</span>
         <span
-          className={`px-2 py-0.5 rounded flex items-center gap-1 font-black tracking-wide ${statusTopBadgeClass}`}
+          className={cn(
+            "px-2 py-0.5 rounded-md flex items-center gap-1 font-black tracking-wide",
+            statusTopBadgeClass,
+          )}
         >
           <StatusTopIcon
             className={cn(
@@ -125,50 +182,63 @@ export function OrderRuntimeMap({
           <span>{statusText}</span>
         </span>
       </div>
+
       <div
-        className="relative w-full bg-muted/10 dark:bg-black/40 border border-border/30 rounded-xl px-4 pt-20 pb-16 flex flex-col justify-center h-52 shadow-inner overflow-hidden"
+        className="relative w-full bg-linear-to-b from-muted/20 to-muted/5 dark:from-neutral-900/60 dark:to-neutral-950/90 border border-border/40 rounded-2xl px-4 pt-20 pb-16 flex flex-col justify-center h-52 shadow-xs overflow-hidden backdrop-blur-md"
         style={{
-          backgroundImage: `linear-gradient(to right, rgba(120, 119, 198, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(120, 119, 198, 0.05) 1px, transparent 1px)`,
-          backgroundSize: "20px 20px",
-          backgroundPosition: "center center",
+          backgroundImage: `
+            radial-gradient(circle at 50% 50%, ${dynamicMeshGlow} 0%, transparent 65%),
+            linear-gradient(rgba(120, 119, 198, 0.04) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(120, 119, 198, 0.04) 1px, transparent 1px)
+          `,
+          backgroundSize: "100% 100%, 16px 16px, 16px 16px",
         }}
       >
-        <div className="relative w-full h-0.75 rounded-full flex items-center">
+        <div
+          className={cn(
+            "absolute inset-0 flex items-start justify-center pt-6 pointer-events-none font-black text-4xl sm:text-7xl tracking-tighter uppercase z-0 transition-all duration-300",
+            watermarkColorClass,
+          )}
+        >
+          {watermarkText}
+        </div>
+
+        <div className="relative w-full h-0.75 rounded-full flex items-center bg-muted/30 dark:bg-neutral-800 z-10">
           <div
-            className="absolute h-full bg-rose-500 border border-rose-500/10 rounded-l-full"
+            className="absolute h-full bg-rose-500/80 dark:bg-rose-500/60 rounded-l-full"
             style={{
               left: `${Math.min(slPct, entryPct)}%`,
               width: `${Math.abs(entryPct - slPct)}%`,
             }}
           />
           <div
-            className="absolute h-full bg-amber-500 border border-amber-500/10"
+            className="absolute h-full bg-amber-500/80 dark:bg-amber-500/50"
             style={{
               left: `${Math.min(entryPct, buPct)}%`,
               width: `${Math.abs(buPct - entryPct)}%`,
             }}
           />
           <div
-            className="absolute h-full bg-emerald-500 border border-emerald-500/10 rounded-r-full"
+            className="absolute h-full bg-emerald-500/80 dark:bg-emerald-500/60 rounded-r-full"
             style={{
               left: `${Math.min(buPct, tpPct)}%`,
               width: `${Math.abs(tpPct - buPct)}%`,
             }}
           />
           <div
-            className="absolute size-2 bg-rose-500 rounded-full border border-background shadow-sm"
+            className="absolute size-2 bg-rose-500 rounded-full border border-background shadow-xs"
             style={{ left: `${slPct}%`, transform: "translateX(-50%)" }}
           />
           <div
-            className="absolute size-2 bg-foreground rounded-full border border-background shadow-sm"
+            className="absolute size-2 bg-foreground rounded-full border border-background shadow-xs"
             style={{ left: `${entryPct}%`, transform: "translateX(-50%)" }}
           />
           <div
-            className="absolute size-1.5 bg-amber-500 rounded-full border border-background shadow-sm"
+            className="absolute size-1.5 bg-amber-500 rounded-full border border-background shadow-xs"
             style={{ left: `${buPct}%`, transform: "translateX(-50%)" }}
           />
           <div
-            className="absolute size-2 bg-emerald-500 rounded-full border border-background shadow-sm"
+            className="absolute size-2 bg-emerald-500 rounded-full border border-background shadow-xs"
             style={{ left: `${tpPct}%`, transform: "translateX(-100%)" }}
           />
 
@@ -181,25 +251,18 @@ export function OrderRuntimeMap({
               }}
             >
               <div
-                className={`size-2.5 rounded-full border border-background shadow-md ${liveBgClass}`}
+                className={cn(
+                  "size-2.5 rounded-full border-2 border-background dark:border-neutral-900",
+                  liveBgClass,
+                )}
               />
               <div
-                className={`absolute -top-9 bg-background border rounded overflow-hidden shadow-sm text-[10px] h-5 z-30 flex items-center ${liveTextClass}`}
+                className={cn(
+                  "absolute -top-9 bg-background border border-border/80 rounded-lg overflow-hidden text-[10px] h-5.5 z-30 flex items-center text-xs font-bold px-1.5 py-0.5 shadow-sm",
+                  liveTextClass,
+                )}
               >
-                <span
-                  className={`h-full px-2 flex items-center text-white ${liveBgClass}`}
-                >
-                  <Activity className="size-3 shrink-0" />
-                </span>
-                <span className="pl-1.5 pr-1.5 font-bold flex items-center gap-1.5">
-                  {!isMovingToProfit && (
-                    <TrendingDown className="size-3 text-rose-500 shrink-0 scale-x-[-1]" />
-                  )}
-                  <span>{livePrice.toFixed(precision)}</span>
-                  {isMovingToProfit && (
-                    <TrendingUp className="size-3 text-cyan-500 shrink-0" />
-                  )}
-                </span>
+                <span>{livePrice.toFixed(precision)}</span>
               </div>
               <div className="absolute -top-3 border-l border-muted-foreground/30 h-3 border-dashed" />
             </div>
@@ -222,7 +285,7 @@ export function OrderRuntimeMap({
           />
 
           <div
-            className="absolute bottom-11 flex items-center bg-background border border-border/60 rounded overflow-hidden shadow-sm text-[10px] h-5"
+            className="absolute bottom-11 flex items-center bg-background border border-border/80 rounded-lg overflow-hidden shadow-xs text-[10px] h-5.5 z-10"
             style={{ left: `${slPct}%` }}
           >
             <span className="h-full px-1.5 flex items-center bg-rose-500 text-white text-[8px] font-black uppercase tracking-wider">
@@ -234,7 +297,7 @@ export function OrderRuntimeMap({
           </div>
           {isStopLossBroken && (
             <div
-              className="absolute bottom-17 flex items-center bg-background border border-rose-500/30 rounded overflow-hidden shadow-sm text-[10px] h-5 z-40"
+              className="absolute bottom-17 flex items-center bg-background border border-rose-500/30 rounded-lg overflow-hidden text-[10px] h-5.5 z-40 shadow-md shadow-rose-500/5 animate-bounce"
               style={{ left: `${slPct}%` }}
             >
               <span className="h-full px-2 flex items-center bg-rose-600 text-white">
@@ -246,7 +309,7 @@ export function OrderRuntimeMap({
             </div>
           )}
           <div
-            className="absolute bottom-11 flex items-center bg-background border border-border/60 rounded overflow-hidden shadow-sm text-[10px] h-5"
+            className="absolute bottom-11 flex items-center bg-background border border-border/80 rounded-lg overflow-hidden shadow-xs text-[10px] h-5.5 z-10"
             style={{ left: `${tpPct}%`, transform: "translateX(-100%)" }}
           >
             <span className="h-full px-1.5 flex items-center bg-emerald-500 text-white text-[8px] font-black uppercase tracking-wider">
@@ -258,7 +321,7 @@ export function OrderRuntimeMap({
           </div>
           {isTakeProfitBroken && (
             <div
-              className="absolute bottom-17 flex items-center bg-background border border-purple-500/30 rounded overflow-hidden shadow-sm text-[10px] h-5 z-40"
+              className="absolute bottom-17 flex items-center bg-background border border-purple-500/30 rounded-lg overflow-hidden text-[10px] h-5.5 z-40 shadow-md shadow-purple-500/5 animate-bounce"
               style={{ left: `${tpPct}%`, transform: "translateX(-100%)" }}
             >
               <span className="px-2 font-black text-purple-600 dark:text-purple-400">
@@ -270,7 +333,7 @@ export function OrderRuntimeMap({
             </div>
           )}
           <div
-            className="absolute top-3.75 flex items-center bg-background border border-border/60 rounded overflow-hidden shadow-sm text-[10px] h-5"
+            className="absolute top-3.75 flex items-center bg-background border border-border/80 rounded-lg overflow-hidden shadow-xs text-[10px] h-5.5 z-10"
             style={{
               left: `${entryPct}%`,
               transform:
@@ -281,7 +344,7 @@ export function OrderRuntimeMap({
                     : "translateX(-50%)",
             }}
           >
-            <span className="h-full px-2 flex items-center bg-primary text-primary-foreground">
+            <span className="h-full px-1.5 flex items-center bg-primary text-primary-foreground dark:bg-neutral-800">
               <LogIn className="size-3 shrink-0" />
             </span>
             <span className="px-1.5 font-bold text-foreground/90">
@@ -289,7 +352,7 @@ export function OrderRuntimeMap({
             </span>
           </div>
           <div
-            className="absolute top-11.25 flex items-center bg-background border border-border/60 rounded overflow-hidden shadow-sm text-[10px] h-5"
+            className="absolute top-11.25 flex items-center bg-background border border-border/80 rounded-lg overflow-hidden shadow-xs text-[10px] h-5.5 z-10"
             style={{
               left: `${buPct}%`,
               transform:
@@ -300,7 +363,7 @@ export function OrderRuntimeMap({
                     : "translateX(-50%)",
             }}
           >
-            <span className="h-full px-2 flex items-center bg-amber-500 text-white">
+            <span className="h-full px-1.5 flex items-center bg-amber-500 text-white">
               <ShieldCheck className="size-3 shrink-0" />
             </span>
             <span className="px-1.5 font-bold text-foreground/90">

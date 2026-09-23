@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { toast } from "@/components/ui/toast";
 import { JournalStats } from "./JournalStats";
 import { JournalTable } from "./JournalTable";
@@ -21,6 +21,8 @@ interface Deal {
   leverage: number;
   status: "OPEN" | "PROFIT" | "LOSS" | "CLOSED";
   closed_at_price?: number | string | null;
+  tp_touched?: boolean; // Добавлено сигнальное поле из БД
+  sl_touched?: boolean; // Добавлено сигнальное поле из БД
 }
 
 interface TradingJournalProps {
@@ -45,6 +47,7 @@ const JOURNAL_PRECISION_MAP: Record<string, number> = {
   SUIUSDT: 4,
   DOGEUSDT: 5,
 };
+
 export default function TradingJournal({
   onDealsCountChange,
   livePrice = 0,
@@ -63,6 +66,10 @@ export default function TradingJournal({
     Record<number, { pnl: number; roi: number }>
   >({});
 
+  // Реф контроля отправки сигнальных касаний во избежание спама запросами
+  const processedSignalsRef = useRef<Record<string, boolean>>({});
+  const lastTriggeredCoinRef = useRef<string>(activeCoin);
+
   const openDealsCount = deals.filter(
     (d) => d.status?.toUpperCase() === "OPEN",
   ).length;
@@ -71,12 +78,34 @@ export default function TradingJournal({
     document.title = `Журнал сделок (${openDealsCount})`;
   }, [openDealsCount]);
 
-  useEffect(() => {
-    setIsChangingCoin(true);
-    const timer = setTimeout(() => setIsChangingCoin(false), 350);
-    return () => clearTimeout(timer);
-  }, [activeCoin]);
+  if (activeCoin && lastTriggeredCoinRef.current !== activeCoin) {
+    lastTriggeredCoinRef.current = activeCoin;
+    if (!isChangingCoin) {
+      setIsChangingCoin(true);
+    }
+  }
 
+  useEffect(() => {
+    if (livePrice <= 0 || !activeCoin) return;
+
+    const currentOpenDeal = deals.find(
+      (d) => d.status?.toUpperCase() === "OPEN" && d.coin === activeCoin,
+    );
+
+    if (currentOpenDeal) {
+      const isPriceValidForCoin =
+        livePrice / currentOpenDeal.entry_price < 2.5 &&
+        currentOpenDeal.entry_price / livePrice < 2.5;
+
+      if (isPriceValidForCoin && isChangingCoin) {
+        setIsChangingCoin(false);
+      }
+    } else {
+      if (isChangingCoin) {
+        setIsChangingCoin(false);
+      }
+    }
+  }, [livePrice, activeCoin, deals, isChangingCoin]);
   const fetchJournal = useCallback(async () => {
     try {
       const res = await fetch("/api/journal", {
@@ -106,12 +135,118 @@ export default function TradingJournal({
     }
   }, [onDealsCountChange]);
 
+  const handleUpdateStatus = useCallback(
+    async (
+      id: number,
+      status: "PROFIT" | "LOSS" | "CLOSED",
+      customPrice?: number,
+    ) => {
+      try {
+        const targetPrice = customPrice !== undefined ? customPrice : livePrice;
+        const res = await fetch("/api/journal", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, status, closed_at_price: targetPrice }),
+        });
+        if (!res.ok) throw new Error();
+
+        const statusRu =
+          status === "PROFIT"
+            ? "в плюс"
+            : status === "LOSS"
+              ? "в минус"
+              : "вручную";
+
+        toast.add({
+          title: "Позиция закрыта",
+          description: `Статус изменен на ${statusRu} по цене ${targetPrice}.`,
+          type: "success",
+        });
+        fetchJournal();
+      } catch (e) {
+        console.error(e);
+      }
+    },
+    [livePrice, fetchJournal],
+  );
+
+  // СИСТЕМА ФИКСАЦИИ СИГНАЛОВ КАСАНИЯ: Пишет метку в БД, ордер остается висеть открытым!
+  useEffect(() => {
+    if (livePrice <= 0 || !activeCoin || deals.length === 0 || isChangingCoin)
+      return;
+
+    const openDeal = deals.find(
+      (d) => d.status?.toUpperCase() === "OPEN" && d.coin === activeCoin,
+    );
+
+    if (!openDeal || !openDeal.stop_loss || !openDeal.take_profit) return;
+
+    const isPriceValid =
+      livePrice / openDeal.entry_price < 2.5 &&
+      openDeal.entry_price / livePrice < 2.5;
+
+    if (!isPriceValid) return;
+
+    const isLong = openDeal.side === "BUY";
+    let isTpCrossed = false;
+    let isSlCrossed = false;
+
+    if (isLong) {
+      if (livePrice >= openDeal.take_profit) isTpCrossed = true;
+      if (livePrice <= openDeal.stop_loss) isSlCrossed = true;
+    } else {
+      if (livePrice <= openDeal.take_profit) isTpCrossed = true;
+      if (livePrice >= openDeal.stop_loss) isSlCrossed = true;
+    }
+
+    // Логируем касание Тейк Профита
+    if (isTpCrossed && !openDeal.tp_touched) {
+      const key = `${openDeal.id}-tp`;
+      if (!processedSignalsRef.current[key]) {
+        processedSignalsRef.current[key] = true;
+        fetch("/api/journal", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: openDeal.id, action: "TOUCH_TP" }),
+        }).then(() => {
+          toast.add({
+            title: "🔔 Сигнал: Take Profit",
+            description: `Цена пары ${openDeal.coin} коснулась уровня Тейка!`,
+            type: "info",
+          });
+          fetchJournal();
+        });
+      }
+    }
+
+    // Логируем касание Стоп Лосса
+    if (isSlCrossed && !openDeal.sl_touched) {
+      const key = `${openDeal.id}-sl`;
+      if (!processedSignalsRef.current[key]) {
+        processedSignalsRef.current[key] = true;
+        fetch("/api/journal", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: openDeal.id, action: "TOUCH_SL" }),
+        }).then(() => {
+          toast.add({
+            title: "⚠️ Сигнал: Stop Loss",
+            description: `Цена пары ${openDeal.coin} дошла до уровня Стопа!`,
+            type: "warning",
+          });
+          fetchJournal();
+        });
+      }
+    }
+  }, [livePrice, activeCoin, deals, fetchJournal, isChangingCoin]);
+
   useEffect(() => {
     fetchJournal();
     window.addEventListener("refresh-trading-journal", fetchJournal);
     return () =>
       window.removeEventListener("refresh-trading-journal", fetchJournal);
   }, [fetchJournal]);
+
   const exportToCSV = () => {
     if (!deals || deals.length === 0) return;
     const headers = [
@@ -161,34 +296,6 @@ export default function TradingJournal({
     document.body.removeChild(link);
   };
 
-  const handleUpdateStatus = async (
-    id: number,
-    status: "PROFIT" | "LOSS" | "CLOSED",
-  ) => {
-    try {
-      const res = await fetch("/api/journal", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status, closed_at_price: livePrice }),
-      });
-      if (!res.ok) throw new Error();
-      const statusRu =
-        status === "PROFIT"
-          ? "в плюс"
-          : status === "LOSS"
-            ? "в минус"
-            : "вручную";
-      toast.add({
-        title: "Статус изменен",
-        description: `Позиция успешно закрыта ${statusRu}.`,
-        type: "success",
-      });
-      fetchJournal();
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
   const handleDeleteDeal = async (id: number) => {
     try {
       const res = await fetch(`/api/journal?id=${id}`, { method: "DELETE" });
@@ -220,7 +327,6 @@ export default function TradingJournal({
       console.error(e);
     }
   };
-
   const activeOpenDeal = deals.find(
     (d) => d.status?.toUpperCase() === "OPEN" && d.coin === activeCoin,
   );
@@ -240,10 +346,9 @@ export default function TradingJournal({
 
   return (
     <div className="w-full bg-transparent flex flex-col px-0.5 sm:px-6 space-y-4">
-      {/* ФИКС СТРУКТУРЫ: Класс flex-col-reverse на мобильных пускает JournalStats НАВЕРХ, а Live-радар уходит строго ПОД него */}
       <div className="py-3 sm:py-4 border-b border-border/40 flex flex-col-reverse gap-3.5 sm:flex-row sm:items-center justify-between bg-transparent select-none mx-1 sm:mx-0">
         <div className="flex items-center gap-3 min-w-0 pr-2 flex-1 w-full">
-          {activeOpenDeal && livePrice > 0 && (
+          {activeOpenDeal && livePrice > 0 && !isChangingCoin && (
             <div className="grid grid-cols-2 sm:flex sm:items-center gap-x-3 gap-y-1.5 w-full sm:w-auto text-[10px] font-bold bg-transparent">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="relative flex h-1.5 w-1.5 shrink-0">
@@ -292,6 +397,13 @@ export default function TradingJournal({
               </div>
             </div>
           )}
+          {activeOpenDeal && isChangingCoin && (
+            <div className="flex items-center gap-3 w-full sm:w-auto h-5 animate-pulse">
+              <div className="size-2 bg-muted rounded-full shrink-0" />
+              <div className="h-3.5 bg-muted rounded w-20" />
+              <div className="h-3 bg-muted rounded w-24 opacity-60" />
+            </div>
+          )}
         </div>
         <JournalStats
           totalDeals={deals.length}
@@ -309,6 +421,7 @@ export default function TradingJournal({
         activeOpenDeal={activeOpenDeal}
         livePrice={livePrice}
         precision={pr}
+        isChangingCoin={isChangingCoin}
       />
 
       <div className="py-2 overflow-hidden">
