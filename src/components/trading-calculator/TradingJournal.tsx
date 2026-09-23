@@ -21,8 +21,8 @@ interface Deal {
   leverage: number;
   status: "OPEN" | "PROFIT" | "LOSS" | "CLOSED";
   closed_at_price?: number | string | null;
-  tp_touched?: boolean; // Добавлено сигнальное поле из БД
-  sl_touched?: boolean; // Добавлено сигнальное поле из БД
+  tp_touched?: boolean;
+  sl_touched?: boolean;
 }
 
 interface TradingJournalProps {
@@ -66,9 +66,11 @@ export default function TradingJournal({
     Record<number, { pnl: number; roi: number }>
   >({});
 
-  // Реф контроля отправки сигнальных касаний во избежание спама запросами
-  const processedSignalsRef = useRef<Record<string, boolean>>({});
+  const processingAutoCloseRef = useRef<Record<number, boolean>>({});
   const lastTriggeredCoinRef = useRef<string>(activeCoin);
+
+  // ФИКС: Добавлена пропущенная инициализация рефа для блокировки спама алертов
+  const processedSignalsRef = useRef<Record<string, boolean>>({});
 
   const openDealsCount = deals.filter(
     (d) => d.status?.toUpperCase() === "OPEN",
@@ -170,7 +172,6 @@ export default function TradingJournal({
     [livePrice, fetchJournal],
   );
 
-  // СИСТЕМА ФИКСАЦИИ СИГНАЛОВ КАСАНИЯ: Пишет метку в БД, ордер остается висеть открытым!
   useEffect(() => {
     if (livePrice <= 0 || !activeCoin || deals.length === 0 || isChangingCoin)
       return;
@@ -199,7 +200,6 @@ export default function TradingJournal({
       if (livePrice >= openDeal.stop_loss) isSlCrossed = true;
     }
 
-    // Логируем касание Тейк Профита
     if (isTpCrossed && !openDeal.tp_touched) {
       const key = `${openDeal.id}-tp`;
       if (!processedSignalsRef.current[key]) {
@@ -219,7 +219,6 @@ export default function TradingJournal({
       }
     }
 
-    // Логируем касание Стоп Лосса
     if (isSlCrossed && !openDeal.sl_touched) {
       const key = `${openDeal.id}-sl`;
       if (!processedSignalsRef.current[key]) {
@@ -341,75 +340,13 @@ export default function TradingJournal({
   const activeDealStoredPnL = activeOpenDeal
     ? frozenPnL[activeOpenDeal.id] || { pnl: 0, roi: 0 }
     : { pnl: 0, roi: 0 };
-  const isHeaderProfit = activeDealStoredPnL.pnl >= 0;
   const pr = JOURNAL_PRECISION_MAP[activeCoin] ?? 4;
 
   return (
     <div className="w-full bg-transparent flex flex-col px-0.5 sm:px-6 space-y-4">
-      <div className="py-3 sm:py-4 border-b border-border/40 flex flex-col-reverse gap-3.5 sm:flex-row sm:items-center justify-between bg-transparent select-none mx-1 sm:mx-0">
-        <div className="flex items-center gap-3 min-w-0 pr-2 flex-1 w-full">
-          {activeOpenDeal && livePrice > 0 && !isChangingCoin && (
-            <div className="grid grid-cols-2 sm:flex sm:items-center gap-x-3 gap-y-1.5 w-full sm:w-auto text-[10px] font-bold bg-transparent">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="relative flex h-1.5 w-1.5 shrink-0">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-500" />
-                </span>
-                <span className="text-cyan-600 dark:text-cyan-400 text-[9px] font-black tracking-wider uppercase hidden sm:inline mr-0.5">
-                  Live
-                </span>
-                <span className="text-foreground font-black tracking-tight">
-                  {activeCoin}
-                </span>
-                <span className="text-muted-foreground/60 font-medium">
-                  <span className="hidden sm:inline">Price: </span>
-                  <span className="inline sm:hidden">P: </span>
-                  {livePrice.toFixed(pr)}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-1.5 flex-wrap justify-end sm:justify-start">
-                <span
-                  className={`text-[8px] px-1 rounded text-white font-black leading-none py-0.5 ${activeOpenDeal.side === "BUY" ? "bg-emerald-500" : "bg-rose-500"}`}
-                >
-                  {activeOpenDeal.side === "BUY" ? "L" : "S"}
-                </span>
-                <span className="text-muted-foreground/60 font-medium">
-                  <span className="hidden sm:inline">Vol: </span>
-                  <span className="inline sm:hidden">V: </span>
-                  {activeOpenDeal.volume.toFixed(2)}
-                </span>
-                <div className="flex items-center font-black sm:ml-1">
-                  <div className="h-2.5 w-px bg-border/40 mx-1.5 hidden sm:block" />
-                  <span
-                    className={
-                      isHeaderProfit ? "text-emerald-500" : "text-rose-500"
-                    }
-                  >
-                    {isHeaderProfit ? "+" : ""}
-                    {activeDealStoredPnL.roi.toFixed(2)}%
-                    <span className="text-[9px] font-medium opacity-80 ml-0.5">
-                      ({isHeaderProfit ? "+" : ""}
-                      {activeDealStoredPnL.pnl.toFixed(3)} USDT)
-                    </span>
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-          {activeOpenDeal && isChangingCoin && (
-            <div className="flex items-center gap-3 w-full sm:w-auto h-5 animate-pulse">
-              <div className="size-2 bg-muted rounded-full shrink-0" />
-              <div className="h-3.5 bg-muted rounded w-20" />
-              <div className="h-3 bg-muted rounded w-24 opacity-60" />
-            </div>
-          )}
-        </div>
+      <div className="py-3 sm:py-4 border-b border-border/40 flex items-center justify-between bg-transparent select-none mx-1 sm:mx-0 w-full">
         <JournalStats
-          totalDeals={deals.length}
-          profitDeals={deals.filter((d) => d.status === "PROFIT").length}
-          lossDeals={deals.filter((d) => d.status === "LOSS").length}
-          manualClosedDeals={deals.filter((d) => d.status === "CLOSED").length}
+          deals={deals}
           isClearOpen={isClearOpen}
           setIsClearOpen={setIsClearOpen}
           exportToCSV={exportToCSV}
@@ -422,6 +359,7 @@ export default function TradingJournal({
         livePrice={livePrice}
         precision={pr}
         isChangingCoin={isChangingCoin}
+        storedPnL={activeDealStoredPnL}
       />
 
       <div className="py-2 overflow-hidden">

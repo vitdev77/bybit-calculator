@@ -5,10 +5,10 @@ import {
   Activity,
   TrendingUp,
   TrendingDown,
-  Rocket,
-  AlertTriangle,
-  ShieldCheck,
   LogIn,
+  ShieldCheck,
+  AlertTriangle, // ФИКС: Возвращён импорт иконки стопа
+  Rocket, // ФИКС: Возвращён импорт иконки тейка
 } from "lucide-react";
 import { cn } from "cn";
 
@@ -17,6 +17,7 @@ interface OrderRuntimeMapProps {
   livePrice: number;
   precision: number;
   isChangingCoin?: boolean;
+  storedPnL?: { pnl: number; roi: number };
 }
 
 export function OrderRuntimeMap({
@@ -24,13 +25,18 @@ export function OrderRuntimeMap({
   livePrice,
   precision,
   isChangingCoin = false,
+  storedPnL = { pnl: 0, roi: 0 },
 }: OrderRuntimeMapProps) {
   if (isChangingCoin && activeOpenDeal) {
     return (
       <div className="w-full space-y-2.5 pt-2 select-none animate-pulse">
         <div className="flex items-center justify-between h-5 w-full">
-          <div className="h-3 bg-muted rounded w-32 sm:w-36" />
-          <div className="h-5 bg-muted/60 rounded w-24 sm:w-28" />
+          <div className="flex items-center gap-3">
+            <div className="size-2 bg-muted rounded-full" />
+            <div className="h-3.5 bg-muted rounded w-24" />
+            <div className="h-3.5 bg-muted rounded w-28 opacity-60" />
+            <div className="h-3.5 bg-muted rounded w-16 opacity-40" />
+          </div>
         </div>
         <div
           className="relative w-full border border-border/30 rounded-2xl h-52 flex flex-col items-center justify-center p-6 shadow-xs overflow-hidden"
@@ -121,66 +127,76 @@ export function OrderRuntimeMap({
     ? "text-cyan-600 dark:text-cyan-400 border-cyan-500/20"
     : "text-zinc-600 dark:text-zinc-300 border-zinc-500/20";
 
-  let StatusTopIcon = Activity;
-  let statusTopBadgeClass =
-    "bg-amber-500/10 text-amber-500 border border-amber-500/10";
-  let statusText = "В СПРЕДЕ КОМИССИЙ";
-
   let watermarkText = "SPREAD";
   let watermarkColorClass = "text-amber-500/4 dark:text-amber-500/7";
   let dynamicMeshGlow = "rgba(245, 158, 11, 0.04)";
 
   if (isTakeProfitBroken) {
-    StatusTopIcon = Rocket;
-    statusTopBadgeClass =
-      "bg-purple-500/10 text-purple-500 border border-purple-500/10";
-    statusText = "ЦЕЛЬ ДОСТИГНУТА";
     watermarkText = "TARGET";
     watermarkColorClass = "text-purple-500/5 dark:text-purple-500/8";
     dynamicMeshGlow = "rgba(168, 85, 247, 0.08)";
   } else if (isStopLossBroken) {
-    StatusTopIcon = AlertTriangle;
-    statusTopBadgeClass =
-      "bg-rose-500/10 text-rose-500 border border-rose-500/10";
-    statusText = "STOP LOSS ПРОБИТ";
     watermarkText = "STOPPED";
     watermarkColorClass = "text-rose-600/5 dark:text-rose-500/8";
     dynamicMeshGlow = "rgba(239, 68, 68, 0.08)";
   } else if (!isMovingToProfit) {
-    StatusTopIcon = TrendingDown;
-    statusTopBadgeClass =
-      "bg-rose-500/10 text-rose-500 border border-rose-500/10";
-    statusText = "В ЗОНЕ УБЫТКА";
     watermarkText = "DOWN";
     watermarkColorClass = "text-rose-500/4 dark:text-rose-500/7";
     dynamicMeshGlow = "rgba(244, 63, 94, 0.06)";
   } else if (isBuPassed) {
-    StatusTopIcon = ShieldCheck;
-    statusTopBadgeClass =
-      "bg-cyan-500/10 text-cyan-500 border border-cyan-500/10";
-    statusText = "В БЕЗУБЫТКЕ";
     watermarkText = "BREAKEVEN";
     watermarkColorClass = "text-cyan-500/5 dark:text-cyan-500/8";
     dynamicMeshGlow = "rgba(6, 182, 212, 0.08)";
   }
+
+  const isHeaderProfit = storedPnL.pnl >= 0;
   return (
     <div className="w-full space-y-2.5 pt-2 select-none">
-      <div className="flex items-center justify-between h-5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
-        <span>Рантайм-карта ордера</span>
-        <span
-          className={cn(
-            "px-2 py-0.5 rounded-md flex items-center gap-1 font-black tracking-wide",
-            statusTopBadgeClass,
-          )}
-        >
-          <StatusTopIcon
+      <div className="flex items-center justify-between h-5 text-xs font-semibold bg-transparent px-0.5">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <span className="relative flex h-1.5 w-1.5 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-500" />
+          </span>
+          <span className="font-bold tracking-tight text-foreground/90 flex items-center gap-1.5">
+            {activeOpenDeal.coin}
+            <span
+              className={cn(
+                "text-[9px] font-black px-1 rounded-sm text-white",
+                isLong ? "bg-emerald-500" : "bg-rose-500",
+              )}
+            >
+              {isLong ? "LONG" : "SHORT"}
+            </span>
+          </span>
+          <span className="text-muted-foreground/50 hidden sm:inline">|</span>
+          <span className="text-muted-foreground/80 font-medium">
+            Price:{" "}
+            <span className="font-bold text-foreground">
+              {livePrice.toFixed(precision)}
+            </span>
+          </span>
+          <span className="text-muted-foreground/80 font-medium">
+            Vol:{" "}
+            <span className="font-bold text-foreground/90">
+              {activeOpenDeal.volume.toFixed(1)} USDT
+            </span>
+          </span>
+          <span className="text-muted-foreground/50 hidden sm:inline">|</span>
+          <span
             className={cn(
-              "size-3 shrink-0",
-              !isMovingToProfit && "scale-x-[-1]",
+              "font-black tracking-tight flex items-center",
+              isHeaderProfit ? "text-emerald-500" : "text-rose-500",
             )}
-          />
-          <span>{statusText}</span>
-        </span>
+          >
+            {isHeaderProfit ? "+" : ""}
+            {storedPnL.roi.toFixed(2)}%
+            <span className="text-[10px] font-semibold opacity-75 ml-1">
+              ({isHeaderProfit ? "+" : ""}
+              {storedPnL.pnl.toFixed(2)} USDT)
+            </span>
+          </span>
+        </div>
       </div>
 
       <div
@@ -196,7 +212,7 @@ export function OrderRuntimeMap({
       >
         <div
           className={cn(
-            "absolute inset-0 flex items-start justify-center pt-6 pointer-events-none font-black text-4xl sm:text-7xl tracking-tighter uppercase z-0 transition-all duration-300",
+            "absolute inset-0 flex items-start justify-center pt-6 pointer-events-none font-black text-4xl sm:text-7xl tracking-tighter uppercase z-0 select-none",
             watermarkColorClass,
           )}
         >
