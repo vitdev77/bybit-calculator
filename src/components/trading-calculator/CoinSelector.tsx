@@ -88,7 +88,7 @@ export default function CoinSelector({
             Тип ордера
           </Label>
           {/* ФИКС ВЫСОТЫ: Приводим к абсолютно идентичному размеру h-9 на мобильных */}
-          <ButtonGroup className="w-full flex h-9 md:h-8">
+          <ButtonGroup className="w-full flex h-9 md:h-8 mb-1">
             <Button
               type="button"
               variant={orderType === "MARKET" ? "default" : "outline"}

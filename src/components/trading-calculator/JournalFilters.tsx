@@ -61,13 +61,13 @@ export function JournalFilters({
             value="OPEN"
             className="text-[11px] px-3 font-bold uppercase tracking-wider h-full"
           >
-            Откр.
+            Открытые
           </TabsTrigger>
           <TabsTrigger
             value="CLOSED"
             className="text-[11px] px-3 font-bold uppercase tracking-wider h-full"
           >
-            Закр.
+            Закрытые
           </TabsTrigger>
         </TabsList>
       </Tabs>
