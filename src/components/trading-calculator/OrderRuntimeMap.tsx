@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   LogIn,
 } from "lucide-react";
+import { cn } from "cn";
 
 interface OrderRuntimeMapProps {
   activeOpenDeal: any;
@@ -109,13 +110,18 @@ export function OrderRuntimeMap({
   }
 
   return (
-    <div className="w-full space-y-2.5 pt-2 px-1 select-none">
+    <div className="w-full space-y-2.5 pt-2 select-none">
       <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
         <span>Рантайм-карта ордера</span>
         <span
           className={`px-2 py-0.5 rounded flex items-center gap-1 font-black tracking-wide ${statusTopBadgeClass}`}
         >
-          <StatusTopIcon className="size-3 shrink-0" />
+          <StatusTopIcon
+            className={cn(
+              "size-3 shrink-0",
+              !isMovingToProfit && "scale-x-[-1]",
+            )}
+          />
           <span>{statusText}</span>
         </span>
       </div>
@@ -123,7 +129,7 @@ export function OrderRuntimeMap({
         className="relative w-full bg-muted/10 dark:bg-black/40 border border-border/30 rounded-xl px-4 pt-20 pb-16 flex flex-col justify-center h-52 shadow-inner overflow-hidden"
         style={{
           backgroundImage: `linear-gradient(to right, rgba(120, 119, 198, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(120, 119, 198, 0.05) 1px, transparent 1px)`,
-          backgroundSize: "40px 40px",
+          backgroundSize: "20px 20px",
           backgroundPosition: "center center",
         }}
       >
