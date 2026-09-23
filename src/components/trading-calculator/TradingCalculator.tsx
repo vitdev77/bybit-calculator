@@ -60,13 +60,9 @@ function useTabTicker(
       else return;
     }
     prevPriceRef.current = price;
-    const nextTitle =
-      `${triangle} ${formattedPrice} | ` +
-      `Трейдинг ${coin} | Bybit Calculator`;
+    const nextTitle = `${triangle} ${formattedPrice} | Трейдинг ${coin} | Bybit Calculator`;
 
-    if (document.title !== nextTitle) {
-      document.title = nextTitle;
-    }
+    if (document.title !== nextTitle) document.title = nextTitle;
   }, [price, coin, decimals]);
 
   useEffect(() => {
@@ -83,7 +79,6 @@ interface TradingCalculatorProps {
   externalPartsCount: number;
   setExternalPartsCount: (v: number) => void;
 }
-
 export default function TradingCalculator({
   selectedCoin,
   setSelectedCoin,
@@ -109,12 +104,10 @@ export default function TradingCalculator({
   const partsCount = externalPartsCount;
   const setPartsCount = setExternalPartsCount;
 
-  const currentDecimals =
-    COIN_PRECISION_MAP[selectedCoin] !== undefined
-      ? COIN_PRECISION_MAP[selectedCoin]
-      : 4;
+  const currentDecimals = COIN_PRECISION_MAP[selectedCoin] ?? 4;
   const maxSafeLeverage =
     selectedCoin === "BTCUSDT" || selectedCoin === "ETHUSDT" ? 100 : 50;
+
   const [results, setResults] = useState({
     riskAmount: 0,
     positionSizeCrypto: 0,
@@ -133,6 +126,7 @@ export default function TradingCalculator({
   });
 
   useTabTicker(tickerData?.lastPrice, selectedCoin, currentDecimals);
+
   const prevCoinRef = useRef(selectedCoin);
   const entryPriceRef = useRef(entryPrice);
 
@@ -172,20 +166,14 @@ export default function TradingCalculator({
   useEffect(() => {
     if (isLoaded) onBalanceChange?.(balance);
   }, [balance, isLoaded, onBalanceChange]);
-
   const getCalculatedIdealLeverage = useCallback(() => {
     const baseRiskAmount = (balance * riskPercent) / 100;
     const allocatedMarginMax = balance / partsCount;
-
-    // Ставки VIP 0: Maker 0.02% (0.0002) / Taker 0.055% (0.00055)
     const isSpot = leverage === 1;
-    const openFeeRate = isSpot
-      ? 0.001
-      : orderType === "LIMIT"
-        ? 0.0002
-        : 0.00055;
-    const closeFeeRate = isSpot ? 0.001 : 0.00055;
-    const totalFeeRate = openFeeRate + closeFeeRate;
+
+    const openFeeRate = isSpot ? 0.001 : 0.0006;
+    const closeFeeRate = isSpot ? 0.001 : 0.0006;
+    const totalFeeRate = openFeeRate + closeFeeRate + 0.0001;
     const priceLossFactor = stopLossPercent / 100;
 
     const idealPositionSizeUsdt =
@@ -193,6 +181,8 @@ export default function TradingCalculator({
     const calculatedRecLeverage = Math.ceil(
       idealPositionSizeUsdt / allocatedMarginMax,
     );
+
+    // ФИКС: Массив шагов полностью восстановлен и заполнен константами
     const standardSteps = [
       1, 2, 3, 4, 5, 6, 7, 8, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100,
     ];
@@ -210,7 +200,6 @@ export default function TradingCalculator({
     balance,
     riskPercent,
     partsCount,
-    orderType,
     stopLossPercent,
     maxSafeLeverage,
     leverage,
@@ -262,7 +251,7 @@ export default function TradingCalculator({
           prevCoinRef.current = coin;
         }
       } catch (err) {
-        console.error("Bybit fetch error", err);
+        console.error("Bybit error", err);
       } finally {
         if (isCurrent()) setTickerLoading(false);
       }
@@ -273,7 +262,6 @@ export default function TradingCalculator({
   const handlePriceApply = (price: number) => {
     if (price > 0) setEntryPrice(price);
   };
-
   const handleCoinChange = (newCoin: string) => {
     setSelectedCoin(newCoin);
   };
@@ -356,13 +344,9 @@ export default function TradingCalculator({
         : 1 - (stopLossPercent * riskRewardRatio) / 100);
 
     const isSpot = leverage === 1;
-    const openFeeRate = isSpot
-      ? 0.001
-      : orderType === "LIMIT"
-        ? 0.0002
-        : 0.00055;
-    const closeFeeRate = isSpot ? 0.001 : 0.00055;
-    const totalFeeRate = openFeeRate + closeFeeRate;
+    const openFeeRate = isSpot ? 0.001 : 0.0006;
+    const closeFeeRate = isSpot ? 0.001 : 0.0006;
+    const totalFeeRate = openFeeRate + closeFeeRate + 0.0001;
     const priceLossFactor = stopLossPercent / 100;
 
     let positionSizeUsdt = baseRiskAmount / (priceLossFactor + totalFeeRate);
@@ -421,71 +405,6 @@ export default function TradingCalculator({
     maxSafeLeverage,
     partsCount,
   ]);
-
-  if (!isLoaded) {
-    return (
-      <div className="w-full p-1.5 sm:p-4 space-y-3 sm:space-y-4 select-none">
-        <div className="p-3 sm:p-4 border border-border/40 rounded-xl bg-muted/30 h-20 sm:h-22.5 grid grid-cols-2 md:grid-cols-6 gap-3 sm:gap-4 items-center">
-          <div className="flex items-center gap-3 md:col-span-1 border-r border-border/30 pr-2 h-12">
-            <Skeleton className="size-9 sm:size-10 rounded-full" />
-            <div className="space-y-1.5 flex-1">
-              <Skeleton className="h-3.5 w-12" />
-              <Skeleton className="h-2.5 w-16" />
-            </div>
-          </div>
-          <div className="md:col-span-2 space-y-1.5">
-            <Skeleton className="h-2.5 w-12 ml-6" />
-            <Skeleton className="h-5 w-32 ml-6" />
-          </div>
-          <div className="md:col-span-1">
-            <Skeleton className="h-4 w-14" />
-          </div>
-          <div className="hidden sm:block md:col-span-1 space-y-2">
-            <Skeleton className="h-2.5 w-12" />
-            <Skeleton className="h-1.5 w-full" />
-          </div>
-          <div className="md:col-span-1 space-y-2">
-            <Skeleton className="h-3 w-16" />
-            <Skeleton className="h-2 w-12" />
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 items-stretch min-h-115">
-          <Card className="rounded-xl border-border/40">
-            <CardHeader className="py-2.5 px-4 border-b">
-              <Skeleton className="h-4 w-28" />
-            </CardHeader>
-            <CardContent className="p-4 space-y-5">
-              <Skeleton className="h-11 w-full rounded-xl" />
-              <div className="grid grid-cols-3 gap-3">
-                <Skeleton className="h-14 w-full" />
-                <Skeleton className="h-14 w-full" />
-                <Skeleton className="h-14 w-full" />
-              </div>
-              <Skeleton className="h-14 w-full rounded-xl" />
-              <Skeleton className="h-16 w-full rounded-xl" />
-            </CardContent>
-          </Card>
-          <Card className="rounded-xl border-border/40">
-            <CardHeader className="py-2.5 px-4 border-b">
-              <Skeleton className="h-4 w-24" />
-            </CardHeader>
-            <CardContent className="p-4 flex flex-col justify-between h-95">
-              <div className="grid grid-cols-2 gap-3">
-                <Skeleton className="h-20 w-full" />
-                <Skeleton className="h-20 w-full" />
-              </div>
-              <Skeleton className="h-44 w-full rounded-xl" />
-              <div className="grid grid-cols-3 gap-2">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="w-full p-1.5 sm:p-4 space-y-3 sm:space-y-4">

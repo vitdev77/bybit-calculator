@@ -7,8 +7,8 @@ import {
   TrendingDown,
   LogIn,
   ShieldCheck,
-  AlertTriangle, // ФИКС: Возвращён импорт иконки стопа
-  Rocket, // ФИКС: Возвращён импорт иконки тейка
+  AlertTriangle,
+  Rocket,
 } from "lucide-react";
 import { cn } from "cn";
 
@@ -68,21 +68,22 @@ export function OrderRuntimeMap({
   ) {
     return null;
   }
+
   const isLong = activeOpenDeal.side === "BUY";
   const isSpot = activeOpenDeal.leverage === 1;
-  const openFeeRate = isSpot
-    ? activeOpenDeal.order_type === "LIMIT"
-      ? 0.00075
-      : 0.00135
-    : activeOpenDeal.order_type === "LIMIT"
-      ? 0.000324
-      : 0.0009;
-  const closeFeeRate = isSpot ? 0.00135 : 0.0009;
 
+  // Единый стандарт комиссий Bybit VIP 0
+  const openFeeRate = isSpot ? 0.001 : 0.0006;
+  const closeFeeRate = isSpot ? 0.001 : 0.0006;
+
+  // Исходная базовая цена безубытка для отрисовки линии БУ
   const bPrice = isLong
-    ? activeOpenDeal.entry_price * ((1 + openFeeRate) / (1 - closeFeeRate))
-    : activeOpenDeal.entry_price * ((1 - openFeeRate) / (1 + closeFeeRate));
-  const isBuPassed = isLong ? livePrice >= bPrice : livePrice <= bPrice;
+    ? activeOpenDeal.entry_price *
+      ((1 + openFeeRate) / (1 - closeFeeRate - 0.0001))
+    : activeOpenDeal.entry_price *
+      ((1 - openFeeRate) / (1 + closeFeeRate + 0.0001));
+
+  // ВОЗВРАТ ИСХОДНОГО МАСШТАБА: Строим шкалу строго по точкам текущего стопа и тейка из БД
   const minScalePrice = Math.min(
     activeOpenDeal.stop_loss,
     activeOpenDeal.take_profit,
@@ -120,12 +121,14 @@ export function OrderRuntimeMap({
     ? livePrice > activeOpenDeal.entry_price
     : livePrice < activeOpenDeal.entry_price;
 
-  const liveBgClass = isBuPassed
-    ? "bg-cyan-500 shadow-md shadow-cyan-500/30"
-    : "bg-neutral-500 dark:bg-zinc-400 shadow-md shadow-neutral-500/20";
-  const liveTextClass = isBuPassed
-    ? "text-cyan-600 dark:text-cyan-400 border-cyan-500/20"
-    : "text-zinc-600 dark:text-zinc-300 border-zinc-500/20";
+  const liveBgClass =
+    livePrice >= bPrice
+      ? "bg-cyan-500 shadow-md shadow-cyan-500/30"
+      : "bg-neutral-500 dark:bg-zinc-400 shadow-md shadow-neutral-500/20";
+  const liveTextClass =
+    livePrice >= bPrice
+      ? "text-cyan-600 dark:text-cyan-400 border-cyan-500/20"
+      : "text-zinc-600 dark:text-zinc-300 border-zinc-500/20";
 
   let watermarkText = "SPREAD";
   let watermarkColorClass = "text-amber-500/4 dark:text-amber-500/7";
@@ -143,7 +146,7 @@ export function OrderRuntimeMap({
     watermarkText = "DOWN";
     watermarkColorClass = "text-rose-500/4 dark:text-rose-500/7";
     dynamicMeshGlow = "rgba(244, 63, 94, 0.06)";
-  } else if (isBuPassed) {
+  } else if (livePrice >= bPrice) {
     watermarkText = "BREAKEVEN";
     watermarkColorClass = "text-cyan-500/5 dark:text-cyan-500/8";
     dynamicMeshGlow = "rgba(6, 182, 212, 0.08)";
@@ -241,6 +244,7 @@ export function OrderRuntimeMap({
               width: `${Math.abs(tpPct - buPct)}%`,
             }}
           />
+
           <div
             className="absolute size-2 bg-rose-500 rounded-full border border-background shadow-xs"
             style={{ left: `${slPct}%`, transform: "translateX(-50%)" }}
@@ -311,19 +315,6 @@ export function OrderRuntimeMap({
               {activeOpenDeal.stop_loss.toFixed(precision)}
             </span>
           </div>
-          {isStopLossBroken && (
-            <div
-              className="absolute bottom-17 flex items-center bg-background border border-rose-500/30 rounded-lg overflow-hidden text-[10px] h-5.5 z-40 shadow-md shadow-rose-500/5 animate-bounce"
-              style={{ left: `${slPct}%` }}
-            >
-              <span className="h-full px-2 flex items-center bg-rose-600 text-white">
-                <AlertTriangle className="size-3 shrink-0" />
-              </span>
-              <span className="px-2 font-black text-rose-600 dark:text-rose-400">
-                {livePrice.toFixed(precision)}
-              </span>
-            </div>
-          )}
           <div
             className="absolute bottom-11 flex items-center bg-background border border-border/80 rounded-lg overflow-hidden shadow-xs text-[10px] h-5.5 z-10"
             style={{ left: `${tpPct}%`, transform: "translateX(-100%)" }}
@@ -335,19 +326,6 @@ export function OrderRuntimeMap({
               {activeOpenDeal.take_profit.toFixed(precision)}
             </span>
           </div>
-          {isTakeProfitBroken && (
-            <div
-              className="absolute bottom-17 flex items-center bg-background border border-purple-500/30 rounded-lg overflow-hidden text-[10px] h-5.5 z-40 shadow-md shadow-purple-500/5 animate-bounce"
-              style={{ left: `${tpPct}%`, transform: "translateX(-100%)" }}
-            >
-              <span className="px-2 font-black text-purple-600 dark:text-purple-400">
-                {livePrice.toFixed(precision)}
-              </span>
-              <span className="h-full px-2 flex items-center bg-purple-600 text-white">
-                <Rocket className="size-3 shrink-0" />
-              </span>
-            </div>
-          )}
           <div
             className="absolute top-3.75 flex items-center bg-background border border-border/80 rounded-lg overflow-hidden shadow-xs text-[10px] h-5.5 z-10"
             style={{

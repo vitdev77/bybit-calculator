@@ -19,12 +19,7 @@ export function JournalFilters({
   setStatusFilter,
 }: JournalFiltersProps) {
   return (
-    /* 
-      ФИКС МОБИЛЬНОСТИ: flex-col на смартфонах выстраивает поиск 
-      и табы друг под другом, предотвращая их сжатие. sm:flex-row возвращает в ряд.
-    */
-    <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 w-full">
-      {/* СТРОКА ПОИСКА (Высота увеличена до h-9 на мобильных для тапа) */}
+    <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 flex-1 w-full">
       <div className="relative w-full sm:max-w-56 flex items-center group">
         <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground/60 pointer-events-none" />
         <Input
@@ -44,7 +39,6 @@ export function JournalFilters({
         )}
       </div>
 
-      {/* ТАБЫ ФИЛЬТРАЦИИ СТАТУСОВ (Увеличены на мобильных для пальцев) */}
       <Tabs
         value={statusFilter}
         onValueChange={(val) => setStatusFilter(val || "ALL")}

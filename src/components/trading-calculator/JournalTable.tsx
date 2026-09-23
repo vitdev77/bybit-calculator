@@ -5,6 +5,7 @@ import { Table, TableBody, TableRow } from "@/components/ui/table";
 import { JournalHeader } from "./JournalHeader";
 import { JournalFilters } from "./JournalFilters";
 
+// ФИКС ИНТЕРФЕЙСА: Оставляем только чистые пропсы фильтрации, без кнопок действий
 interface JournalTableProps {
   filteredDeals: any[];
   searchQuery: string;
@@ -23,9 +24,8 @@ export function JournalTable({
   renderDealRow,
 }: JournalTableProps) {
   return (
-    /* МОНОЛИТНЫЙ КОНТЕЙНЕР: Сливаем фильтр и таблицу в единый блок */
-    <div className="w-full rounded-xl border border-border/50 bg-background shadow-sm overflow-hidden flex flex-col">
-      {/* ВЕРХНИЙ ЯРУС ТАБЛИЦЫ: Панель управления поиском и вкладками */}
+    <div className="w-full rounded-xl border border-border/50 bg-background shadow-xs overflow-hidden flex flex-col">
+      {/* ПАНЕЛЬ ФИЛЬТРАЦИИ: Отображает только строку поиска и вкладки статусов */}
       <div className="w-full flex items-center justify-start bg-muted/30 dark:bg-muted/10 px-3.5 py-2.5 border-b border-border/30">
         <JournalFilters
           searchQuery={searchQuery}
@@ -35,7 +35,6 @@ export function JournalTable({
         />
       </div>
 
-      {/* НИЖНИЙ ЯРУС ТАБЛИЦЫ: Скролл-зона самой таблицы со своей шапкой */}
       <div className="w-full max-h-126.25 overflow-y-auto overflow-x-auto scrollbar-thin">
         <Table className="w-full text-xs min-w-180 relative border-collapse">
           <JournalHeader />

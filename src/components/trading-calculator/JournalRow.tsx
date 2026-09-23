@@ -12,7 +12,6 @@ import {
   Clock,
   ShieldAlert,
   ShieldCheck,
-  Eye,
 } from "lucide-react";
 import { TableCell, TableRow } from "@/components/ui/table";
 import {
@@ -79,20 +78,13 @@ export function JournalRow({
   const [isMovingToBu, setIsMovingToBu] = useState(false);
 
   const isSpot = deal.leverage === 1;
-  const openFeeRate = isSpot
-    ? deal.order_type === "LIMIT"
-      ? 0.00075
-      : 0.00135
-    : deal.order_type === "LIMIT"
-      ? 0.000324
-      : 0.0009;
-
-  const closeFeeRate = isSpot ? 0.00135 : 0.0009;
-  const totalFeeRate = openFeeRate + closeFeeRate;
+  const openFeeRate = isSpot ? 0.001 : 0.0006;
+  const closeFeeRate = isSpot ? 0.001 : 0.0006;
+  const totalFeeRate = openFeeRate + closeFeeRate + 0.0001;
 
   const breakevenPrice = isLong
-    ? deal.entry_price * ((1 + openFeeRate) / (1 - closeFeeRate))
-    : deal.entry_price * ((1 - openFeeRate) / (1 + closeFeeRate));
+    ? deal.entry_price * ((1 + openFeeRate) / (1 - closeFeeRate - 0.0001))
+    : deal.entry_price * ((1 - openFeeRate) / (1 + closeFeeRate + 0.0001));
 
   let pnlDisplay = null;
   const isCurrentActiveCoin = activeCoin === deal.coin;
@@ -249,7 +241,7 @@ export function JournalRow({
       if (!res.ok) throw new Error();
       toast.add({
         title: "Риск снят",
-        description: `Stop Loss перенесен в БУ.`,
+        description: `Stop Loss перенесен в безопасный БУ.`,
         type: "success",
       });
       // @ts-ignore
@@ -338,8 +330,8 @@ export function JournalRow({
       </TableCell>
       <TableCell className="py-2 px-1.5 sm:px-3 select-none">
         <div className="flex flex-col gap-1 text-[11px] sm:text-xs items-start">
-          {/* УРОВЕНЬ ТЕЙКА: Иконка глаза обернута в безопасный тег span с атрибутом title */}
-          <div className="flex items-center gap-1">
+          {/* УРОВЕНЬ ТЕЙКА: Вместо глаза рисуем аккуратный зеленый бадж TOUCH */}
+          <div className="flex items-center gap-1.5">
             <span
               className={
                 deal.tp_touched
@@ -351,15 +343,15 @@ export function JournalRow({
             </span>
             {deal.tp_touched && (
               <span
-                className="inline-flex cursor-help"
-                title="Было касание уровня!"
+                className="px-1 py-px bg-emerald-500/15 text-emerald-500 text-[8px] font-black tracking-wider rounded-sm uppercase"
+                title="Цена коснулась Тейка!"
               >
-                <Eye className="size-3 text-emerald-500 shrink-0" />
+                touch
               </span>
             )}
           </div>
-          {/* УРОВЕНЬ СТОПА: Иконка глаза обернута в безопасный тег span с атрибутом title */}
-          <div className="flex items-center gap-1">
+          {/* УРОВЕНЬ СТОПА: Вместо глаза рисуем аккуратный красный бадж TOUCH */}
+          <div className="flex items-center gap-1.5">
             <span
               className={
                 deal.sl_touched
@@ -371,10 +363,10 @@ export function JournalRow({
             </span>
             {deal.sl_touched && (
               <span
-                className="inline-flex cursor-help"
-                title="Было касание уровня!"
+                className="px-1 py-px bg-rose-500/15 text-rose-500 text-[8px] font-black tracking-wider rounded-sm uppercase"
+                title="Цена коснулась Стопа!"
               >
-                <Eye className="size-3 text-rose-500 shrink-0" />
+                touch
               </span>
             )}
           </div>
@@ -461,7 +453,7 @@ export function JournalRow({
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel className="rounded-xl text-xs h-9">
+                <AlertDialogCancel className="rounded-xl text-xs h-9 cursor-pointer">
                   Отмена
                 </AlertDialogCancel>
                 <AlertDialogAction

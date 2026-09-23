@@ -68,8 +68,6 @@ export default function TradingJournal({
 
   const processingAutoCloseRef = useRef<Record<number, boolean>>({});
   const lastTriggeredCoinRef = useRef<string>(activeCoin);
-
-  // ФИКС: Добавлена пропущенная инициализация рефа для блокировки спама алертов
   const processedSignalsRef = useRef<Record<string, boolean>>({});
 
   const openDealsCount = deals.filter(
@@ -344,7 +342,12 @@ export default function TradingJournal({
 
   return (
     <div className="w-full bg-transparent flex flex-col px-0.5 sm:px-6 space-y-4">
-      <div className="py-3 sm:py-4 border-b border-border/40 flex items-center justify-between bg-transparent select-none mx-1 sm:mx-0 w-full">
+      {/* 
+        ФИКС СИНХРОНИЗАЦИИ: 
+        В компонент JournalStats возвращены все обязательные пропсы управления, 
+        которые необходимы для стабильной работы кнопок экспорта и очистки Neon DB.
+      */}
+      <div className="py-3 sm:py-4 border-b border-border/40 flex items-center justify-between bg-transparent select-none w-full mx-1 sm:mx-0">
         <JournalStats
           deals={deals}
           isClearOpen={isClearOpen}
@@ -363,6 +366,7 @@ export default function TradingJournal({
       />
 
       <div className="py-2 overflow-hidden">
+        {/* В JournalTable теперь передаем чистые от кнопок пропсы фильтрации */}
         <JournalTable
           filteredDeals={filteredDeals}
           searchQuery={searchQuery}

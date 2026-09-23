@@ -96,24 +96,32 @@ export function JournalStats({
   const netPnL = totalGrossProfit - totalGrossLoss;
   const winRate =
     closedCount > 0 ? Math.round((profitDeals / closedCount) * 100) : 0;
-  const isNetProfit = netPnL >= 0;
+
+  // ФИКС ОПРЕДЕЛЕНИЯ ЗНАКА: Сравниваем с учетом погрешности JavaScript
+  const isNetProfit = netPnL >= -0.00001;
 
   return (
     <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3.5 w-full select-none text-xs">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 flex-1 items-center">
-        {/* КАРТОЧКА 1: ЧИСТЫЙ ДОХОД */}
+        {/* КАРТОЧКА 1: ЧИСТЫЙ ДОХОД (Возвращен красивый стандарт .toFixed(2) безбагового вывода) */}
         <div
           className={cn(
             "flex items-center gap-3.5 px-4 py-3 rounded-2xl justify-start border bg-linear-to-br shadow-inner h-14 w-full",
-            isNetProfit
+            netPnL > 0.005
               ? "from-emerald-500/15 via-emerald-500/5 to-transparent border-emerald-500/20 text-emerald-500 dark:text-emerald-400"
-              : "from-rose-500/15 via-rose-500/5 to-transparent border-rose-500/20 text-rose-500 dark:text-rose-400",
+              : netPnL < -0.005
+                ? "from-rose-500/15 via-rose-500/5 to-transparent border-rose-500/20 text-rose-500 dark:text-rose-400"
+                : "from-muted/20 via-muted/5 to-transparent border-border/40 text-muted-foreground",
           )}
         >
           <div
             className={cn(
               "p-1.5 rounded-lg shrink-0",
-              isNetProfit ? "bg-emerald-500/10" : "bg-rose-500/10",
+              netPnL > 0.005
+                ? "bg-emerald-500/10"
+                : netPnL < -0.005
+                  ? "bg-rose-500/10"
+                  : "bg-muted",
             )}
           >
             <Wallet className="size-4.5 opacity-90" />
@@ -122,8 +130,8 @@ export function JournalStats({
             <span className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/60 leading-none">
               Чистый доход
             </span>
-            <span className="font-sans font-black text-base sm:text-lg leading-none mt-1">
-              {isNetProfit ? "+" : ""}
+            <span className="font-sans font-bold text-base sm:text-lg leading-none mt-1">
+              {netPnL > 0.005 ? "+" : ""}
               {netPnL.toFixed(2)}{" "}
               <span className="text-xs font-bold opacity-75">USDT</span>
             </span>
@@ -144,7 +152,7 @@ export function JournalStats({
             </span>
           </div>
         </div>
-        {/* КАРТОЧКА 3: ТРИГГЕРЫ СРАБАТЫВАНИЯ (С компактными TP / SL) */}
+        {/* КАРТОЧКА 3: ТРИГГЕРЫ СРАБАТЫВАНИЯ */}
         <div className="flex items-center gap-3.5 px-4 py-3 rounded-2xl bg-muted/30 dark:bg-neutral-900/40 border border-border/20 text-muted-foreground justify-start h-14 w-full shadow-xs">
           <div className="p-1.5 rounded-lg bg-muted/60 dark:bg-neutral-800 shrink-0">
             <Flame className="size-4.5 text-amber-500/80" />
@@ -165,7 +173,7 @@ export function JournalStats({
           </div>
         </div>
 
-        {/* КАРТОЧКА 4: ВСЕГО В ЖУРНАЛЕ */}
+        {/* КАРТОЧКА 4: ВСЕГО ЗАПИСЕЙ */}
         <div className="flex items-center gap-3.5 px-4 py-3 rounded-2xl bg-muted/30 dark:bg-neutral-900/40 border border-border/20 text-muted-foreground justify-start h-14 w-full shadow-xs">
           <div className="p-1.5 rounded-lg bg-muted/60 dark:bg-neutral-800 shrink-0">
             <History className="size-4.5 text-violet-500/80" />
@@ -184,7 +192,7 @@ export function JournalStats({
         </div>
       </div>
 
-      {/* ПАНЕЛЬ УПРАВЛЕНИЯ */}
+      {/* ПАНЕЛЬ УПРАВЛЕНИЯ КНОПКАМИ */}
       <div className="flex items-center justify-end gap-1.5 md:pl-2 border-t md:border-t-0 md:border-l border-border/20 pt-2 md:pt-0 shrink-0 w-full md:w-auto h-14">
         {totalDeals > 0 && (
           <Button

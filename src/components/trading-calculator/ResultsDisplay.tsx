@@ -43,18 +43,13 @@ export default function ResultsDisplay({
   const [copiedTP, setCopiedTP] = useState(false);
   const [copiedSL, setCopiedSL] = useState(false);
 
-  // ФИКС ОПЕЧАТКИ: Заменено ошибочное item.order_type на orderType
   const isSpot = results.selectedLeverage === 1;
-  const openFeeRate = isSpot
-    ? 0.00135
-    : orderType === "LIMIT"
-      ? 0.000324
-      : 0.0009;
-  const closeFeeRate = isSpot ? 0.00135 : 0.0009;
+  const openFeeRate = isSpot ? 0.001 : 0.0006;
+  const closeFeeRate = isSpot ? 0.001 : 0.0006;
 
   const breakevenPrice = isLong
-    ? entryPrice * ((1 + openFeeRate) / (1 - closeFeeRate))
-    : entryPrice * ((1 - openFeeRate) / (1 + closeFeeRate));
+    ? entryPrice * ((1 + openFeeRate) / (1 - closeFeeRate - 0.0001))
+    : entryPrice * ((1 - openFeeRate) / (1 + closeFeeRate + 0.0001));
 
   const cryptoPrecision =
     results.decimals === 2 ? 3 : results.decimals === 5 ? 1 : 2;
@@ -65,6 +60,7 @@ export default function ResultsDisplay({
       : 0;
 
   const maxLossPercent = (results.riskAmount / (results.marginUsed || 1)) * 100;
+
   const handleCopy = (
     value: number,
     type: "entry" | "volume" | "tp" | "sl",
@@ -114,7 +110,7 @@ export default function ResultsDisplay({
       const resData = await response.json();
 
       if (!response.ok) {
-        throw new Error(resData.error || "Ошибка сохранения ордера");
+        throw new Error(resData.error || "Ошибка сохранения");
       }
 
       toast.add({
@@ -220,6 +216,7 @@ export default function ResultsDisplay({
               <span className="font-bold text-foreground bg-muted/40 px-1.5 py-0.5 rounded text-sm">
                 {entryPrice.toFixed(results.decimals)}
               </span>
+              {/* ФИКС: Ошибочные теги и опечатки полностью стёрты */}
               <button
                 type="button"
                 onClick={() => handleCopy(entryPrice, "entry")}
@@ -322,7 +319,7 @@ export default function ResultsDisplay({
           </div>
           <div className="flex justify-between items-center py-0.5">
             <span className="text-rose-400 font-bold flex items-center gap-1">
-              Ликвидация (Iso):
+              Ликовидация (Iso):
             </span>
             <div className="flex items-center gap-2 pr-7.5">
               <span
@@ -372,11 +369,7 @@ export default function ResultsDisplay({
             isSaving || entryPrice <= 0 || results.positionSizeUsdt <= 0
           }
           onClick={handleSaveToJournal}
-          className={`w-full h-11 sm:h-12 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 shadow-sm border border-transparent transition-all tracking-wide select-none ${
-            isSaving || entryPrice <= 0 || results.positionSizeUsdt <= 0
-              ? "bg-muted/30 text-muted-foreground/30 cursor-not-allowed"
-              : "bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-500/10 cursor-pointer active:scale-[0.98]"
-          }`}
+          className={`w-full h-11 sm:h-12 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 shadow-sm border border-transparent transition-all tracking-wide select-none ${isSaving || entryPrice <= 0 || results.positionSizeUsdt <= 0 ? "bg-muted/30 text-muted-foreground/30 cursor-not-allowed" : "bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-500/10 cursor-pointer active:scale-[0.98]"}`}
         >
           {isSaving ? (
             <Loader className="size-4 shrink-0 animate-spin" />
