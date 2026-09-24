@@ -82,12 +82,10 @@ export default function TradingJournal({
     document.title = `Журнал сделок (${openDealsCount})`;
   }, [openDealsCount]);
 
-  // ЖЕСТКИЙ ФИКС ЗАВИСАНИЯ: Снимаем замок лоадера, даже если активной сделки нет (архивные DOGEUSDT)
   useEffect(() => {
     if (!activeCoin || !isChangingCoin) return;
 
     if (!activeOpenDeal || activeOpenDeal.coin !== activeCoin) {
-      // Если по монете нет открытых позиций, сбрасываем скелетон сразу же, как только переключили контекст
       setIsChangingCoin(false);
       return;
     }
@@ -95,8 +93,8 @@ export default function TradingJournal({
     if (livePrice <= 0) return;
 
     const isPriceValidForCoin =
-      livePrice / activeOpenDeal.entry_price < 2.5 &&
-      activeOpenDeal.entry_price / livePrice < 2.5;
+      livePrice / activeOpenDeal.entry_price < 1.2 &&
+      activeOpenDeal.entry_price / livePrice < 1.2;
 
     if (isPriceValidForCoin) {
       setIsChangingCoin(false);
@@ -173,7 +171,6 @@ export default function TradingJournal({
       ).length;
       onDealsCountChange?.({ open: openCount, closed: closedCount });
 
-      // Если сделок нет вообще, гасим замок принудительно
       if (!currentOpen) {
         setIsChangingCoin(false);
       }
@@ -220,6 +217,7 @@ export default function TradingJournal({
     [livePrice, fetchJournal],
   );
 
+  // ЖЕСТКИЙ ФИКС БАГА ЛОЖНЫХ СРАБАТЫВАНИЙ ТАЧЕЙ (Проверка ценового спреда Bybit)
   useEffect(() => {
     if (livePrice <= 0 || !activeCoin || deals.length === 0 || isChangingCoin)
       return;
@@ -231,9 +229,11 @@ export default function TradingJournal({
     )
       return;
 
+    // ВАЛИДАТОР ГОРЯЧЕГО СПРЕДА: Если цена прилетела от старого вебсокет-тикера другой монеты —
+    // отклонение будет колоссальным (> 20%). Мы аварийно прерываем хук, предотвращая ложный тач.
     const isPriceValid =
-      livePrice / activeOpenDeal.entry_price < 2.5 &&
-      activeOpenDeal.entry_price / livePrice < 2.5;
+      livePrice / activeOpenDeal.entry_price < 1.2 &&
+      activeOpenDeal.entry_price / livePrice < 1.2;
     if (!isPriceValid) return;
 
     const isLong = activeOpenDeal.side === "BUY";
@@ -433,6 +433,7 @@ export default function TradingJournal({
                 precision={rowPrecision}
                 frozenPnL={frozenPnL}
                 setFrozenPnL={setFrozenPnL}
+                focusedDeal={focusedDeal}
                 onCoinSelect={(coin) => {
                   isUserInteractedRef.current = true;
                   setIsChangingCoin(true);

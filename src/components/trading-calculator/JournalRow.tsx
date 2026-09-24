@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   CheckCircle2,
   XCircle,
@@ -63,6 +63,7 @@ interface JournalRowProps {
     customPrice?: number,
   ) => Promise<void>;
   handleDeleteDeal: (id: number) => Promise<void>;
+  focusedDeal?: Deal | null;
 }
 
 export function JournalRow({
@@ -77,12 +78,28 @@ export function JournalRow({
   onCoinSelect,
   handleUpdateStatus,
   handleDeleteDeal,
+  focusedDeal = null,
 }: JournalRowProps) {
   const isLong = deal.side === "BUY";
   const isOpen = deal.status?.toUpperCase() === "OPEN";
   const [isMovingToBu, setIsMovingToBu] = useState(false);
   const [isManualCloseModalOpen, setIsManualCloseModalOpen] = useState(false);
 
+  const [formattedDateTime, setFormattedDateTime] = useState({
+    date: "--.--.--",
+    time: "--:--",
+  });
+
+  useEffect(() => {
+    if (deal.created_at) {
+      try {
+        const d = new Date(deal.created_at);
+        const dateStr = `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getFullYear()).slice(-2)}`;
+        const timeStr = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+        setFormattedDateTime({ date: dateStr, time: timeStr });
+      } catch (e) {}
+    }
+  }, [deal.created_at]);
   const openFeeRate = 0.0006;
   const closeFeeRate = 0.0006;
   const totalFeeRate = 0.0013;
@@ -94,10 +111,15 @@ export function JournalRow({
   let pnlDisplay = null;
   const isCurrentActiveCoin = activeCoin === deal.coin;
 
+  // ТОЧЕЧНЫЙ ФОКУС: Строка подсвечена только если совпадает уникальный ID сделки из Neon DB
+  const isRowSelected = focusedDeal
+    ? focusedDeal.id === deal.id
+    : isCurrentActiveCoin && isOpen;
+
   const isPriceValid =
     livePrice > 0 &&
-    livePrice / deal.entry_price < 2.5 &&
-    deal.entry_price / livePrice < 2.5;
+    livePrice / deal.entry_price < 1.2 &&
+    deal.entry_price / livePrice < 1.2;
 
   const cryptoQty = deal.entry_price > 0 ? deal.volume / deal.entry_price : 0;
   const currentPriceDiff = isLong
@@ -128,7 +150,7 @@ export function JournalRow({
           />
         </span>
         <span
-          className={`font-black text-[11px] sm:text-xs ${isLiveProfit ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
+          className={`font-sans font-black text-[11px] sm:text-xs ${isLiveProfit ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
         >
           {isLiveProfit ? "+" : ""}
           {liveRoi.toFixed(2)}%
@@ -145,6 +167,7 @@ export function JournalRow({
       </div>
     );
   }
+
   if (!pnlDisplay) {
     if (isOpen) {
       const lastKnown = frozenPnL[deal.id] || { pnl: 0, roi: 0 };
@@ -190,7 +213,7 @@ export function JournalRow({
       pnlDisplay = (
         <div className="flex flex-col text-right opacity-65 select-none w-full">
           <span
-            className={`font-black text-[11px] sm:text-xs ${finalPnlUsdt >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
+            className={`font-sans font-black text-[11px] sm:text-xs ${finalPnlUsdt >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
           >
             {finalPnlUsdt >= 0 ? "+" : ""}
             {finalRoi.toFixed(2)}%
@@ -229,7 +252,6 @@ export function JournalRow({
         description: `Stop Loss перенесен в безопасный БУ.`,
         type: "success",
       });
-      // @ts-ignore
       window.dispatchEvent(new Event("refresh-trading-journal"));
     } catch (e) {
       console.error(e);
@@ -245,32 +267,23 @@ export function JournalRow({
     });
   };
 
-  let dStr = "--.--.--",
-    tStr = "--:--";
-  if (deal.created_at) {
-    try {
-      const d = new Date(deal.created_at);
-      dStr = `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getFullYear()).slice(-2)}`;
-      tStr = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-    } catch (e) {}
-  }
   const isAlreadyInBreakeven =
     Math.abs(deal.stop_loss - breakevenPrice) < 0.00001;
-  const rowClass =
-    isCurrentActiveCoin && isOpen
-      ? "bg-amber-500/5 dark:bg-amber-500/10 hover:bg-amber-500/15"
-      : !isOpen
-        ? "opacity-55 hover:bg-muted/40 hover:opacity-100"
-        : "hover:bg-muted/40";
 
+  // Чистый янтарный градиент на строку только если совпал ID
+  const rowClass = isRowSelected
+    ? "bg-linear-to-r from-amber-500/10 via-amber-500/5 to-transparent border-amber-500/30 dark:from-amber-500/15 opacity-100!"
+    : !isOpen
+      ? "opacity-55 hover:bg-muted/40 hover:opacity-100"
+      : "hover:bg-muted/40";
   return (
     <TableRow
       className={`transition-all border-b border-border/10 ${rowClass}`}
     >
       <TableCell className="py-2 px-1.5 sm:px-3 relative pl-3.5 sm:pl-5">
         <div
-          className={`absolute left-0 top-0 bottom-0 transition-all duration-300 ${isLong ? "bg-emerald-500" : "bg-rose-500"}`}
-          style={{ width: isCurrentActiveCoin && isOpen ? "6px" : "4px" }}
+          className={`absolute left-0 top-0 bottom-0 transition-all duration-300 ${isRowSelected ? "shadow-[2px_0_12px_rgba(245,158,11,0.4)]" : ""} ${isLong ? "bg-emerald-500" : "bg-rose-500"}`}
+          style={{ width: isRowSelected ? "6px" : "4px" }}
         />
         <div className="flex items-start gap-1">
           {deal.status?.toUpperCase() === "PROFIT" ? (
@@ -286,8 +299,10 @@ export function JournalRow({
             </span>
           )}
           <div className="flex flex-col text-[9px] sm:text-[10px] text-muted-foreground">
-            <span className="font-semibold text-foreground/80">{dStr}</span>
-            <span className="opacity-60">{tStr}</span>
+            <span className="font-semibold text-foreground/80">
+              {formattedDateTime.date}
+            </span>
+            <span className="opacity-60">{formattedDateTime.time}</span>
           </div>
         </div>
       </TableCell>
@@ -422,7 +437,6 @@ export function JournalRow({
                 >
                   <LogOut className="size-3" />
                 </AlertDialogTrigger>
-                {/* GLASSMORPHISM ВНЕДРЕН: Добавлен матовый бэкдроп-эффект локально на модалку ручного закрытия */}
                 <AlertDialogContent
                   size="default"
                   className="bg-popover/70 dark:bg-zinc-950/70 backdrop-blur-md border border-border/40 dark:border-white/10 shadow-2xl"
@@ -486,7 +500,6 @@ export function JournalRow({
             >
               <Trash2 className="size-3" />
             </AlertDialogTrigger>
-            {/* GLASSMORPHISM ВНЕДРЕН: Локальное матовое стекло на алерт одиночного удаления ордера */}
             <AlertDialogContent
               size="default"
               className="bg-popover/70 dark:bg-zinc-950/70 backdrop-blur-md border border-border/40 dark:border-white/10 shadow-2xl"
