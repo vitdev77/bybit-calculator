@@ -64,6 +64,7 @@ interface JournalRowProps {
   ) => Promise<void>;
   handleDeleteDeal: (id: number) => Promise<void>;
 }
+
 export function JournalRow({
   deal,
   livePrice,
@@ -82,10 +83,10 @@ export function JournalRow({
   const [isMovingToBu, setIsMovingToBu] = useState(false);
   const [isManualCloseModalOpen, setIsManualCloseModalOpen] = useState(false);
 
-  const isSpot = deal.leverage === 1;
-  const openFeeRate = isSpot ? 0.001 : 0.0006;
-  const closeFeeRate = isSpot ? 0.001 : 0.0006;
-  const totalFeeRate = openFeeRate + closeFeeRate + 0.0001;
+  // ЖЕСТКИЙ ФЬЮЧЕРСНЫЙ РЕГЛАМЕНТ: Исключаем спот, фиксируем комиссии твоего аккаунта Bybit
+  const openFeeRate = 0.0006;
+  const closeFeeRate = 0.0006;
+  const totalFeeRate = 0.0013; // 0.0006 + 0.0006 + 0.0001 (спред)
 
   const breakevenPrice = isLong
     ? deal.entry_price * ((1 + openFeeRate) / (1 - closeFeeRate - 0.0001))
@@ -93,6 +94,8 @@ export function JournalRow({
 
   let pnlDisplay = null;
   const isCurrentActiveCoin = activeCoin === deal.coin;
+
+  // Улучшенная валидация цен для предотвращения скачков при переключении токенов
   const isPriceValid =
     livePrice > 0 &&
     livePrice / deal.entry_price < 2.5 &&
@@ -144,7 +147,6 @@ export function JournalRow({
       </div>
     );
   }
-
   if (!pnlDisplay) {
     if (isOpen) {
       const lastKnown = frozenPnL[deal.id] || { pnl: 0, roi: 0 };
@@ -238,7 +240,6 @@ export function JournalRow({
     }
   };
 
-  // ФИКС КЛИКА: Сначала гасим стейт модалки, полностью разрывая гонку с циклом Base UI
   const handleConfirmManualClose = () => {
     setIsManualCloseModalOpen(false);
     handleUpdateStatus(deal.id, "CLOSED", livePrice).catch((err) => {
@@ -263,6 +264,7 @@ export function JournalRow({
       : !isOpen
         ? "opacity-55 hover:bg-muted/40 hover:opacity-100"
         : "hover:bg-muted/40";
+
   return (
     <TableRow
       className={`transition-all border-b border-border/10 ${rowClass}`}
@@ -364,12 +366,10 @@ export function JournalRow({
           {isOpen && (
             <>
               {livePrice > 0 &&
-                livePrice / deal.entry_price < 2.5 &&
-                deal.entry_price / livePrice < 2.5 &&
+                isCurrentActiveCoin &&
                 (isLong
                   ? livePrice >= breakevenPrice
                   : livePrice <= breakevenPrice) &&
-                isCurrentActiveCoin &&
                 !isAlreadyInBreakeven && (
                   <Button
                     size="icon"
@@ -460,7 +460,6 @@ export function JournalRow({
                     <AlertDialogCancel className="rounded-xl text-xs h-9 cursor-pointer">
                       Отмена
                     </AlertDialogCancel>
-                    {/* КРИТИЧЕСКИЙ ФИКС: Используем базовый чистый Button вместо AlertDialogAction, полностью убирая ошибку из консоли */}
                     <Button
                       onClick={handleConfirmManualClose}
                       className="rounded-xl text-white bg-blue-600 hover:bg-blue-700 border-none text-xs h-9 font-bold cursor-pointer"

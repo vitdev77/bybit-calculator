@@ -71,9 +71,8 @@ export default function TradingJournal({
     Record<number, { pnl: number; roi: number }>
   >({});
 
-  const processingAutoCloseRef = useRef<Record<number, boolean>>({});
-  const lastTriggeredCoinRef = useRef<string>(activeCoin);
   const processedSignalsRef = useRef<Record<string, boolean>>({});
+  const isUserInteractedRef = useRef<boolean>(false);
 
   const openDealsCount = deals.filter(
     (d) => d.status?.toUpperCase() === "OPEN",
@@ -83,19 +82,24 @@ export default function TradingJournal({
     document.title = `Журнал сделок (${openDealsCount})`;
   }, [openDealsCount]);
 
-  // ФИКС СКЕЛЕТОНА: Убираем отсюда setTimeout.
-  // Лоадер гасится строго в fetchJournal, когда данные монеты и цены синхронизировались!
+  // ЖЕСТКИЙ ФИКС ЗАВИСАНИЯ: Снимаем замок лоадера, даже если активной сделки нет (архивные DOGEUSDT)
   useEffect(() => {
-    if (livePrice <= 0 || !activeCoin) return;
+    if (!activeCoin || !isChangingCoin) return;
 
-    if (activeOpenDeal && activeOpenDeal.coin === activeCoin) {
-      const isPriceValidForCoin =
-        livePrice / activeOpenDeal.entry_price < 2.5 &&
-        activeOpenDeal.entry_price / livePrice < 2.5;
+    if (!activeOpenDeal || activeOpenDeal.coin !== activeCoin) {
+      // Если по монете нет открытых позиций, сбрасываем скелетон сразу же, как только переключили контекст
+      setIsChangingCoin(false);
+      return;
+    }
 
-      if (isPriceValidForCoin && isChangingCoin) {
-        setIsChangingCoin(false);
-      }
+    if (livePrice <= 0) return;
+
+    const isPriceValidForCoin =
+      livePrice / activeOpenDeal.entry_price < 2.5 &&
+      activeOpenDeal.entry_price / livePrice < 2.5;
+
+    if (isPriceValidForCoin) {
+      setIsChangingCoin(false);
     }
   }, [livePrice, activeCoin, activeOpenDeal, isChangingCoin]);
   const fetchJournal = useCallback(async () => {
@@ -119,8 +123,6 @@ export default function TradingJournal({
       setDeals(cleanArray);
 
       let currentOpen = null;
-      let currentClosed = null;
-
       if (resData.activeOpenDeal !== undefined) {
         currentOpen = resData.activeOpenDeal;
       } else {
@@ -130,6 +132,7 @@ export default function TradingJournal({
           ) || null;
       }
 
+      let currentClosed = null;
       if (resData.lastManualClosedDeal !== undefined) {
         currentClosed = resData.lastManualClosedDeal;
       } else {
@@ -142,17 +145,25 @@ export default function TradingJournal({
       setActiveOpenDeal(currentOpen);
       setLastManualClosedDeal(currentClosed);
 
-      if (statusFilter === "CLOSED") {
-        setFocusedDeal(
-          currentClosed ||
+      setFocusedDeal((prevFocused) => {
+        if (isUserInteractedRef.current && prevFocused) {
+          const freshData = cleanArray.find(
+            (d: Deal) => d.id === prevFocused.id,
+          );
+          if (freshData) return freshData;
+        }
+        isUserInteractedRef.current = false;
+        if (statusFilter === "CLOSED") {
+          return (
+            currentClosed ||
             cleanArray.find(
               (d: Deal) => d.status !== "OPEN" && d.coin === activeCoin,
             ) ||
-            null,
-        );
-      } else {
-        setFocusedDeal(currentOpen || currentClosed || null);
-      }
+            null
+          );
+        }
+        return currentOpen || currentClosed || null;
+      });
 
       const openCount = cleanArray.filter(
         (d: Deal) => d.status?.toUpperCase() === "OPEN",
@@ -162,8 +173,10 @@ export default function TradingJournal({
       ).length;
       onDealsCountChange?.({ open: openCount, closed: closedCount });
 
-      // Снимаем замок лоадера только после того, как все стейты обновились данными новой монеты!
-      setIsChangingCoin(false);
+      // Если сделок нет вообще, гасим замок принудительно
+      if (!currentOpen) {
+        setIsChangingCoin(false);
+      }
     } catch (err) {
       console.error("Не удалось подгрузить журнал:", err);
       setIsChangingCoin(false);
@@ -210,7 +223,6 @@ export default function TradingJournal({
   useEffect(() => {
     if (livePrice <= 0 || !activeCoin || deals.length === 0 || isChangingCoin)
       return;
-
     if (
       !activeOpenDeal ||
       activeOpenDeal.coin !== activeCoin ||
@@ -222,7 +234,6 @@ export default function TradingJournal({
     const isPriceValid =
       livePrice / activeOpenDeal.entry_price < 2.5 &&
       activeOpenDeal.entry_price / livePrice < 2.5;
-
     if (!isPriceValid) return;
 
     const isLong = activeOpenDeal.side === "BUY";
@@ -423,7 +434,7 @@ export default function TradingJournal({
                 frozenPnL={frozenPnL}
                 setFrozenPnL={setFrozenPnL}
                 onCoinSelect={(coin) => {
-                  // ЖЕСТКИЙ СИНХРОННЫЙ ТРИГГЕР: Сразу врубаем скелетон до того, как начнется рендер!
+                  isUserInteractedRef.current = true;
                   setIsChangingCoin(true);
                   setFocusedDeal(deal);
                   onCoinSelect?.(coin);

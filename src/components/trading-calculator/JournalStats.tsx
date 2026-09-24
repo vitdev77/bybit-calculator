@@ -24,6 +24,13 @@ interface JournalStatsProps {
   deals: Deal[];
 }
 
+function formatCompactNumber(num: number): string {
+  if (num >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(2)}B`;
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(2)}M`;
+  if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;
+  return num.toFixed(0);
+}
+
 export function JournalStats({ deals = [] }: JournalStatsProps) {
   const totalDeals = deals.length;
   const profitDeals = deals.filter((d) => d.status === "PROFIT").length;
@@ -37,16 +44,12 @@ export function JournalStats({ deals = [] }: JournalStatsProps) {
   deals.forEach((d) => {
     if (d.status === "OPEN") return;
 
-    // Рассчитываем суммарную комиссию Bybit (VIP 0 фьючерсы: 0.0006 * 2 + проскальзывание)
-    const totalFeeRate = d.leverage === 1 ? 0.0027 : 0.00145;
+    // СИНХРОНИЗАЦИЯ КОМИССИЙ: Жестко выставляем параметры твоего аккаунта Bybit (0.0006 + 0.0006 + 0.0001)
+    const totalFeeRate = 0.0013;
     const dbPrice = d.closed_at_price
       ? parseFloat(String(d.closed_at_price))
       : 0;
 
-    // ИСПРАВЛЕНИЕ МАТЕМАТИКИ БЕЗУБЫТКА:
-    // Мы жестко смотрим на фактическую зафиксированную цену закрытия из базы (dbPrice).
-    // Если она по какой-то причине отсутствует в старых логах, мы берем d.stop_loss,
-    // в котором при переносе в БУ уже лежит правильная откорректированная цена!
     let targetPrice = dbPrice;
     if (targetPrice <= 0) {
       targetPrice =
@@ -59,13 +62,11 @@ export function JournalStats({ deals = [] }: JournalStatsProps) {
 
     const cryptoQty = d.entry_price > 0 ? d.volume / d.entry_price : 0;
 
-    // Рассчитываем разницу хода цены с учетом направления Long / Short
     const priceDiff =
       d.side === "BUY"
         ? targetPrice - d.entry_price
         : d.entry_price - targetPrice;
 
-    // Итоговый PnL сделки с вычетом всех торговых сборов
     const pnlUsdt = priceDiff * cryptoQty - d.volume * totalFeeRate;
 
     if (pnlUsdt >= 0) totalGrossProfit += pnlUsdt;

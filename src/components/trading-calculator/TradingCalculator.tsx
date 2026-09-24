@@ -166,14 +166,13 @@ export default function TradingCalculator({
   useEffect(() => {
     if (isLoaded) onBalanceChange?.(balance);
   }, [balance, isLoaded, onBalanceChange]);
+
   const getCalculatedIdealLeverage = useCallback(() => {
     const baseRiskAmount = (balance * riskPercent) / 100;
     const allocatedMarginMax = balance / partsCount;
-    const isSpot = leverage === 1;
 
-    const openFeeRate = isSpot ? 0.001 : 0.0006;
-    const closeFeeRate = isSpot ? 0.001 : 0.0006;
-    const totalFeeRate = openFeeRate + closeFeeRate + 0.0001;
+    // ЖЕСТКИЙ ФЬЮЧЕРСНЫЙ РАСЧЕТ: Фиксируем параметры комиссий твоего аккаунта Bybit
+    const totalFeeRate = 0.0013;
     const priceLossFactor = stopLossPercent / 100;
 
     const idealPositionSizeUsdt =
@@ -182,7 +181,6 @@ export default function TradingCalculator({
       idealPositionSizeUsdt / allocatedMarginMax,
     );
 
-    // ФИКС: Массив шагов полностью восстановлен и заполнен константами
     const standardSteps = [
       1, 2, 3, 4, 5, 6, 7, 8, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100,
     ];
@@ -196,14 +194,7 @@ export default function TradingCalculator({
     }
     if (finalRecLeverage > maxSafeLeverage) finalRecLeverage = maxSafeLeverage;
     return finalRecLeverage;
-  }, [
-    balance,
-    riskPercent,
-    partsCount,
-    stopLossPercent,
-    maxSafeLeverage,
-    leverage,
-  ]);
+  }, [balance, riskPercent, partsCount, stopLossPercent, maxSafeLeverage]);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -231,7 +222,6 @@ export default function TradingCalculator({
     const ideal = getCalculatedIdealLeverage();
     setLeverage(ideal);
   }, [partsCount]);
-
   const fetchLiveTicker = useCallback(
     async (coin: string, isFirstInit: boolean, isCurrent: () => boolean) => {
       try {
@@ -327,6 +317,7 @@ export default function TradingCalculator({
     partsCount,
     isLoaded,
   ]);
+
   useEffect(() => {
     if (entryPrice <= 0 || stopLossPercent <= 0 || balance <= 0) return;
 
@@ -343,10 +334,7 @@ export default function TradingCalculator({
         ? 1 + (stopLossPercent * riskRewardRatio) / 100
         : 1 - (stopLossPercent * riskRewardRatio) / 100);
 
-    const isSpot = leverage === 1;
-    const openFeeRate = isSpot ? 0.001 : 0.0006;
-    const closeFeeRate = isSpot ? 0.001 : 0.0006;
-    const totalFeeRate = openFeeRate + closeFeeRate + 0.0001;
+    const totalFeeRate = 0.0013;
     const priceLossFactor = stopLossPercent / 100;
 
     let positionSizeUsdt = baseRiskAmount / (priceLossFactor + totalFeeRate);
@@ -368,6 +356,9 @@ export default function TradingCalculator({
       totalFeeUsdt;
 
     const MMR = 0.005;
+    const closeFeeRate = 0.0006;
+
+    // ЖЕСТКИЙ ФИКС МАТЕМАТИКИ ЛИКВИДАЦИИ BYBIT: Зеркальные знаки для SHORT полностью выверены
     let liquidationPrice = isLong
       ? entryPrice * (1 - 1 / leverage + MMR + closeFeeRate)
       : entryPrice * (1 + 1 / leverage - MMR - closeFeeRate);
@@ -405,7 +396,6 @@ export default function TradingCalculator({
     maxSafeLeverage,
     partsCount,
   ]);
-
   return (
     <div className="w-full p-1.5 sm:p-4 space-y-3 sm:space-y-4">
       <MarketTicker
