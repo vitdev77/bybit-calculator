@@ -55,8 +55,16 @@ export default function TradingJournal({
   onCoinSelect,
 }: TradingJournalProps) {
   const [deals, setDeals] = useState<Deal[]>([]);
+  const [activeOpenDeal, setActiveOpenDeal] = useState<Deal | null>(null);
+  const [lastManualClosedDeal, setLastManualClosedDeal] = useState<Deal | null>(
+    null,
+  );
+  const [focusedDeal, setFocusedDeal] = useState<Deal | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // УПРАВЛЕНИЕ ЛОАДЕРОМ: Стейт контроля за скелетоном рантайм-карты
   const [isChangingCoin, setIsChangingCoin] = useState(false);
+
   const [isClearOpen, setIsClearOpen] = useState(false);
   const [activeDeleteId, setActiveDeleteId] = useState<number | null>(null);
 
@@ -78,48 +86,85 @@ export default function TradingJournal({
     document.title = `Журнал сделок (${openDealsCount})`;
   }, [openDealsCount]);
 
-  if (activeCoin && lastTriggeredCoinRef.current !== activeCoin) {
-    lastTriggeredCoinRef.current = activeCoin;
-    if (!isChangingCoin) {
-      setIsChangingCoin(true);
-    }
-  }
+  // ФИКС СКЕЛЕТОНА: Принудительно взводим замок лоадера при любой физической смене тикера монеты
+  useEffect(() => {
+    if (!activeCoin) return;
+    setIsChangingCoin(true);
+    const timer = setTimeout(() => {
+      setIsChangingCoin(false);
+    }, 3000); // 300мс мягкого удержания скелетона для бесшовного рендеринга шкалы
+    return () => clearTimeout(timer);
+  }, [activeCoin]);
 
   useEffect(() => {
     if (livePrice <= 0 || !activeCoin) return;
 
-    const currentOpenDeal = deals.find(
-      (d) => d.status?.toUpperCase() === "OPEN" && d.coin === activeCoin,
-    );
-
-    if (currentOpenDeal) {
+    if (activeOpenDeal) {
       const isPriceValidForCoin =
-        livePrice / currentOpenDeal.entry_price < 2.5 &&
-        currentOpenDeal.entry_price / livePrice < 2.5;
+        livePrice / activeOpenDeal.entry_price < 2.5 &&
+        activeOpenDeal.entry_price / livePrice < 2.5;
 
+      // Если цена валидна и лоадер еще не потушен таймером, гасим его досрочно
       if (isPriceValidForCoin && isChangingCoin) {
         setIsChangingCoin(false);
       }
-    } else {
-      if (isChangingCoin) {
-        setIsChangingCoin(false);
-      }
     }
-  }, [livePrice, activeCoin, deals, isChangingCoin]);
+  }, [livePrice, activeCoin, activeOpenDeal, isChangingCoin]);
   const fetchJournal = useCallback(async () => {
     try {
-      const res = await fetch("/api/journal", {
+      const url = activeCoin
+        ? `/api/journal?activeCoin=${activeCoin}`
+        : "/api/journal";
+      const res = await fetch(url, {
         cache: "no-store",
         headers: { Pragma: "no-cache", "Cache-Control": "no-cache" },
       });
       if (!res.ok) throw new Error("Load error");
-      const data = await res.json();
-      const cleanArray = Array.isArray(data)
-        ? data
-        : data.data && Array.isArray(data.data)
-          ? data.data
+      const resData = await res.json();
+
+      const cleanArray = Array.isArray(resData)
+        ? resData
+        : resData.deals && Array.isArray(resData.deals)
+          ? resData.deals
           : [];
+
       setDeals(cleanArray);
+
+      let currentOpen = null;
+      let currentClosed = null;
+
+      if (resData.activeOpenDeal !== undefined) {
+        currentOpen = resData.activeOpenDeal;
+      } else {
+        currentOpen =
+          cleanArray.find(
+            (d: Deal) => d.status === "OPEN" && d.coin === activeCoin,
+          ) || null;
+      }
+
+      if (resData.lastManualClosedDeal !== undefined) {
+        currentClosed = resData.lastManualClosedDeal;
+      } else {
+        currentClosed =
+          cleanArray.find(
+            (d: Deal) => d.status === "CLOSED" && d.coin === activeCoin,
+          ) || null;
+      }
+
+      setActiveOpenDeal(currentOpen);
+      setLastManualClosedDeal(currentClosed);
+
+      if (statusFilter === "CLOSED") {
+        setFocusedDeal(
+          currentClosed ||
+            cleanArray.find(
+              (d: Deal) => d.status !== "OPEN" && d.coin === activeCoin,
+            ) ||
+            null,
+        );
+      } else {
+        setFocusedDeal(currentOpen || currentClosed || null);
+      }
 
       const openCount = cleanArray.filter(
         (d: Deal) => d.status?.toUpperCase() === "OPEN",
@@ -133,7 +178,7 @@ export default function TradingJournal({
     } finally {
       setLoading(false);
     }
-  }, [onDealsCountChange]);
+  }, [onDealsCountChange, activeCoin, statusFilter]);
 
   const handleUpdateStatus = useCallback(
     async (
@@ -174,42 +219,44 @@ export default function TradingJournal({
     if (livePrice <= 0 || !activeCoin || deals.length === 0 || isChangingCoin)
       return;
 
-    const openDeal = deals.find(
-      (d) => d.status?.toUpperCase() === "OPEN" && d.coin === activeCoin,
-    );
-
-    if (!openDeal || !openDeal.stop_loss || !openDeal.take_profit) return;
+    if (
+      !activeOpenDeal ||
+      activeOpenDeal.coin !== activeCoin ||
+      !activeOpenDeal.stop_loss ||
+      !activeOpenDeal.take_profit
+    )
+      return;
 
     const isPriceValid =
-      livePrice / openDeal.entry_price < 2.5 &&
-      openDeal.entry_price / livePrice < 2.5;
+      livePrice / activeOpenDeal.entry_price < 2.5 &&
+      activeOpenDeal.entry_price / livePrice < 2.5;
 
     if (!isPriceValid) return;
 
-    const isLong = openDeal.side === "BUY";
+    const isLong = activeOpenDeal.side === "BUY";
     let isTpCrossed = false;
     let isSlCrossed = false;
 
     if (isLong) {
-      if (livePrice >= openDeal.take_profit) isTpCrossed = true;
-      if (livePrice <= openDeal.stop_loss) isSlCrossed = true;
+      if (livePrice >= activeOpenDeal.take_profit) isTpCrossed = true;
+      if (livePrice <= activeOpenDeal.stop_loss) isSlCrossed = true;
     } else {
-      if (livePrice <= openDeal.take_profit) isTpCrossed = true;
-      if (livePrice >= openDeal.stop_loss) isSlCrossed = true;
+      if (livePrice <= activeOpenDeal.take_profit) isTpCrossed = true;
+      if (livePrice >= activeOpenDeal.stop_loss) isSlCrossed = true;
     }
 
-    if (isTpCrossed && !openDeal.tp_touched) {
-      const key = `${openDeal.id}-tp`;
+    if (isTpCrossed && !activeOpenDeal.tp_touched) {
+      const key = `${activeOpenDeal.id}-tp`;
       if (!processedSignalsRef.current[key]) {
         processedSignalsRef.current[key] = true;
         fetch("/api/journal", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: openDeal.id, action: "TOUCH_TP" }),
+          body: JSON.stringify({ id: activeOpenDeal.id, action: "TOUCH_TP" }),
         }).then(() => {
           toast.add({
             title: "🔔 Сигнал: Take Profit",
-            description: `Цена пары ${openDeal.coin} коснулась уровня Тейка!`,
+            description: `Цена пары ${activeOpenDeal.coin} коснулась уровня Тейка!`,
             type: "info",
           });
           fetchJournal();
@@ -217,33 +264,42 @@ export default function TradingJournal({
       }
     }
 
-    if (isSlCrossed && !openDeal.sl_touched) {
-      const key = `${openDeal.id}-sl`;
+    if (isSlCrossed && !activeOpenDeal.sl_touched) {
+      const key = `${activeOpenDeal.id}-sl`;
       if (!processedSignalsRef.current[key]) {
         processedSignalsRef.current[key] = true;
         fetch("/api/journal", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: openDeal.id, action: "TOUCH_SL" }),
+          body: JSON.stringify({ id: activeOpenDeal.id, action: "TOUCH_SL" }),
         }).then(() => {
           toast.add({
             title: "⚠️ Сигнал: Stop Loss",
-            description: `Цена пары ${openDeal.coin} дошла до уровня Стопа!`,
+            description: `Цена пары ${activeOpenDeal.coin} дошла до уровня Стопа!`,
             type: "warning",
           });
           fetchJournal();
         });
       }
     }
-  }, [livePrice, activeCoin, deals, fetchJournal, isChangingCoin]);
+  }, [
+    livePrice,
+    activeCoin,
+    deals,
+    activeOpenDeal,
+    fetchJournal,
+    isChangingCoin,
+  ]);
 
   useEffect(() => {
     fetchJournal();
+  }, [statusFilter, activeCoin, fetchJournal]);
+
+  useEffect(() => {
     window.addEventListener("refresh-trading-journal", fetchJournal);
     return () =>
       window.removeEventListener("refresh-trading-journal", fetchJournal);
   }, [fetchJournal]);
-
   const exportToCSV = () => {
     if (!deals || deals.length === 0) return;
     const headers = [
@@ -324,9 +380,7 @@ export default function TradingJournal({
       console.error(e);
     }
   };
-  const activeOpenDeal = deals.find(
-    (d) => d.status?.toUpperCase() === "OPEN" && d.coin === activeCoin,
-  );
+
   const filteredDeals = deals.filter(
     (d) =>
       d.coin.toLowerCase().includes(searchQuery.toLowerCase()) &&
@@ -338,7 +392,6 @@ export default function TradingJournal({
   const activeDealStoredPnL = activeOpenDeal
     ? frozenPnL[activeOpenDeal.id] || { pnl: 0, roi: 0 }
     : { pnl: 0, roi: 0 };
-  const pr = JOURNAL_PRECISION_MAP[activeCoin] ?? 4;
 
   return (
     <div className="w-full bg-transparent flex flex-col px-0.5 sm:px-6 space-y-4">
@@ -346,16 +399,16 @@ export default function TradingJournal({
         <JournalStats deals={deals} />
       </div>
 
+      {/* ИСПРАВЛЕНИЕ ПОДСВЕТКИ: Заменили pr на прямое чтение разрядности текущей активной монеты */}
       <OrderRuntimeMap
-        activeOpenDeal={activeOpenDeal}
+        focusedDeal={focusedDeal}
         livePrice={livePrice}
-        precision={pr}
+        precision={JOURNAL_PRECISION_MAP[activeCoin] ?? 4}
         isChangingCoin={isChangingCoin}
         storedPnL={activeDealStoredPnL}
       />
 
       <div className="py-2 overflow-hidden">
-        {/* ФИКС: Передаем все обязательные пропсы кнопок для JournalTable */}
         <JournalTable
           filteredDeals={filteredDeals}
           searchQuery={searchQuery}
@@ -368,18 +421,31 @@ export default function TradingJournal({
           exportToCSV={exportToCSV}
           handleClearAllDeals={handleClearAllDeals}
           renderDealRow={(deal) => {
-            const prec = JOURNAL_PRECISION_MAP[deal.coin] ?? 4;
+            const rowPrecision = JOURNAL_PRECISION_MAP[deal.coin] ?? 4;
             return (
               <JournalRow
                 key={deal.id}
                 deal={deal}
                 livePrice={livePrice}
                 activeCoin={activeCoin}
-                precision={prec}
+                precision={rowPrecision}
                 frozenPnL={frozenPnL}
                 setFrozenPnL={setFrozenPnL}
-                onCoinSelect={onCoinSelect}
-                handleUpdateStatus={handleUpdateStatus}
+                onCoinSelect={(coin) => {
+                  setFocusedDeal(deal);
+                  onCoinSelect?.(coin);
+                }}
+                handleUpdateStatus={async (id, status, customPrice) => {
+                  if (status === "PROFIT") {
+                    await handleUpdateStatus(id, "PROFIT", deal.take_profit);
+                  } else if (status === "LOSS") {
+                    await handleUpdateStatus(id, "LOSS", deal.stop_loss);
+                  } else if (status === "CLOSED" && customPrice !== undefined) {
+                    await handleUpdateStatus(id, "CLOSED", customPrice);
+                  } else {
+                    await handleUpdateStatus(id, status);
+                  }
+                }}
                 handleDeleteDeal={handleDeleteDeal}
                 activeDeleteId={activeDeleteId}
                 setActiveDeleteId={setActiveDeleteId}

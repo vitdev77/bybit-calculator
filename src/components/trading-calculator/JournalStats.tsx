@@ -37,11 +37,16 @@ export function JournalStats({ deals = [] }: JournalStatsProps) {
   deals.forEach((d) => {
     if (d.status === "OPEN") return;
 
+    // Рассчитываем суммарную комиссию Bybit (VIP 0 фьючерсы: 0.0006 * 2 + проскальзывание)
     const totalFeeRate = d.leverage === 1 ? 0.0027 : 0.00145;
     const dbPrice = d.closed_at_price
       ? parseFloat(String(d.closed_at_price))
       : 0;
 
+    // ИСПРАВЛЕНИЕ МАТЕМАТИКИ БЕЗУБЫТКА:
+    // Мы жестко смотрим на фактическую зафиксированную цену закрытия из базы (dbPrice).
+    // Если она по какой-то причине отсутствует в старых логах, мы берем d.stop_loss,
+    // в котором при переносе в БУ уже лежит правильная откорректированная цена!
     let targetPrice = dbPrice;
     if (targetPrice <= 0) {
       targetPrice =
@@ -53,10 +58,14 @@ export function JournalStats({ deals = [] }: JournalStatsProps) {
     }
 
     const cryptoQty = d.entry_price > 0 ? d.volume / d.entry_price : 0;
+
+    // Рассчитываем разницу хода цены с учетом направления Long / Short
     const priceDiff =
       d.side === "BUY"
         ? targetPrice - d.entry_price
         : d.entry_price - targetPrice;
+
+    // Итоговый PnL сделки с вычетом всех торговых сборов
     const pnlUsdt = priceDiff * cryptoQty - d.volume * totalFeeRate;
 
     if (pnlUsdt >= 0) totalGrossProfit += pnlUsdt;
@@ -66,7 +75,6 @@ export function JournalStats({ deals = [] }: JournalStatsProps) {
   const netPnL = totalGrossProfit - totalGrossLoss;
   const winRate =
     closedCount > 0 ? Math.round((profitDeals / closedCount) * 100) : 0;
-
   return (
     <div className="w-full select-none text-xs">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full items-center">
@@ -119,6 +127,7 @@ export function JournalStats({ deals = [] }: JournalStatsProps) {
             </span>
           </div>
         </div>
+
         {/* КАРТОЧКА 3: ТРИГГЕРЫ СРАБАТЫВАНИЯ УРОВНЕЙ */}
         <div className="flex items-center gap-3.5 px-4 py-3 rounded-2xl bg-muted/30 dark:bg-neutral-900/40 border border-border/20 text-muted-foreground justify-start h-14 w-full shadow-xs">
           <div className="p-1.5 rounded-lg bg-muted/60 dark:bg-neutral-800 shrink-0">

@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
+import { cn } from "cn";
 
 interface Deal {
   id: number;
@@ -56,10 +57,13 @@ interface JournalRowProps {
   activeDeleteId: number | null;
   setActiveDeleteId: (id: number | null) => void;
   onCoinSelect?: (coin: string) => void;
-  handleUpdateStatus: (id: number, status: any) => Promise<void>;
+  handleUpdateStatus: (
+    id: number,
+    status: any,
+    customPrice?: number,
+  ) => Promise<void>;
   handleDeleteDeal: (id: number) => Promise<void>;
 }
-
 export function JournalRow({
   deal,
   livePrice,
@@ -76,6 +80,7 @@ export function JournalRow({
   const isLong = deal.side === "BUY";
   const isOpen = deal.status?.toUpperCase() === "OPEN";
   const [isMovingToBu, setIsMovingToBu] = useState(false);
+  const [isManualCloseModalOpen, setIsManualCloseModalOpen] = useState(false);
 
   const isSpot = deal.leverage === 1;
   const openFeeRate = isSpot ? 0.001 : 0.0006;
@@ -93,31 +98,15 @@ export function JournalRow({
     livePrice / deal.entry_price < 2.5 &&
     deal.entry_price / livePrice < 2.5;
 
-  let isSlTriggered = false;
-  let isTpTriggered = false;
-  let isBreakevenPassed = false;
-  const isAlreadyInBreakeven =
-    Math.abs(deal.stop_loss - breakevenPrice) < 0.00001;
+  const cryptoQty = deal.entry_price > 0 ? deal.volume / deal.entry_price : 0;
+  const currentPriceDiff = isLong
+    ? livePrice - deal.entry_price
+    : deal.entry_price - livePrice;
+  const livePnlUsdt = currentPriceDiff * cryptoQty - deal.volume * totalFeeRate;
+  const liveRoi = deal.margin > 0 ? (livePnlUsdt / deal.margin) * 100 : 0;
+  const isLiveProfit = livePnlUsdt >= 0;
+
   if (isOpen && isCurrentActiveCoin && isPriceValid) {
-    isSlTriggered = isLong
-      ? livePrice <= deal.stop_loss
-      : livePrice >= deal.stop_loss;
-    isTpTriggered = isLong
-      ? livePrice >= deal.take_profit
-      : livePrice <= deal.take_profit;
-    isBreakevenPassed = isLong
-      ? livePrice >= breakevenPrice
-      : livePrice <= breakevenPrice;
-
-    const cryptoQty = deal.volume / deal.entry_price;
-    const priceDiff = isLong
-      ? livePrice - deal.entry_price
-      : deal.entry_price - livePrice;
-
-    const livePnlUsdt = priceDiff * cryptoQty - deal.volume * totalFeeRate;
-    const liveRoi = deal.margin > 0 ? (livePnlUsdt / deal.margin) * 100 : 0;
-    const isProfit = livePnlUsdt >= 0;
-
     if (frozenPnL[deal.id]?.pnl !== livePnlUsdt) {
       setTimeout(() => {
         setFrozenPnL((prev: any) => ({
@@ -131,22 +120,22 @@ export function JournalRow({
       <div className="flex flex-col text-right select-none relative w-full pl-5 sm:pl-6">
         <span className="absolute left-1 top-1.5 flex h-1.5 w-1.5">
           <span
-            className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isProfit ? "bg-emerald-500" : "bg-rose-500"}`}
+            className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isLiveProfit ? "bg-emerald-500" : "bg-rose-500"}`}
           />
           <span
-            className={`relative inline-flex rounded-full h-1.5 w-1.5 ${isProfit ? "bg-emerald-500" : "bg-rose-500"}`}
+            className={`relative inline-flex rounded-full h-1.5 w-1.5 ${isLiveProfit ? "bg-emerald-500" : "bg-rose-500"}`}
           />
         </span>
         <span
-          className={`font-black text-[11px] sm:text-xs ${isProfit ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
+          className={`font-black text-[11px] sm:text-xs ${isLiveProfit ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
         >
-          {isProfit ? "+" : ""}
+          {isLiveProfit ? "+" : ""}
           {liveRoi.toFixed(2)}%
         </span>
         <span
-          className={`text-[9px] sm:text-[10px] font-bold ${isProfit ? "text-emerald-500/80" : "text-rose-500/80"}`}
+          className={`text-[9px] sm:text-[10px] font-bold ${isLiveProfit ? "text-emerald-500/80" : "text-rose-500/80"}`}
         >
-          {isProfit ? "+" : ""}
+          {isLiveProfit ? "+" : ""}
           {livePnlUsdt.toFixed(3)}{" "}
           <span className="text-[8px] font-normal opacity-60 text-muted-foreground">
             USDT
@@ -184,19 +173,14 @@ export function JournalRow({
       const dbClosedPrice = deal.closed_at_price
         ? parseFloat(String(deal.closed_at_price))
         : 0;
-
-      let targetPrice = dbClosedPrice;
-      if (targetPrice <= 0) {
-        targetPrice =
-          statusUpper === "PROFIT"
+      let targetPrice =
+        dbClosedPrice <= 0
+          ? statusUpper === "PROFIT"
             ? deal.take_profit
             : statusUpper === "LOSS"
               ? deal.stop_loss
-              : deal.entry_price;
-      }
-
-      const cryptoQty =
-        deal.entry_price > 0 ? deal.volume / deal.entry_price : 0;
+              : deal.entry_price
+          : dbClosedPrice;
       const priceDiff = isLong
         ? targetPrice - deal.entry_price
         : deal.entry_price - targetPrice;
@@ -226,7 +210,8 @@ export function JournalRow({
   }
 
   const handleMoveToBreakevenClick = async () => {
-    if (isMovingToBu || isAlreadyInBreakeven) return;
+    if (isMovingToBu || Math.abs(deal.stop_loss - breakevenPrice) < 0.00001)
+      return;
     setIsMovingToBu(true);
     try {
       const res = await fetch("/api/journal", {
@@ -253,6 +238,14 @@ export function JournalRow({
     }
   };
 
+  // ФИКС КЛИКА: Сначала гасим стейт модалки, полностью разрывая гонку с циклом Base UI
+  const handleConfirmManualClose = () => {
+    setIsManualCloseModalOpen(false);
+    handleUpdateStatus(deal.id, "CLOSED", livePrice).catch((err) => {
+      console.error("Manual close error:", err);
+    });
+  };
+
   let dStr = "--.--.--",
     tStr = "--:--";
   if (deal.created_at) {
@@ -262,7 +255,8 @@ export function JournalRow({
       tStr = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
     } catch (e) {}
   }
-
+  const isAlreadyInBreakeven =
+    Math.abs(deal.stop_loss - breakevenPrice) < 0.00001;
   const rowClass =
     isCurrentActiveCoin && isOpen
       ? "bg-amber-500/5 dark:bg-amber-500/10 hover:bg-amber-500/15"
@@ -275,7 +269,7 @@ export function JournalRow({
     >
       <TableCell className="py-2 px-1.5 sm:px-3 relative pl-3.5 sm:pl-5">
         <div
-          className={`absolute left-0 top-0 bottom-0 transition-all duration-300 ${isLong ? "bg-emerald-500" : "bg-rose-500"} ${isCurrentActiveCoin && isOpen ? "w-1.5" : ""}`}
+          className={`absolute left-0 top-0 bottom-0 transition-all duration-300 ${isLong ? "bg-emerald-500" : "bg-rose-500"}`}
           style={{ width: isCurrentActiveCoin && isOpen ? "6px" : "4px" }}
         />
         <div className="flex items-start gap-1">
@@ -323,49 +317,39 @@ export function JournalRow({
       <TableCell className="py-2 px-1.5 sm:px-3 font-semibold text-[11px] sm:text-xs">
         {(deal.entry_price || 0).toFixed(precision)}
       </TableCell>
-      <TableCell className="py-2 px-1.5 sm:px-3 text-[11px] sm:text-xs select-none">
-        <span className="text-muted-foreground">
-          {breakevenPrice.toFixed(precision)}
-        </span>
+      <TableCell className="py-2 px-1.5 sm:px-3 text-muted-foreground text-[11px] sm:text-xs select-none">
+        {breakevenPrice.toFixed(precision)}
       </TableCell>
-      <TableCell className="py-2 px-1.5 sm:px-3 select-none">
-        <div className="flex flex-col gap-1 text-[11px] sm:text-xs items-start">
-          {/* УРОВЕНЬ ТЕЙКА: Вместо глаза рисуем аккуратный зеленый бадж TOUCH */}
-          <div className="flex items-center gap-1.5">
+      <TableCell className="py-2 px-1.5 sm:px-3 select-none max-w-28 sm:max-w-none">
+        <div className="flex flex-col gap-1.5 text-[11px] sm:text-xs items-start">
+          <div className="flex flex-col gap-0.5 items-start">
             <span
               className={
                 deal.tp_touched
-                  ? "text-emerald-500 font-bold"
-                  : "text-muted-foreground/40"
+                  ? "text-emerald-500 font-bold leading-none"
+                  : "text-muted-foreground/40 leading-none"
               }
             >
               {(deal.take_profit ?? 0).toFixed(precision)}
             </span>
             {deal.tp_touched && (
-              <span
-                className="px-1 py-px bg-emerald-500/15 text-emerald-500 text-[8px] font-black tracking-wider rounded-sm uppercase"
-                title="Цена коснулась Тейка!"
-              >
+              <span className="inline-block mt-0.5 px-1 py-px bg-emerald-500/15 text-emerald-500 text-[7px] sm:text-[8px] font-black tracking-wider rounded-sm uppercase scale-90 origin-left">
                 touch
               </span>
             )}
           </div>
-          {/* УРОВЕНЬ СТОПА: Вместо глаза рисуем аккуратный красный бадж TOUCH */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-col gap-0.5 items-start">
             <span
               className={
                 deal.sl_touched
-                  ? "text-rose-500 font-bold"
-                  : "text-muted-foreground/40"
+                  ? "text-rose-500 font-bold leading-none"
+                  : "text-muted-foreground/40 leading-none"
               }
             >
               {(deal.stop_loss ?? 0).toFixed(precision)}
             </span>
             {deal.sl_touched && (
-              <span
-                className="px-1 py-px bg-rose-500/15 text-rose-500 text-[8px] font-black tracking-wider rounded-sm uppercase"
-                title="Цена коснулась Стопа!"
-              >
+              <span className="inline-block mt-0.5 px-1 py-px bg-rose-500/15 text-rose-500 text-[7px] sm:text-[8px] font-black tracking-wider rounded-sm uppercase scale-90 origin-left">
                 touch
               </span>
             )}
@@ -379,9 +363,13 @@ export function JournalRow({
         <div className="flex items-center justify-end gap-0.5">
           {isOpen && (
             <>
-              {isBreakevenPassed &&
+              {livePrice > 0 &&
+                livePrice / deal.entry_price < 2.5 &&
+                deal.entry_price / livePrice < 2.5 &&
+                (isLong
+                  ? livePrice >= breakevenPrice
+                  : livePrice <= breakevenPrice) &&
                 isCurrentActiveCoin &&
-                isPriceValid &&
                 !isAlreadyInBreakeven && (
                   <Button
                     size="icon"
@@ -420,15 +408,68 @@ export function JournalRow({
               >
                 <X className="size-3.5" />
               </Button>
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => handleUpdateStatus(deal.id, "CLOSED")}
-                className="h-7 w-7 text-muted-foreground hover:bg-muted hover:text-foreground rounded-md"
-                title="Закрыть вручную"
+
+              <AlertDialog
+                open={isManualCloseModalOpen}
+                onOpenChange={setIsManualCloseModalOpen}
               >
-                <LogOut className="size-3" />
-              </Button>
+                <AlertDialogTrigger
+                  className={buttonVariants({
+                    variant: "ghost",
+                    size: "icon",
+                    className:
+                      "h-7 w-7 text-muted-foreground hover:bg-muted hover:text-foreground rounded-md cursor-pointer",
+                  })}
+                  title="Закрыть вручную с предпросмотром PnL"
+                >
+                  <LogOut className="size-3" />
+                </AlertDialogTrigger>
+                <AlertDialogContent size="default">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Закрыть сделку вручную?</AlertDialogTitle>
+                    <AlertDialogDescription
+                      render={<div />}
+                      className="space-y-2 pt-1 text-xs text-balance text-muted-foreground"
+                    >
+                      <div>
+                        Вы фиксируете текущую рыночную цену для пары{" "}
+                        <b>{deal.coin}</b>.
+                      </div>
+                      <div className="p-3 bg-muted/40 border border-border/30 rounded-xl space-y-1.5 text-center select-none">
+                        <div className="text-[10px] text-muted-foreground uppercase font-black">
+                          Ожидаемый финансовый результат
+                        </div>
+                        <div
+                          className={cn(
+                            "text-base font-black tracking-tight",
+                            isLiveProfit ? "text-emerald-500" : "text-rose-500",
+                          )}
+                        >
+                          {isLiveProfit ? "+" : ""}
+                          {livePnlUsdt.toFixed(3)} USDT (
+                          {isLiveProfit ? "+" : ""}
+                          {liveRoi.toFixed(2)}%)
+                        </div>
+                        <div className="text-[10px] text-muted-foreground/60">
+                          Текущая цена тикера: {livePrice.toFixed(precision)}
+                        </div>
+                      </div>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="rounded-xl text-xs h-9 cursor-pointer">
+                      Отмена
+                    </AlertDialogCancel>
+                    {/* КРИТИЧЕСКИЙ ФИКС: Используем базовый чистый Button вместо AlertDialogAction, полностью убирая ошибку из консоли */}
+                    <Button
+                      onClick={handleConfirmManualClose}
+                      className="rounded-xl text-white bg-blue-600 hover:bg-blue-700 border-none text-xs h-9 font-bold cursor-pointer"
+                    >
+                      Подтвердить закрытие
+                    </Button>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </>
           )}
           <AlertDialog

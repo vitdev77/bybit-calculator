@@ -26,8 +26,6 @@ async function ensureTableExists() {
       );
     `;
     await sql`ALTER TABLE deals ADD COLUMN IF NOT EXISTS closed_at_price DOUBLE PRECISION;`;
-
-    // Добавляем новые колонки для персистентного хранения факта касания уровней без закрытия сделки
     await sql`ALTER TABLE deals ADD COLUMN IF NOT EXISTS tp_touched BOOLEAN DEFAULT FALSE;`;
     await sql`ALTER TABLE deals ADD COLUMN IF NOT EXISTS sl_touched BOOLEAN DEFAULT FALSE;`;
 
@@ -37,7 +35,7 @@ async function ensureTableExists() {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
       return NextResponse.json(
@@ -46,13 +44,49 @@ export async function GET() {
       );
     }
     await ensureTableExists();
-    const rows = await sql`SELECT * FROM deals ORDER BY created_at DESC;`;
-    return NextResponse.json(rows || []);
+
+    const { searchParams } = new URL(request.url);
+    const activeCoin = searchParams.get("activeCoin");
+
+    const allDeals = await sql`SELECT * FROM deals ORDER BY created_at DESC;`;
+
+    let activeOpenDeal = null;
+    let lastManualClosedDeal = null;
+
+    if (activeCoin) {
+      const openResult = await sql`
+        SELECT * FROM deals 
+        WHERE coin = ${activeCoin} AND status = 'OPEN' 
+        LIMIT 1;
+      `;
+
+      if (openResult && openResult.length > 0) {
+        activeOpenDeal = openResult[0];
+      }
+
+      // ЖЕСТКИЙ ФИКС БЭКЕНДА: Подтягиваем архивную сделку ТОЛЬКО если сейчас нет открытой позиции по этой монете
+      if (!activeOpenDeal) {
+        const closedResult = await sql`
+          SELECT * FROM deals 
+          WHERE coin = ${activeCoin} AND status = 'CLOSED' 
+          ORDER BY created_at DESC 
+          LIMIT 1;
+        `;
+        if (closedResult && closedResult.length > 0) {
+          lastManualClosedDeal = closedResult[0];
+        }
+      }
+    }
+
+    return NextResponse.json({
+      deals: allDeals || [],
+      activeOpenDeal,
+      lastManualClosedDeal,
+    });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
-
 export async function POST(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
@@ -128,7 +162,6 @@ export async function PATCH(request: Request) {
 
     const targetId = parseInt(body.id, 10);
 
-    // Обработка переноса Stop Loss в БЕЗУБЫТОК
     if (body.action === "MOVE_TO_BREAKEVEN" && body.stop_loss !== undefined) {
       const nextSl = parseFloat(Number(body.stop_loss).toFixed(6));
       const result = await sql`
@@ -140,7 +173,6 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: true, data: result });
     }
 
-    // НОВОЕ: Фиксация касания Take Profit (Ордер ОСТАЕТСЯ ОТКРЫТЫМ)
     if (body.action === "TOUCH_TP") {
       const result = await sql`
         UPDATE deals SET tp_touched = TRUE WHERE id = ${targetId} AND status = 'OPEN' RETURNING *;
@@ -148,7 +180,6 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: true, data: result });
     }
 
-    // НОВОЕ: Фиксация касания Stop Loss (Ордер ОСТАЕТСЯ ОТКРЫТЫМ)
     if (body.action === "TOUCH_SL") {
       const result = await sql`
         UPDATE deals SET sl_touched = TRUE WHERE id = ${targetId} AND status = 'OPEN' RETURNING *;
