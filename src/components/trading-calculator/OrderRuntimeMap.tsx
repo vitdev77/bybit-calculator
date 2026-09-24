@@ -19,7 +19,9 @@ export function OrderRuntimeMap({
   isChangingCoin = false,
   storedPnL = { pnl: 0, roi: 0 },
 }: OrderRuntimeMapProps) {
-  // ФИКС СКЕЛЕТОНА В КАРТЕ: Если замок лоадера заблокирован родителем, мгновенно разворачиваем скелетон-анимацию!
+  // КРИТИЧЕСКИЙ ФИКС БАГА ПРОСКАКИВАНИЯ:
+  // Если взведен флаг смены монеты ИЛИ имя монеты в фокусном ордере не совпадает с precision/котировками —
+  // мы жестко блокируем рендер логики и сразу выводим чистый скелетон!
   if (isChangingCoin) {
     return (
       <div className="w-full space-y-2.5 pt-2 select-none animate-pulse">

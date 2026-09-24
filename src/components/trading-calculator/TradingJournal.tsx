@@ -61,10 +61,7 @@ export default function TradingJournal({
   );
   const [focusedDeal, setFocusedDeal] = useState<Deal | null>(null);
   const [loading, setLoading] = useState(true);
-
-  // УПРАВЛЕНИЕ ЛОАДЕРОМ: Стейт контроля за скелетоном рантайм-карты
   const [isChangingCoin, setIsChangingCoin] = useState(false);
-
   const [isClearOpen, setIsClearOpen] = useState(false);
   const [activeDeleteId, setActiveDeleteId] = useState<number | null>(null);
 
@@ -86,25 +83,16 @@ export default function TradingJournal({
     document.title = `Журнал сделок (${openDealsCount})`;
   }, [openDealsCount]);
 
-  // ФИКС СКЕЛЕТОНА: Принудительно взводим замок лоадера при любой физической смене тикера монеты
-  useEffect(() => {
-    if (!activeCoin) return;
-    setIsChangingCoin(true);
-    const timer = setTimeout(() => {
-      setIsChangingCoin(false);
-    }, 3000); // 300мс мягкого удержания скелетона для бесшовного рендеринга шкалы
-    return () => clearTimeout(timer);
-  }, [activeCoin]);
-
+  // ФИКС СКЕЛЕТОНА: Убираем отсюда setTimeout.
+  // Лоадер гасится строго в fetchJournal, когда данные монеты и цены синхронизировались!
   useEffect(() => {
     if (livePrice <= 0 || !activeCoin) return;
 
-    if (activeOpenDeal) {
+    if (activeOpenDeal && activeOpenDeal.coin === activeCoin) {
       const isPriceValidForCoin =
         livePrice / activeOpenDeal.entry_price < 2.5 &&
         activeOpenDeal.entry_price / livePrice < 2.5;
 
-      // Если цена валидна и лоадер еще не потушен таймером, гасим его досрочно
       if (isPriceValidForCoin && isChangingCoin) {
         setIsChangingCoin(false);
       }
@@ -173,8 +161,12 @@ export default function TradingJournal({
         (d: Deal) => d.status?.toUpperCase() !== "OPEN",
       ).length;
       onDealsCountChange?.({ open: openCount, closed: closedCount });
+
+      // Снимаем замок лоадера только после того, как все стейты обновились данными новой монеты!
+      setIsChangingCoin(false);
     } catch (err) {
       console.error("Не удалось подгрузить журнал:", err);
+      setIsChangingCoin(false);
     } finally {
       setLoading(false);
     }
@@ -399,7 +391,6 @@ export default function TradingJournal({
         <JournalStats deals={deals} />
       </div>
 
-      {/* ИСПРАВЛЕНИЕ ПОДСВЕТКИ: Заменили pr на прямое чтение разрядности текущей активной монеты */}
       <OrderRuntimeMap
         focusedDeal={focusedDeal}
         livePrice={livePrice}
@@ -432,6 +423,8 @@ export default function TradingJournal({
                 frozenPnL={frozenPnL}
                 setFrozenPnL={setFrozenPnL}
                 onCoinSelect={(coin) => {
+                  // ЖЕСТКИЙ СИНХРОННЫЙ ТРИГГЕР: Сразу врубаем скелетон до того, как начнется рендер!
+                  setIsChangingCoin(true);
                   setFocusedDeal(deal);
                   onCoinSelect?.(coin);
                 }}
