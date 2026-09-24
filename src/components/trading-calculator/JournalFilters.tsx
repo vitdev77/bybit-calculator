@@ -42,9 +42,9 @@ export function JournalFilters({
 }: JournalFiltersProps) {
   return (
     <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 w-full text-xs">
-      {/* ЛЕВАЯ ЧАСТЬ: Поиск и переключатели статусов */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 flex-1 w-full">
-        <div className="relative w-full sm:max-w-56 flex items-center group">
+      {/* ЛЕВАЯ ЧАСТЬ (ЛИНИЯ 1 НА МОБИЛКАХ): Жесткая сетка grid-cols-2 только для мобилок. На десктопе возвращается flex */}
+      <div className="grid grid-cols-2 sm:flex sm:items-center gap-2.5 w-full sm:w-auto flex-1 sm:flex-none min-w-0">
+        <div className="relative w-full sm:w-56 flex items-center group">
           <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground/60 pointer-events-none" />
           <Input
             type="text"
@@ -63,6 +63,7 @@ export function JournalFilters({
           )}
         </div>
 
+        {/* ФИКС РАСТЯЖЕНИЯ: На мобилке w-full заполняет 50% грида, на десктопе (sm:) возвращается в компактный w-auto */}
         <Tabs
           value={statusFilter}
           onValueChange={(val) => setStatusFilter(val || "ALL")}
@@ -71,32 +72,32 @@ export function JournalFilters({
           <TabsList className="h-9 sm:h-7.5 w-full sm:w-auto p-0.5 bg-muted/40 border border-border/30 rounded-lg grid grid-cols-3 sm:flex">
             <TabsTrigger
               value="ALL"
-              className="text-[11px] px-3 font-bold uppercase tracking-wider h-full"
+              className="text-[11px] px-3 font-bold uppercase tracking-wider h-full flex items-center justify-center"
             >
               Все
             </TabsTrigger>
             <TabsTrigger
               value="OPEN"
-              className="text-[11px] px-3 font-bold uppercase tracking-wider h-full"
+              className="text-[11px] px-3 font-bold uppercase tracking-wider h-full flex items-center justify-center"
             >
-              Открытые
+              Откр
             </TabsTrigger>
             <TabsTrigger
               value="CLOSED"
-              className="text-[11px] px-3 font-bold uppercase tracking-wider h-full"
+              className="text-[11px] px-3 font-bold uppercase tracking-wider h-full flex items-center justify-center"
             >
-              Закрытые
+              Закр
             </TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
-      {/* ПРАВАЯ ЧАСТЬ ПАНЕЛИ: Интегрированные кнопки управляющих действий */}
-      <div className="flex items-center justify-end gap-1.5 shrink-0 h-9 sm:h-7.5 w-full sm:w-auto mt-1 sm:mt-0">
-        {totalDeals > 0 && (
+      {/* ПРАВАЯ ЧАСТЬ (ЛИНИЯ 2 НА МОБИЛКАХ): Кнопки во всю ширину на мобилке, на десктопе прижимаются вправо */}
+      <div className="grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-1.5 shrink-0 w-full sm:w-auto mt-1 sm:mt-0">
+        {totalDeals > 0 ? (
           <Button
             onClick={exportToCSV}
             variant="outline"
-            className="h-9 sm:h-7.5 px-2.5 rounded-lg text-muted-foreground border-border/60 bg-transparent hover:text-foreground hover:bg-muted/40 transition-colors shadow-none shrink-0"
+            className="h-9 sm:h-7.5 w-full sm:w-auto px-2.5 rounded-lg text-muted-foreground border-border/60 bg-transparent hover:text-foreground hover:bg-muted/40 transition-colors shadow-none shrink-0"
             title="Выгрузить журнал в формате CSV"
           >
             <Download className="size-3.5 mr-1.5 shrink-0" />
@@ -104,15 +105,17 @@ export function JournalFilters({
               Экспорт
             </span>
           </Button>
+        ) : (
+          <div className="hidden sm:block" />
         )}
 
-        {totalDeals > 0 && (
+        {totalDeals > 0 ? (
           <AlertDialog open={isClearOpen} onOpenChange={setIsClearOpen}>
             <AlertDialogTrigger
               className={buttonVariants({
                 variant: "outline",
                 className:
-                  "h-9 sm:h-7.5 px-2.5 text-rose-600 border-rose-500/20 hover:bg-rose-600 hover:text-white rounded-lg transition-colors shadow-none bg-transparent shrink-0 flex items-center justify-center cursor-pointer",
+                  "h-9 sm:h-7.5 w-full sm:w-auto px-2.5 text-rose-600 border-rose-500/20 hover:bg-rose-600 hover:text-white rounded-lg transition-colors shadow-none bg-transparent shrink-0 flex items-center justify-center cursor-pointer",
               })}
               title="Полная очистка облачной базы данных"
             >
@@ -122,7 +125,6 @@ export function JournalFilters({
               </span>
             </AlertDialogTrigger>
 
-            {/* GLASSMORPHISM ВНЕДРЕН: Добавлены стили матового стекла и контрастной границы в обход ui-компонента */}
             <AlertDialogContent className="rounded-2xl max-w-xs sm:max-w-sm bg-popover/70 dark:bg-zinc-950/70 backdrop-blur-md border border-border/40 dark:border-white/10 shadow-2xl">
               <AlertDialogHeader>
                 <AlertDialogTitle className="text-sm sm:text-base">
@@ -150,6 +152,8 @@ export function JournalFilters({
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+        ) : (
+          <div className="hidden sm:block" />
         )}
       </div>
     </div>
