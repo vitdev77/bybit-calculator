@@ -83,10 +83,9 @@ export function JournalRow({
   const [isMovingToBu, setIsMovingToBu] = useState(false);
   const [isManualCloseModalOpen, setIsManualCloseModalOpen] = useState(false);
 
-  // ЖЕСТКИЙ ФЬЮЧЕРСНЫЙ РЕГЛАМЕНТ: Исключаем спот, фиксируем комиссии твоего аккаунта Bybit
   const openFeeRate = 0.0006;
   const closeFeeRate = 0.0006;
-  const totalFeeRate = 0.0013; // 0.0006 + 0.0006 + 0.0001 (спред)
+  const totalFeeRate = 0.0013;
 
   const breakevenPrice = isLong
     ? deal.entry_price * ((1 + openFeeRate) / (1 - closeFeeRate - 0.0001))
@@ -95,7 +94,6 @@ export function JournalRow({
   let pnlDisplay = null;
   const isCurrentActiveCoin = activeCoin === deal.coin;
 
-  // Улучшенная валидация цен для предотвращения скачков при переключении токенов
   const isPriceValid =
     livePrice > 0 &&
     livePrice / deal.entry_price < 2.5 &&
@@ -424,7 +422,11 @@ export function JournalRow({
                 >
                   <LogOut className="size-3" />
                 </AlertDialogTrigger>
-                <AlertDialogContent size="default">
+                {/* GLASSMORPHISM ВНЕДРЕН: Добавлен матовый бэкдроп-эффект локально на модалку ручного закрытия */}
+                <AlertDialogContent
+                  size="default"
+                  className="bg-popover/70 dark:bg-zinc-950/70 backdrop-blur-md border border-border/40 dark:border-white/10 shadow-2xl"
+                >
                   <AlertDialogHeader>
                     <AlertDialogTitle>Закрыть сделку вручную?</AlertDialogTitle>
                     <AlertDialogDescription
@@ -484,7 +486,11 @@ export function JournalRow({
             >
               <Trash2 className="size-3" />
             </AlertDialogTrigger>
-            <AlertDialogContent size="default">
+            {/* GLASSMORPHISM ВНЕДРЕН: Локальное матовое стекло на алерт одиночного удаления ордера */}
+            <AlertDialogContent
+              size="default"
+              className="bg-popover/70 dark:bg-zinc-950/70 backdrop-blur-md border border-border/40 dark:border-white/10 shadow-2xl"
+            >
               <AlertDialogHeader>
                 <AlertDialogTitle>Удалить сделку?</AlertDialogTitle>
                 <AlertDialogDescription>

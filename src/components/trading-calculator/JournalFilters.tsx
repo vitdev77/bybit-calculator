@@ -90,7 +90,6 @@ export function JournalFilters({
           </TabsList>
         </Tabs>
       </div>
-
       {/* ПРАВАЯ ЧАСТЬ ПАНЕЛИ: Интегрированные кнопки управляющих действий */}
       <div className="flex items-center justify-end gap-1.5 shrink-0 h-9 sm:h-7.5 w-full sm:w-auto mt-1 sm:mt-0">
         {totalDeals > 0 && (
@@ -123,7 +122,8 @@ export function JournalFilters({
               </span>
             </AlertDialogTrigger>
 
-            <AlertDialogContent className="rounded-2xl max-w-xs sm:max-w-sm">
+            {/* GLASSMORPHISM ВНЕДРЕН: Добавлены стили матового стекла и контрастной границы в обход ui-компонента */}
+            <AlertDialogContent className="rounded-2xl max-w-xs sm:max-w-sm bg-popover/70 dark:bg-zinc-950/70 backdrop-blur-md border border-border/40 dark:border-white/10 shadow-2xl">
               <AlertDialogHeader>
                 <AlertDialogTitle className="text-sm sm:text-base">
                   Очистить весь журнал?

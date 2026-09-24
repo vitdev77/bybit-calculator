@@ -43,9 +43,9 @@ export default function ResultsDisplay({
   const [copiedTP, setCopiedTP] = useState(false);
   const [copiedSL, setCopiedSL] = useState(false);
 
-  const isSpot = results.selectedLeverage === 1;
-  const openFeeRate = isSpot ? 0.001 : 0.0006;
-  const closeFeeRate = isSpot ? 0.001 : 0.0006;
+  // ЖЕСТКИЙ ФЬЮЧЕРСНЫЙ РЕГЛАМЕНТ: Исключаем спот, фиксируем комиссии твоего аккаунта Bybit
+  const openFeeRate = 0.0006;
+  const closeFeeRate = 0.0006;
 
   const breakevenPrice = isLong
     ? entryPrice * ((1 + openFeeRate) / (1 - closeFeeRate - 0.0001))
@@ -85,7 +85,6 @@ export default function ResultsDisplay({
       setTimeout(() => setCopiedSL(false), 2000);
     }
   };
-
   const handleSaveToJournal = async () => {
     if (entryPrice <= 0 || results.positionSizeUsdt <= 0 || isSaving) return;
     setIsSaving(true);
@@ -135,6 +134,7 @@ export default function ResultsDisplay({
       setIsSaving(false);
     }
   };
+
   return (
     <div className="space-y-4 flex flex-col h-full justify-between">
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
@@ -175,7 +175,6 @@ export default function ResultsDisplay({
           </div>
         </div>
       </div>
-
       <div className="p-3 rounded-xl bg-muted/20 border border-border/40 space-y-2.5">
         <div className="flex items-center justify-between border-b border-border/30 pb-1.5 select-none">
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -216,7 +215,6 @@ export default function ResultsDisplay({
               <span className="font-bold text-foreground bg-muted/40 px-1.5 py-0.5 rounded text-sm">
                 {entryPrice.toFixed(results.decimals)}
               </span>
-              {/* ФИКС: Ошибочные теги и опечатки полностью стёрты */}
               <button
                 type="button"
                 onClick={() => handleCopy(entryPrice, "entry")}
@@ -319,7 +317,7 @@ export default function ResultsDisplay({
           </div>
           <div className="flex justify-between items-center py-0.5">
             <span className="text-rose-400 font-bold flex items-center gap-1">
-              Ликовидация (Iso):
+              Ликвидация (Iso):
             </span>
             <div className="flex items-center gap-2 pr-7.5">
               <span
