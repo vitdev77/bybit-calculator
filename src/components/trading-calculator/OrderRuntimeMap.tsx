@@ -19,9 +19,6 @@ export function OrderRuntimeMap({
   isChangingCoin = false,
   storedPnL = { pnl: 0, roi: 0 },
 }: OrderRuntimeMapProps) {
-  // КРИТИЧЕСКИЙ ФИКС БАГА ПРОСКАКИВАНИЯ:
-  // Если взведен флаг смены монеты ИЛИ имя монеты в фокусном ордере не совпадает с precision/котировками —
-  // мы жестко блокируем рендер логики и сразу выводим чистый скелетон!
   if (isChangingCoin) {
     return (
       <div className="w-full space-y-2.5 pt-2 select-none animate-pulse">
@@ -65,17 +62,17 @@ export function OrderRuntimeMap({
   }
 
   const isLong = focusedDeal.side === "BUY";
-  const isSpot = focusedDeal.leverage === 1;
   const isOpen = focusedDeal.status?.toUpperCase() === "OPEN";
-
-  const openFeeRate = isSpot ? 0.001 : 0.0006;
-  const closeFeeRate = isSpot ? 0.001 : 0.0006;
+  const openFeeRate = 0.0006;
+  const closeFeeRate = 0.0006;
+  const totalFeeRate = 0.0013;
 
   const bPrice = isLong
     ? focusedDeal.entry_price *
       ((1 + openFeeRate) / (1 - closeFeeRate - 0.0001))
     : focusedDeal.entry_price *
       ((1 - openFeeRate) / (1 + closeFeeRate + 0.0001));
+
   const minScalePrice = Math.min(
     focusedDeal.stop_loss,
     focusedDeal.take_profit,
@@ -119,13 +116,16 @@ export function OrderRuntimeMap({
   let liveTranslateX = -50;
   if (livePct < 20) liveTranslateX = -50 + (20 - livePct) * 2.5;
   else if (livePct > 80) liveTranslateX = -50 - (livePct - 80) * 2.5;
+
   const isMovingToProfit = isLong
     ? livePrice > focusedDeal.entry_price
     : livePrice < focusedDeal.entry_price;
+
   const liveBgClass =
     livePrice >= bPrice
       ? "bg-cyan-500 shadow-md shadow-cyan-500/30"
       : "bg-neutral-500 dark:bg-zinc-400 shadow-md shadow-neutral-500/20";
+
   const liveTextClass =
     livePrice >= bPrice
       ? "text-cyan-600 dark:text-cyan-400 border-cyan-500/20"
@@ -134,33 +134,39 @@ export function OrderRuntimeMap({
   let watermarkText = "SPREAD";
   let watermarkColorClass = "text-amber-500/4 dark:text-amber-500/7";
   let dynamicMeshGlow = "rgba(245, 158, 11, 0.04)";
+  let outerNeonGlowStyle = {
+    boxShadow: "0 4px 20px -2px rgba(245, 158, 11, 0.05)",
+  };
 
   if (isTakeProfitBroken) {
     watermarkText = "TARGET";
     watermarkColorClass = "text-purple-500/5 dark:text-purple-500/8";
     dynamicMeshGlow = "rgba(168, 85, 247, 0.08)";
+    outerNeonGlowStyle = {
+      boxShadow: "0 0 40px -4px rgba(168, 85, 247, 0.12)",
+    };
   } else if (isStopLossBroken) {
     watermarkText = "STOPPED";
     watermarkColorClass = "text-rose-600/5 dark:text-rose-500/8";
     dynamicMeshGlow = "rgba(239, 68, 68, 0.08)";
+    outerNeonGlowStyle = { boxShadow: "0 0 40px -4px rgba(239, 68, 68, 0.15)" };
   } else if (!isMovingToProfit) {
     watermarkText = "DOWN";
     watermarkColorClass = "text-rose-500/4 dark:text-rose-500/7";
     dynamicMeshGlow = "rgba(244, 63, 94, 0.06)";
+    outerNeonGlowStyle = { boxShadow: "0 0 35px -5px rgba(244, 63, 94, 0.1)" };
   } else if (isLong ? livePrice >= bPrice : livePrice <= bPrice) {
     watermarkText = "BREAKEVEN";
     watermarkColorClass = "text-cyan-500/5 dark:text-cyan-500/8";
     dynamicMeshGlow = "rgba(6, 182, 212, 0.08)";
-  } else {
-    watermarkText = "SPREAD";
-    watermarkColorClass = "text-amber-500/4 dark:text-amber-500/7";
-    dynamicMeshGlow = "rgba(245, 158, 11, 0.04)";
+    outerNeonGlowStyle = { boxShadow: "0 0 40px -4px rgba(6, 182, 212, 0.15)" };
   }
 
   if (!isOpen) {
     watermarkText = "ARCHIVE";
     watermarkColorClass = "text-blue-500/4 dark:text-blue-500/6";
     dynamicMeshGlow = "rgba(59, 130, 246, 0.03)";
+    outerNeonGlowStyle = { boxShadow: "0 4px 20px -2px rgba(0, 0, 0, 0.05)" };
   }
 
   const isHeaderProfit = storedPnL.pnl >= 0;
@@ -235,8 +241,9 @@ export function OrderRuntimeMap({
       </div>
 
       <div
-        className="relative w-full bg-linear-to-b from-muted/20 to-muted/5 dark:from-neutral-900/60 dark:to-neutral-950/90 border border-border/40 rounded-2xl px-4 pt-20 pb-16 flex flex-col justify-center h-52 shadow-xs overflow-hidden backdrop-blur-md"
+        className="relative w-full bg-linear-to-b from-muted/20 to-muted/5 dark:from-neutral-900/60 dark:to-neutral-950/90 border border-border/40 rounded-2xl px-4 pt-20 pb-16 flex flex-col justify-center h-52 overflow-hidden backdrop-blur-md transition-all duration-500 ease-out"
         style={{
+          ...outerNeonGlowStyle,
           backgroundImage: `radial-gradient(circle at 50% 50%, ${dynamicMeshGlow} 0%, transparent 65%), linear-gradient(rgba(120, 119, 198, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(120, 119, 198, 0.04) 1px, transparent 1px)`,
           backgroundSize: "100% 100%, 16px 16px, 16px 16px",
         }}
@@ -287,7 +294,6 @@ export function OrderRuntimeMap({
             className="absolute size-2 bg-emerald-500 rounded-full border border-background shadow-xs"
             style={{ left: `${tpPct}%`, transform: "translateX(-100%)" }}
           />
-
           {!isOpen && hasManualClosePointer && closePct !== null && (
             <div
               className="absolute flex flex-col items-center z-30"
@@ -304,7 +310,7 @@ export function OrderRuntimeMap({
             </div>
           )}
 
-          {isOpen && !isTakeProfitBroken && !isStopLossBroken && (
+          {isOpen && (
             <div
               className="absolute flex flex-col items-center z-20 transition-all duration-700 ease-out"
               style={{
@@ -312,12 +318,20 @@ export function OrderRuntimeMap({
                 transform: `translateX(${liveTranslateX}%)`,
               }}
             >
-              <div
-                className={cn(
-                  "size-2.5 rounded-full border-2 border-background dark:border-neutral-900",
-                  liveBgClass,
-                )}
-              />
+              <div className="relative flex items-center justify-center">
+                <span
+                  className={cn(
+                    "absolute inline-flex h-5 w-5 rounded-full opacity-40 animate-ping",
+                    livePrice >= bPrice ? "bg-cyan-400" : "bg-neutral-400",
+                  )}
+                />
+                <div
+                  className={cn(
+                    "size-2.5 rounded-full border-2 border-background dark:border-neutral-900 z-10 transition-transform duration-200 scale-110",
+                    liveBgClass,
+                  )}
+                />
+              </div>
               <div
                 className={cn(
                   "absolute -top-9 bg-background border border-border/80 rounded-lg overflow-hidden text-[10px] h-5.5 z-30 flex items-center text-xs font-bold px-1.5 py-0.5 shadow-sm",
@@ -329,6 +343,7 @@ export function OrderRuntimeMap({
               <div className="absolute -top-3 border-l border-muted-foreground/30 h-3 border-dashed" />
             </div>
           )}
+
           <div
             className="absolute bottom-0 border-l border-rose-500/20 h-10 border-dashed -translate-x-1/2"
             style={{ left: `${slPct}%` }}
@@ -345,6 +360,7 @@ export function OrderRuntimeMap({
             className="absolute top-0 border-l border-amber-500/20 h-11 border-dashed -translate-x-1/2"
             style={{ left: `${buPct}%` }}
           />
+
           <div
             className="absolute bottom-11 flex items-center bg-background border border-border/80 rounded-lg overflow-hidden shadow-xs text-[10px] h-5.5 z-10"
             style={{ left: `${slPct}%` }}

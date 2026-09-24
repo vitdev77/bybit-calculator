@@ -81,7 +81,6 @@ export default function MarketTicker({
     }
   }, [data?.lastPrice]);
 
-  // СБОРКА СКЕЛЕТОНА: Высоты строк и карточки идеально подогнаны под размеры боевого интерфейса
   if (loading || !data) {
     return (
       <div className="p-3 border border-border/40 dark:border-black/40 rounded-xl bg-muted/30 dark:bg-black/40 shadow-inner grid grid-cols-2 md:grid-cols-6 gap-x-2 gap-y-3 sm:gap-4 w-full items-center h-auto md:h-22.5 select-none box-border overflow-hidden">
@@ -147,7 +146,7 @@ export default function MarketTicker({
   const fullName = COIN_NAMES[coinBaseName] || "Crypto Asset";
   return (
     <div className="p-3 border border-border/40 dark:border-black/40 rounded-xl bg-muted/30 dark:bg-black/40 shadow-inner grid grid-cols-2 md:grid-cols-6 gap-x-2 gap-y-3 sm:gap-4 w-full items-center h-auto md:h-22.5 box-border select-none">
-      {/* 1. ВЫБОР МОНЕТЫ */}
+      {/* 1. ВЫБОР МОНЕТЫ С ЭФФЕКТОМ МАТОВОГО СТЕКЛА */}
       <div className="p-0.5 md:col-span-1 border-b md:border-b-0 md:border-r border-border/30 pb-2 md:pb-0 pr-1 sm:pr-3 h-12 min-w-fit shrink-0 flex items-center">
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-1.5 sm:gap-3 text-left p-1 rounded-xl border border-transparent transition-all duration-200 cursor-pointer outline-none w-full group/trigger hover:bg-muted/60 dark:hover:bg-muted/20 active:scale-[0.98]">
@@ -177,38 +176,41 @@ export default function MarketTicker({
               </span>
             </div>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="max-h-60 overflow-y-auto z-50 bg-popover rounded-xl p-1 border border-border/40 shadow-xl min-w-48">
-            {AVAILABLE_COINS.map((coin) => {
-              const base = coin.replace("USDT", "");
-              const iconPath = `/crypto-icons/${base.toLowerCase()}.svg`;
-              const isSelected = selectedCoin === coin;
-              return (
-                <DropdownMenuItem
-                  key={coin}
-                  onClick={() => onCoinChange?.(coin)}
-                  className={`flex items-center justify-between gap-2 px-2.5 py-1.5 text-xs sm:text-sm rounded-lg cursor-pointer transition-colors focus:bg-accent focus:text-accent-foreground ${
-                    isSelected
-                      ? "bg-amber-500/10 text-amber-500 font-bold"
-                      : "text-foreground"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <img
-                      src={iconPath}
-                      alt={base}
-                      className="size-4 object-contain rounded-full shrink-0"
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = "none";
-                      }}
-                    />
-                    <span className="truncate">{coin}</span>
-                  </div>
-                  {isSelected && (
-                    <Check className="size-3.5 sm:size-4 text-amber-500 shrink-0 ml-auto" />
-                  )}
-                </DropdownMenuItem>
-              );
-            })}
+          {/* ФИКС СКРУГЛЕНИЙ: Добавлен overflow-hidden на внешний контейнер, чтобы скролл не резал rounded-xl */}
+          <DropdownMenuContent className="z-50 bg-popover/75 dark:bg-zinc-950/75 backdrop-blur-md rounded-xl p-1 border border-border/40 dark:border-white/10 shadow-xl min-w-48 overflow-hidden">
+            <div className="max-h-60 overflow-y-auto overflow-x-hidden scrollbar-thin rounded-lg">
+              {AVAILABLE_COINS.map((coin) => {
+                const base = coin.replace("USDT", "");
+                const iconPath = `/crypto-icons/${base.toLowerCase()}.svg`;
+                const isSelected = selectedCoin === coin;
+                return (
+                  <DropdownMenuItem
+                    key={coin}
+                    onClick={() => onCoinChange?.(coin)}
+                    className={`flex items-center justify-between gap-2 px-2.5 py-1.5 text-xs sm:text-sm rounded-lg cursor-pointer transition-colors focus:bg-accent focus:text-accent-foreground ${
+                      isSelected
+                        ? "bg-amber-500/10 text-amber-500 font-bold"
+                        : "text-foreground"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <img
+                        src={iconPath}
+                        alt={base}
+                        className="size-4 object-contain rounded-full shrink-0"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = "none";
+                        }}
+                      />
+                      <span className="truncate">{coin}</span>
+                    </div>
+                    {isSelected && (
+                      <Check className="size-3.5 sm:size-4 text-amber-500 shrink-0 ml-auto" />
+                    )}
+                  </DropdownMenuItem>
+                );
+              })}
+            </div>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
