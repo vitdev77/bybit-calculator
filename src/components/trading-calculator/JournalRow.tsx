@@ -249,7 +249,7 @@ export function JournalRow({
       if (!res.ok) throw new Error();
       toast.add({
         title: "Риск снят",
-        description: `Stop Loss перенесен в безопасный БУ.`,
+        description: `Stop Loss перенесен в безубыток (БУ).`,
         type: "success",
       });
       window.dispatchEvent(new Event("refresh-trading-journal"));
