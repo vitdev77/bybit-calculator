@@ -94,8 +94,13 @@ export function JournalRow({
     if (deal.created_at) {
       try {
         const d = new Date(deal.created_at);
-        const dateStr = `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getFullYear()).slice(-2)}`;
-        const timeStr = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+        const dateStr =
+          `${String(d.getDate()).padStart(2, "0")}.` +
+          `${String(d.getMonth() + 1).padStart(2, "0")}.` +
+          `${String(d.getFullYear()).slice(-2)}`;
+        const timeStr =
+          `${String(d.getHours()).padStart(2, "0")}:` +
+          `${String(d.getMinutes()).padStart(2, "0")}`;
         setFormattedDateTime({ date: dateStr, time: timeStr });
       } catch (e) {}
     }
@@ -111,7 +116,6 @@ export function JournalRow({
   let pnlDisplay = null;
   const isCurrentActiveCoin = activeCoin === deal.coin;
 
-  // ТОЧЕЧНЫЙ ФОКУС: Строка подсвечена только если совпадает уникальный ID сделки из Neon DB
   const isRowSelected = focusedDeal
     ? focusedDeal.id === deal.id
     : isCurrentActiveCoin && isOpen;
@@ -149,20 +153,18 @@ export function JournalRow({
             className={`relative inline-flex rounded-full h-1.5 w-1.5 ${isLiveProfit ? "bg-emerald-500" : "bg-rose-500"}`}
           />
         </span>
+        {/* ФИКС: Убрана серость, яркий сочный вывод USDT */}
         <span
           className={`font-sans font-black text-[11px] sm:text-xs ${isLiveProfit ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
         >
           {isLiveProfit ? "+" : ""}
-          {liveRoi.toFixed(2)}%
+          {livePnlUsdt.toFixed(3)} USDT
         </span>
         <span
           className={`text-[9px] sm:text-[10px] font-bold ${isLiveProfit ? "text-emerald-500/80" : "text-rose-500/80"}`}
         >
           {isLiveProfit ? "+" : ""}
-          {livePnlUsdt.toFixed(3)}{" "}
-          <span className="text-[8px] font-normal opacity-60 text-muted-foreground">
-            USDT
-          </span>
+          {liveRoi.toFixed(2)}%
         </span>
       </div>
     );
@@ -171,23 +173,21 @@ export function JournalRow({
   if (!pnlDisplay) {
     if (isOpen) {
       const lastKnown = frozenPnL[deal.id] || { pnl: 0, roi: 0 };
+      const isLastProfit = lastKnown.pnl >= 0;
       pnlDisplay = (
         <div className="flex flex-col text-right select-none opacity-45 relative w-full pl-5 sm:pl-6">
           <Pause className="size-2 text-muted-foreground absolute left-0.5 top-1.5" />
           <span
-            className={`text-[11px] sm:text-xs font-bold ${lastKnown.pnl >= 0 ? "text-emerald-600/80 dark:text-emerald-400/80" : "text-rose-600/80 dark:text-rose-400/80"}`}
+            className={`text-[11px] sm:text-xs font-black ${isLastProfit ? "text-emerald-600/80 dark:text-emerald-400/80" : "text-rose-600/80 dark:text-rose-400/80"}`}
           >
-            {lastKnown.pnl >= 0 ? "+" : ""}
-            {lastKnown.roi.toFixed(2)}%
+            {isLastProfit ? "+" : ""}
+            {lastKnown.pnl.toFixed(3)} USDT
           </span>
           <span
-            className={`text-[10px] font-bold ${lastKnown.pnl >= 0 ? "text-emerald-500/60" : "text-rose-500/60"}`}
+            className={`text-[9px] sm:text-[10px] font-bold ${isLastProfit ? "text-emerald-500/60" : "text-rose-500/60"}`}
           >
-            {lastKnown.pnl >= 0 ? "+" : ""}
-            {lastKnown.pnl.toFixed(3)}{" "}
-            <span className="text-[8px] font-normal text-muted-foreground opacity-60">
-              USDT
-            </span>
+            {isLastProfit ? "+" : ""}
+            {lastKnown.roi.toFixed(2)}%
           </span>
         </div>
       );
@@ -209,29 +209,26 @@ export function JournalRow({
         : deal.entry_price - targetPrice;
       const finalPnlUsdt = priceDiff * cryptoQty - deal.volume * totalFeeRate;
       const finalRoi = deal.margin > 0 ? (finalPnlUsdt / deal.margin) * 100 : 0;
+      const isFinalProfit = finalPnlUsdt >= 0;
 
       pnlDisplay = (
         <div className="flex flex-col text-right opacity-65 select-none w-full">
           <span
-            className={`font-sans font-black text-[11px] sm:text-xs ${finalPnlUsdt >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
+            className={`font-sans font-black text-[11px] sm:text-xs ${isFinalProfit ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
           >
-            {finalPnlUsdt >= 0 ? "+" : ""}
-            {finalRoi.toFixed(2)}%
+            {isFinalProfit ? "+" : ""}
+            {finalPnlUsdt.toFixed(3)} USDT
           </span>
           <span
-            className={`text-[9px] sm:text-[10px] font-bold ${finalPnlUsdt >= 0 ? "text-emerald-500/80" : "text-rose-500/80"}`}
+            className={`text-[9px] sm:text-[10px] font-bold ${isFinalProfit ? "text-emerald-500/80" : "text-rose-500/80"}`}
           >
-            {finalPnlUsdt >= 0 ? "+" : ""}
-            {finalPnlUsdt.toFixed(3)}{" "}
-            <span className="text-[8px] font-normal opacity-60 text-muted-foreground">
-              USDT
-            </span>
+            {isFinalProfit ? "+" : ""}
+            {finalRoi.toFixed(2)}%
           </span>
         </div>
       );
     }
   }
-
   const handleMoveToBreakevenClick = async () => {
     if (isMovingToBu || Math.abs(deal.stop_loss - breakevenPrice) < 0.00001)
       return;
@@ -249,7 +246,7 @@ export function JournalRow({
       if (!res.ok) throw new Error();
       toast.add({
         title: "Риск снят",
-        description: `Stop Loss перенесен в безубыток (БУ).`,
+        description: `Stop Loss перенесен в БУ.`,
         type: "success",
       });
       window.dispatchEvent(new Event("refresh-trading-journal"));
@@ -263,19 +260,18 @@ export function JournalRow({
   const handleConfirmManualClose = () => {
     setIsManualCloseModalOpen(false);
     handleUpdateStatus(deal.id, "CLOSED", livePrice).catch((err) => {
-      console.error("Manual close error:", err);
+      console.error(err);
     });
   };
 
   const isAlreadyInBreakeven =
     Math.abs(deal.stop_loss - breakevenPrice) < 0.00001;
-
-  // Чистый янтарный градиент на строку только если совпал ID
   const rowClass = isRowSelected
     ? "bg-linear-to-r from-amber-500/10 via-amber-500/5 to-transparent border-amber-500/30 dark:from-amber-500/15 opacity-100!"
     : !isOpen
       ? "opacity-55 hover:bg-muted/40 hover:opacity-100"
       : "hover:bg-muted/40";
+
   return (
     <TableRow
       className={`transition-all border-b border-border/10 ${rowClass}`}
@@ -390,7 +386,7 @@ export function JournalRow({
                     disabled={isMovingToBu}
                     onClick={handleMoveToBreakevenClick}
                     className="h-7 w-7 text-amber-500 hover:bg-amber-500 hover:text-white rounded-md"
-                    title="Перенести Stop Loss в безубыток"
+                    title="Перенести Stop Loss в БУ"
                   >
                     <ShieldAlert className="size-3.5" />
                   </Button>
@@ -421,7 +417,6 @@ export function JournalRow({
               >
                 <X className="size-3.5" />
               </Button>
-
               <AlertDialog
                 open={isManualCloseModalOpen}
                 onOpenChange={setIsManualCloseModalOpen}
