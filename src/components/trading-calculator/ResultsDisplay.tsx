@@ -129,7 +129,6 @@ export default function ResultsDisplay({
         type: "warning",
       });
     } finally {
-      // ИСПРАВЛЕНО: Полностью валидный оператор finally
       setIsSaving(false);
     }
   };
@@ -156,10 +155,9 @@ export default function ResultsDisplay({
         </div>
 
         <div className="p-2.5 rounded-xl bg-rose-500/5 border border-rose-500/10 flex flex-col justify-center items-center text-center min-h-21">
-          {/* ФИКС: Адаптивное урезание текста на мобилках */}
+          {/* ФИКС: Оставлено только фиксированное лаконичное название для всех экранов */}
           <span className="text-[10px] font-bold uppercase tracking-wider text-rose-500/70 block mb-1">
-            <span className="sm:hidden">Макс. убыток</span>
-            <span className="hidden sm:inline">Максимальный убыток</span>
+            Макс. убыток
           </span>
           <div className="flex flex-col items-center justify-center">
             <div className="flex items-baseline gap-1">
