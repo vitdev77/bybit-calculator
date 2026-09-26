@@ -165,7 +165,7 @@ export default function TradingViewChart({ coin }: TradingViewChartProps) {
       <div
         id="tradingview_chart_widget"
         ref={containerRef}
-        className="w-full h-full overflow-hidden border border-border/30 shadow-inner rounded-xl"
+        className="w-full h-full overflow-hidden border border-border/30 shadow-inner"
       />
     </div>
   );
