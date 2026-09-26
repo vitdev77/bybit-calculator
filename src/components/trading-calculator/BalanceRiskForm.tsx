@@ -90,33 +90,43 @@ export default function BalanceRiskForm({
   ]);
   return (
     <div className="space-y-4">
-      {/* ФИКС: Кнопки направления позиции выстроены вертикально друг под другом */}
-      <div className="flex flex-col gap-2">
+      {/* КНОПКИ НАПРАВЛЕНИЯ ПОЗИЦИИ (LONG / SHORT крупнее, BUY / SELL под ними мелким) */}
+      <div className="grid grid-cols-2 gap-2.5">
         <button
           type="button"
           onClick={() => setSide("BUY")}
-          className={`w-full h-11 rounded-xl text-sm font-black transition-all cursor-pointer select-none tracking-wider ${
+          className={`h-12 sm:h-11 rounded-xl transition-all cursor-pointer select-none flex flex-col items-center justify-center gap-0.5 ${
             side === "BUY"
               ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 active:scale-[0.98]"
               : "bg-muted/40 hover:bg-muted/60 text-muted-foreground"
           }`}
         >
-          LONG (BUY)
+          <span className="text-sm sm:text-base font-black tracking-wider uppercase leading-none">
+            LONG
+          </span>
+          <span className="text-[9px] sm:text-[10px] font-medium opacity-80 uppercase leading-none">
+            BUY
+          </span>
         </button>
         <button
           type="button"
           onClick={() => setSide("SELL")}
-          className={`w-full h-11 rounded-xl text-sm font-black transition-all cursor-pointer select-none tracking-wider ${
+          className={`h-12 sm:h-11 rounded-xl transition-all cursor-pointer select-none flex flex-col items-center justify-center gap-0.5 ${
             side === "SELL"
               ? "bg-rose-500 text-white shadow-lg shadow-rose-500/20 active:scale-[0.98]"
               : "bg-muted/40 hover:bg-muted/60 text-muted-foreground"
           }`}
         >
-          SHORT (SELL)
+          <span className="text-sm sm:text-base font-black tracking-wider uppercase leading-none">
+            SHORT
+          </span>
+          <span className="text-[9px] sm:text-[10px] font-medium opacity-80 uppercase leading-none">
+            SELL
+          </span>
         </button>
       </div>
 
-      {/* ТРЕХКОЛОНОЧНЫЙ РЯД ПАРАМЕТРОВ ОРДЕРА (ОСТАВЛЕН В РЯД) */}
+      {/* ТРЕХКОЛОНОЧНЫЙ РЯД КЛЮЧЕВЫХ ПАРАМЕТРОВ ОРДЕРА */}
       <div className="grid grid-cols-3 gap-2 sm:gap-3 items-start">
         {/* ДЕПОЗИТ */}
         <div className="space-y-1">

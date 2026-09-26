@@ -101,9 +101,9 @@ export default function Home() {
       {/* --- СЕТКА GRID --- */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start w-full">
         {/* БЛОК 1: КАЛЬКУЛЯТОР ПОЗИЦИЙ 
-            ФИКС: order-first ставит его вверх на мобилках, xl:order-last уводит вправо на десктопе */}
+            ФИКС: Фон изменен на bg-background для идеального слияния */}
         <div className="xl:col-span-5 xl:sticky xl:top-4 order-first xl:order-last">
-          <div className="border border-border/40 bg-muted/30 dark:bg-muted/10 rounded-2xl sm:rounded-[2rem] p-1 sm:p-2 transition-all duration-300">
+          <div className="border border-border/40 bg-background rounded-2xl sm:rounded-[2rem] p-1 sm:p-2 transition-all duration-300">
             <div
               onClick={() => setIsCalcExpanded(!isCalcExpanded)}
               className="flex items-center justify-between px-3 sm:px-6 py-2 sm:py-3 select-none cursor-pointer group/header hover:opacity-80 transition-opacity"
