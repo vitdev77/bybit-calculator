@@ -47,8 +47,8 @@ function useTabTicker(
 
   useEffect(() => {
     if (!price) {
-      if (document.title !== "Bybit Calculator") {
-        document.title = "Bybit Calculator";
+      if (document.title !== "Bybit Futures Calculator") {
+        document.title = "Bybit Futures Calculator";
       }
       return;
     }
@@ -60,14 +60,15 @@ function useTabTicker(
       else return;
     }
     prevPriceRef.current = price;
-    const nextTitle = `${triangle} ${formattedPrice} | Трейдинг ${coin} | Bybit Calculator`;
+    // ВОЗВРАЩЕН ОРИГИНАЛЬНЫЙ СТРОГИЙ СТИЛЬ НАЗВАНИЯ ВКЛАДКИ БРАУЗЕРА
+    const nextTitle = `${triangle} ${formattedPrice} | ${coin} | Bybit Futures Calculator`;
 
     if (document.title !== nextTitle) document.title = nextTitle;
   }, [price, coin, decimals]);
 
   useEffect(() => {
     prevPriceRef.current = null;
-    document.title = "Bybit Calculator";
+    document.title = "Bybit Futures Calculator";
   }, [coin]);
 }
 
@@ -171,7 +172,6 @@ export default function TradingCalculator({
     const baseRiskAmount = (balance * riskPercent) / 100;
     const allocatedMarginMax = balance / partsCount;
 
-    // ЖЕСТКИЙ ФЬЮЧЕРСНЫЙ РАСЧЕТ: Фиксируем параметры комиссий твоего аккаунта Bybit
     const totalFeeRate = 0.0013;
     const priceLossFactor = stopLossPercent / 100;
 
@@ -358,7 +358,6 @@ export default function TradingCalculator({
     const MMR = 0.005;
     const closeFeeRate = 0.0006;
 
-    // ЖЕСТКИЙ ФИКС МАТЕМАТИКИ ЛИКВИДАЦИИ BYBIT: Зеркальные знаки для SHORT полностью выверены
     let liquidationPrice = isLong
       ? entryPrice * (1 - 1 / leverage + MMR + closeFeeRate)
       : entryPrice * (1 + 1 / leverage - MMR - closeFeeRate);
@@ -396,6 +395,7 @@ export default function TradingCalculator({
     maxSafeLeverage,
     partsCount,
   ]);
+
   return (
     <div className="w-full p-1.5 sm:p-4 space-y-3 sm:space-y-4">
       <MarketTicker
@@ -406,8 +406,8 @@ export default function TradingCalculator({
         selectedCoin={selectedCoin}
         onCoinChange={handleCoinChange}
       />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 items-stretch">
-        <Card className="shadow-sm border border-border/40 bg-background flex flex-col rounded-xl sm:rounded-2xl">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4 items-stretch">
+        <Card className="shadow-sm border border-border/40 bg-background flex flex-col rounded-xl sm:rounded-2xl md:col-span-5">
           <CardHeader className="py-2 px-2.5 sm:py-2.5 sm:px-4 border-b border-border/40">
             <CardTitle className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Панель параметров
@@ -447,7 +447,8 @@ export default function TradingCalculator({
             />
           </CardContent>
         </Card>
-        <Card className="shadow-sm border border-border/40 bg-background flex flex-col rounded-xl sm:rounded-2xl">
+
+        <Card className="shadow-sm border border-border/40 bg-background flex flex-col rounded-xl sm:rounded-2xl md:col-span-7">
           <CardHeader className="py-2 px-2.5 sm:py-2.5 sm:px-4 border-b border-border/40">
             <CardTitle className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Торговый отчет

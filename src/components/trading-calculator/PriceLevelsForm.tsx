@@ -52,32 +52,34 @@ export default function PriceLevelsForm({
   };
 
   return (
-    <div className="space-y-3.5">
-      {/* СЕТКА ПОЛЕЙ ОРДЕРА: h-9.5 для мобильных тач-зон, gap-2.5 удерживает инпуты в ряд */}
-      <div className="grid grid-cols-2 gap-2.5 items-start">
-        <div className="space-y-1">
+    <div className="space-y-3 pt-1">
+      {/* ФИКС: Поля «Цена входа» и «Режим (R:R)» выстроены вертикально */}
+      <div className="flex flex-col gap-2.5">
+        {/* ЦЕНА ВХОДА */}
+        <div className="grid grid-cols-[80px_1fr] items-center gap-2">
           <Label
             htmlFor="entryPrice"
-            className="text-[11px] sm:text-sm px-0.5 font-bold uppercase tracking-wider text-muted-foreground/90"
+            className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground select-none"
           >
-            Цена входа (USDT)
+            Вход
           </Label>
           <Input
             id="entryPrice"
             type="number"
             placeholder="0.00"
             value={entryPrice || ""}
-            className="h-9.5 sm:h-9 text-xs sm:text-sm rounded-lg px-2"
+            className="h-8.5 text-xs font-bold rounded-lg px-2.5"
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               setEntryPrice(Number(e.target.value))
             }
           />
         </div>
 
-        <div className="space-y-1">
+        {/* РЕЖИМ РИСК/ПРИБЫЛЬ */}
+        <div className="grid grid-cols-[80px_1fr] items-center gap-2">
           <Label
             htmlFor="rr-preset-select"
-            className="text-[11px] sm:text-sm px-0.5 font-bold uppercase tracking-wider text-muted-foreground/90"
+            className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground select-none"
           >
             Режим (R:R)
           </Label>
@@ -88,9 +90,11 @@ export default function PriceLevelsForm({
           >
             <SelectTrigger
               id="rr-preset-select"
-              className="w-full h-9.5! sm:h-9! m-0! bg-transparent text-xs sm:text-sm rounded-lg"
+              className="w-full h-8.5! m-0! bg-transparent text-xs rounded-lg font-bold"
             >
-              <SelectValue placeholder="1:3">{`1:${riskRewardRatio}`}</SelectValue>
+              <SelectValue placeholder="1:3">
+                {`1:${riskRewardRatio}`}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {rrPresets.map((rr) => {
@@ -99,7 +103,7 @@ export default function PriceLevelsForm({
                   <SelectItem
                     key={`rr-${rr}`}
                     value={String(rr)}
-                    className="text-xs sm:text-sm"
+                    className="text-xs"
                   >
                     {`SL ${stopLossPercent}% | TP ${targetTPPercent}% (1:${rr})`}
                   </SelectItem>
@@ -110,8 +114,8 @@ export default function PriceLevelsForm({
         </div>
       </div>
 
-      {/* КНОПКА СБРОСА: Оптимизированный адаптивный отступ */}
-      <div className="flex justify-center pt-2 sm:pt-4 w-full">
+      {/* КНОПКА СБРОСА НАСТРОЕК */}
+      <div className="flex justify-center pt-2 w-full">
         <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
           <AlertDialogTrigger
             className={buttonVariants({

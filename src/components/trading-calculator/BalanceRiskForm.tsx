@@ -90,12 +90,12 @@ export default function BalanceRiskForm({
   ]);
   return (
     <div className="space-y-4">
-      {/* КНОПКИ НАПРАВЛЕНИЯ ПОЗИЦИИ (Увеличены на мобильных до h-12) */}
-      <div className="grid grid-cols-2 gap-2.5">
+      {/* ФИКС: Кнопки направления позиции выстроены вертикально друг под другом */}
+      <div className="flex flex-col gap-2">
         <button
           type="button"
           onClick={() => setSide("BUY")}
-          className={`h-12 sm:h-11 rounded-xl text-sm sm:text-base font-black transition-all cursor-pointer select-none tracking-wider ${
+          className={`w-full h-11 rounded-xl text-sm font-black transition-all cursor-pointer select-none tracking-wider ${
             side === "BUY"
               ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 active:scale-[0.98]"
               : "bg-muted/40 hover:bg-muted/60 text-muted-foreground"
@@ -106,7 +106,7 @@ export default function BalanceRiskForm({
         <button
           type="button"
           onClick={() => setSide("SELL")}
-          className={`h-12 sm:h-11 rounded-xl text-sm sm:text-base font-black transition-all cursor-pointer select-none tracking-wider ${
+          className={`w-full h-11 rounded-xl text-sm font-black transition-all cursor-pointer select-none tracking-wider ${
             side === "SELL"
               ? "bg-rose-500 text-white shadow-lg shadow-rose-500/20 active:scale-[0.98]"
               : "bg-muted/40 hover:bg-muted/60 text-muted-foreground"
@@ -116,7 +116,7 @@ export default function BalanceRiskForm({
         </button>
       </div>
 
-      {/* ТРЕХКОЛОНОЧНЫЙ РЯД КЛЮЧЕВЫХ ПАРАМЕТРОВ ОРДЕРА */}
+      {/* ТРЕХКОЛОНОЧНЫЙ РЯД ПАРАМЕТРОВ ОРДЕРА (ОСТАВЛЕН В РЯД) */}
       <div className="grid grid-cols-3 gap-2 sm:gap-3 items-start">
         {/* ДЕПОЗИТ */}
         <div className="space-y-1">
@@ -215,16 +215,11 @@ export default function BalanceRiskForm({
           className="w-full"
         >
           <TabsList className="w-full h-9.5 sm:h-9 grid grid-cols-5 p-0.5 bg-muted/40 dark:bg-muted/10 border border-border/40 rounded-xl shadow-inner">
-            {[1, 2, 3, 5, 10].map((preset) => (
+            {partsPresets.map((preset) => (
               <TabsTrigger
                 key={`preset-${preset}`}
                 value={String(preset)}
-                className="text-xs font-normal tracking-wider rounded-lg transition-all cursor-pointer select-none py-1 text-muted-foreground
-                  hover:bg-muted/60 dark:hover:bg-white/5 hover:text-foreground
-                  data-active:bg-amber-500 data-active:text-white data-active:font-black data-active:shadow-md data-active:scale-[1.01] data-active:border-none
-                  data-active:hover:bg-amber-500 data-active:hover:text-white
-                  dark:data-active:bg-amber-500 dark:data-active:text-white dark:data-active:font-black dark:data-active:border-none
-                  dark:data-active:hover:bg-amber-500"
+                className="text-xs font-normal tracking-wider rounded-lg transition-all cursor-pointer select-none py-1 text-muted-foreground hover:bg-muted/60 dark:hover:bg-white/5 hover:text-foreground data-active:bg-amber-500 data-active:text-white data-active:font-black data-active:shadow-md data-active:scale-[1.01]"
               >
                 1/{preset}
               </TabsTrigger>
