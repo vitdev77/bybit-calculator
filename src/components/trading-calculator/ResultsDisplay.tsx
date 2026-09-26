@@ -43,7 +43,6 @@ export default function ResultsDisplay({
   const [copiedTP, setCopiedTP] = useState(false);
   const [copiedSL, setCopiedSL] = useState(false);
 
-  // ЖЕСТКИЙ ФЬЮЧЕРСНЫЙ РЕГЛАМЕНТ: Исключаем спот, фиксируем комиссии твоего аккаунта Bybit
   const openFeeRate = 0.0006;
   const closeFeeRate = 0.0006;
 
@@ -109,45 +108,44 @@ export default function ResultsDisplay({
       const resData = await response.json();
 
       if (!response.ok) {
-        throw new Error(resData.error || "Ошибка сохранения");
+        throw new Error(resData.error || "Ошибка");
       }
 
       toast.add({
         title: "Сделка зафиксирована",
-        description: `Ордер по паре ${coin} добавлен в журнал.`,
+        description: `Ордер по паре ${coin} добавлен.`,
         type: "success",
       });
 
-      // @ts-ignore
       window.dispatchEvent(new Event("refresh-trading-journal"));
     } catch (err: any) {
-      console.warn("Предотвращено дублирование в Neon DB:", err.message);
+      console.warn("Дублирование:", err.message);
       toast.add({
         title: "Ордер не добавлен",
         description:
           err.message === "Duplicate detected"
-            ? "Эта открытая сделка уже зафиксирована в журнале."
+            ? "Эта открытая сделка уже есть в журнале."
             : err.message,
         type: "warning",
       });
     } finally {
+      // ИСПРАВЛЕНО: Полностью валидный оператор finally
       setIsSaving(false);
     }
   };
-
   return (
     <div className="space-y-4 flex flex-col h-full justify-between">
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
-        <div className="p-2.5 sm:p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10 flex flex-col justify-center items-center text-center min-h-21">
+        <div className="p-2.5 rounded-xl bg-emerald-500/5 border border-emerald-500/10 flex flex-col justify-center items-center text-center min-h-21">
           <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-500/70 block mb-1">
             Ожидаемый профит
           </span>
           <div className="flex flex-col items-center justify-center">
             <div className="flex items-baseline gap-1">
-              <span className="text-xl sm:text-2xl font-black text-emerald-500 leading-none tracking-tight">
+              <span className="text-xl font-black text-emerald-500 leading-none">
                 +{results.netProfitUsdt.toFixed(2)}
               </span>
-              <span className="text-sm sm:text-base font-bold text-emerald-500/80 leading-none">
+              <span className="text-sm font-bold text-emerald-500/80 leading-none">
                 USDT
               </span>
             </div>
@@ -156,16 +154,19 @@ export default function ResultsDisplay({
             </span>
           </div>
         </div>
-        <div className="p-2.5 sm:p-3 rounded-xl bg-rose-500/5 border border-rose-500/10 flex flex-col justify-center items-center text-center min-h-21">
+
+        <div className="p-2.5 rounded-xl bg-rose-500/5 border border-rose-500/10 flex flex-col justify-center items-center text-center min-h-21">
+          {/* ФИКС: Адаптивное урезание текста на мобилках */}
           <span className="text-[10px] font-bold uppercase tracking-wider text-rose-500/70 block mb-1">
-            Максимальный убыток
+            <span className="sm:hidden">Макс. убыток</span>
+            <span className="hidden sm:inline">Максимальный убыток</span>
           </span>
           <div className="flex flex-col items-center justify-center">
             <div className="flex items-baseline gap-1">
-              <span className="text-xl sm:text-2xl font-black text-rose-500 leading-none tracking-tight">
+              <span className="text-xl font-black text-rose-500 leading-none">
                 -{results.riskAmount.toFixed(2)}
               </span>
-              <span className="text-sm sm:text-base font-bold text-rose-500/80 leading-none">
+              <span className="text-sm font-bold text-rose-500/80 leading-none">
                 USDT
               </span>
             </div>
@@ -175,10 +176,11 @@ export default function ResultsDisplay({
           </div>
         </div>
       </div>
+
       <div className="p-3 rounded-xl bg-muted/20 border border-border/40 space-y-2.5">
-        <div className="flex items-center justify-between border-b border-border/30 pb-1.5 select-none">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-            Параметры для ордера Bybit
+        <div className="flex items-center justify-between border-b pb-1.5 select-none">
+          <span className="text-[10px] font-bold uppercase text-muted-foreground">
+            Панель ордера
           </span>
           <div className="flex items-center gap-1.5">
             <span
@@ -230,12 +232,12 @@ export default function ResultsDisplay({
           </div>
           <div className="flex justify-between items-center py-0.5">
             <span className="text-muted-foreground/80 font-medium">
-              Объем ордера (USDT):
+              Объем (USDT):
             </span>
             <div className="flex items-center gap-2">
               <span
                 style={{ padding: "0px 4px" }}
-                className="font-bold bg-muted/40 text-foreground border border-border/40 text-sm shadow-sm rounded"
+                className="font-bold bg-muted/40 text-foreground border text-sm shadow-sm rounded"
               >
                 {results.positionSizeUsdt.toFixed(1)}
               </span>
@@ -333,28 +335,28 @@ export default function ResultsDisplay({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 border-t border-border/30 pt-2.5 items-center text-center">
+      <div className="grid grid-cols-3 gap-2 border-t border-border/30 pt-2.5 text-center">
         <div className="flex flex-col justify-center min-h-10.5">
-          <span className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-tight block mb-0.5">
+          <span className="text-[9px] font-bold text-muted-foreground/60 uppercase block mb-0.5">
             Объем ({coinBase})
           </span>
-          <span className="text-sm sm:text-base font-black text-foreground truncate leading-none">
+          <span className="text-sm font-black text-foreground truncate leading-none">
             {results.positionSizeCrypto.toFixed(cryptoPrecision)}
           </span>
         </div>
-        <div className="flex flex-col justify-center min-h-10.5 border-l border-border/40 px-1">
-          <span className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-tight block mb-0.5">
-            Итоговое плечо
+        <div className="flex flex-col justify-center min-h-10.5 border-l px-1">
+          <span className="text-[9px] font-bold text-muted-foreground/60 uppercase block mb-0.5">
+            Итого плечо
           </span>
-          <span className="text-sm sm:text-base font-black text-foreground truncate leading-none">
+          <span className="text-sm font-black text-foreground truncate leading-none">
             x{results.selectedLeverage}
           </span>
         </div>
-        <div className="flex flex-col justify-center min-h-10.5 border-l border-border/40 pl-1">
-          <span className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-tight block mb-0.5">
+        <div className="flex flex-col justify-center min-h-10.5 border-l pl-1">
+          <span className="text-[9px] font-bold text-muted-foreground/60 uppercase block mb-0.5">
             Маржа (USDT)
           </span>
-          <span className="text-sm sm:text-base font-black text-amber-500 truncate leading-none">
+          <span className="text-sm font-black text-amber-500 truncate leading-none">
             {results.marginUsed.toFixed(2)}
           </span>
         </div>

@@ -42,7 +42,7 @@ export function JournalFilters({
 }: JournalFiltersProps) {
   return (
     <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 w-full text-xs">
-      {/* ЛЕВАЯ ЧАСТЬ (ЛИНИЯ 1 НА МОБИЛКАХ): Жесткая сетка grid-cols-2 только для мобилок. На десктопе возвращается flex */}
+      {/* ЛЕВАЯ ЧАСТЬ */}
       <div className="grid grid-cols-2 sm:flex sm:items-center gap-2.5 w-full sm:w-auto flex-1 sm:flex-none min-w-0">
         <div className="relative w-full sm:w-56 flex items-center group">
           <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground/60 pointer-events-none" />
@@ -62,8 +62,7 @@ export function JournalFilters({
             </button>
           )}
         </div>
-
-        {/* ФИКС РАСТЯЖЕНИЯ: На мобилке w-full заполняет 50% грида, на десктопе (sm:) возвращается в компактный w-auto */}
+        {/* ТАБЫ ФИЛЬТРОВ С АДАПТИВНЫМ СОКРАЩЕНИЕМ СЛОВ */}
         <Tabs
           value={statusFilter}
           onValueChange={(val) => setStatusFilter(val || "ALL")}
@@ -80,18 +79,23 @@ export function JournalFilters({
               value="OPEN"
               className="text-[11px] px-3 font-bold uppercase tracking-wider h-full flex items-center justify-center"
             >
-              Открытые
+              {/* ФИКС: Откр. на мобилке, Открытые на десктопе */}
+              <span className="sm:hidden">Откр.</span>
+              <span className="hidden sm:inline">Открытые</span>
             </TabsTrigger>
             <TabsTrigger
               value="CLOSED"
               className="text-[11px] px-3 font-bold uppercase tracking-wider h-full flex items-center justify-center"
             >
-              Закрытые
+              {/* ФИКС: Закр. на мобилке, Закрытые на десктопе */}
+              <span className="sm:hidden">Закр.</span>
+              <span className="hidden sm:inline">Закрытые</span>
             </TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
-      {/* ПРАВАЯ ЧАСТЬ (ЛИНИЯ 2 НА МОБИЛКАХ): Кнопки во всю ширину на мобилке, на десктопе прижимаются вправо */}
+
+      {/* ПРАВАЯ ЧАСТЬ */}
       <div className="grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-1.5 shrink-0 w-full sm:w-auto mt-1 sm:mt-0">
         {totalDeals > 0 ? (
           <Button
