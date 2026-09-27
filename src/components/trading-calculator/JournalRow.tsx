@@ -65,7 +65,6 @@ interface JournalRowProps {
   handleDeleteDeal: (id: number) => Promise<void>;
   focusedDeal?: Deal | null;
 }
-
 export function JournalRow({
   deal,
   livePrice,
@@ -105,6 +104,7 @@ export function JournalRow({
       } catch (e) {}
     }
   }, [deal.created_at]);
+
   const openFeeRate = 0.0006;
   const closeFeeRate = 0.0006;
   const totalFeeRate = 0.0013;
@@ -116,9 +116,10 @@ export function JournalRow({
   let pnlDisplay = null;
   const isCurrentActiveCoin = activeCoin === deal.coin;
 
-  const isRowSelected = focusedDeal
-    ? focusedDeal.id === deal.id
-    : isCurrentActiveCoin && isOpen;
+  // ЖЕСТКИЙ ЛАЙВ-ФИКС: Строка имеет право выделиться только
+  // в том случае, если ее монета совпадает с выбранной парой.
+  const isRowSelected =
+    isCurrentActiveCoin && (focusedDeal ? focusedDeal.id === deal.id : isOpen);
 
   const isPriceValid =
     livePrice > 0 &&
@@ -144,24 +145,43 @@ export function JournalRow({
     }
 
     pnlDisplay = (
-      <div className="flex flex-col text-right select-none relative w-full pl-5 sm:pl-6">
+      <div
+        className={cn(
+          "flex flex-col text-right select-none",
+          "relative w-full pl-5 sm:pl-6",
+        )}
+      >
         <span className="absolute left-1 top-1.5 flex h-1.5 w-1.5">
           <span
-            className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isLiveProfit ? "bg-emerald-500" : "bg-rose-500"}`}
+            className={cn(
+              "animate-ping absolute inline-flex",
+              "h-full w-full rounded-full opacity-75",
+              isLiveProfit ? "bg-emerald-500" : "bg-rose-500",
+            )}
           />
           <span
-            className={`relative inline-flex rounded-full h-1.5 w-1.5 ${isLiveProfit ? "bg-emerald-500" : "bg-rose-500"}`}
+            className={cn(
+              "relative inline-flex rounded-full h-1.5 w-1.5",
+              isLiveProfit ? "bg-emerald-500" : "bg-rose-500",
+            )}
           />
         </span>
-        {/* ФИКС: Убрана серость, яркий сочный вывод USDT */}
         <span
-          className={`font-sans font-black text-[11px] sm:text-xs ${isLiveProfit ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
+          className={cn(
+            "font-sans font-black text-[11px] sm:text-xs",
+            isLiveProfit
+              ? "text-emerald-600 dark:text-emerald-400"
+              : "text-rose-600 dark:text-rose-400",
+          )}
         >
           {isLiveProfit ? "+" : ""}
           {livePnlUsdt.toFixed(3)} USDT
         </span>
         <span
-          className={`text-[9px] sm:text-[10px] font-bold ${isLiveProfit ? "text-emerald-500/80" : "text-rose-500/80"}`}
+          className={cn(
+            "text-[9px] sm:text-[10px] font-bold",
+            isLiveProfit ? "text-emerald-500/80" : "text-rose-500/80",
+          )}
         >
           {isLiveProfit ? "+" : ""}
           {liveRoi.toFixed(2)}%
@@ -169,22 +189,39 @@ export function JournalRow({
       </div>
     );
   }
-
   if (!pnlDisplay) {
     if (isOpen) {
       const lastKnown = frozenPnL[deal.id] || { pnl: 0, roi: 0 };
       const isLastProfit = lastKnown.pnl >= 0;
       pnlDisplay = (
-        <div className="flex flex-col text-right select-none opacity-45 relative w-full pl-5 sm:pl-6">
-          <Pause className="size-2 text-muted-foreground absolute left-0.5 top-1.5" />
+        <div
+          className={cn(
+            "flex flex-col text-right select-none",
+            "opacity-45 relative w-full pl-5 sm:pl-6",
+          )}
+        >
+          <Pause
+            className={cn(
+              "size-2 text-muted-foreground",
+              "absolute left-0.5 top-1.5",
+            )}
+          />
           <span
-            className={`text-[11px] sm:text-xs font-black ${isLastProfit ? "text-emerald-600/80 dark:text-emerald-400/80" : "text-rose-600/80 dark:text-rose-400/80"}`}
+            className={cn(
+              "text-[11px] sm:text-xs font-black",
+              isLastProfit
+                ? "text-emerald-600/80 dark:text-emerald-400/80"
+                : "text-rose-600/80 dark:text-rose-400/80",
+            )}
           >
             {isLastProfit ? "+" : ""}
             {lastKnown.pnl.toFixed(3)} USDT
           </span>
           <span
-            className={`text-[9px] sm:text-[10px] font-bold ${isLastProfit ? "text-emerald-500/60" : "text-rose-500/60"}`}
+            className={cn(
+              "text-[9px] sm:text-[10px] font-bold",
+              isLastProfit ? "text-emerald-500/60" : "text-rose-500/60",
+            )}
           >
             {isLastProfit ? "+" : ""}
             {lastKnown.roi.toFixed(2)}%
@@ -212,15 +249,23 @@ export function JournalRow({
       const isFinalProfit = finalPnlUsdt >= 0;
 
       pnlDisplay = (
-        <div className="flex flex-col text-right opacity-65 select-none w-full">
+        <div className="flex flex-col text-right opacity-65 w-full">
           <span
-            className={`font-sans font-black text-[11px] sm:text-xs ${isFinalProfit ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
+            className={cn(
+              "font-sans font-black text-[11px] sm:text-xs",
+              isFinalProfit
+                ? "text-emerald-600 dark:text-emerald-400"
+                : "text-rose-600 dark:text-rose-400",
+            )}
           >
             {isFinalProfit ? "+" : ""}
             {finalPnlUsdt.toFixed(3)} USDT
           </span>
           <span
-            className={`text-[9px] sm:text-[10px] font-bold ${isFinalProfit ? "text-emerald-500/80" : "text-rose-500/80"}`}
+            className={cn(
+              "text-[9px] sm:text-[10px] font-bold",
+              isFinalProfit ? "text-emerald-500/80" : "text-rose-500/80",
+            )}
           >
             {isFinalProfit ? "+" : ""}
             {finalRoi.toFixed(2)}%
@@ -229,6 +274,7 @@ export function JournalRow({
       );
     }
   }
+
   const handleMoveToBreakevenClick = async () => {
     if (isMovingToBu || Math.abs(deal.stop_loss - breakevenPrice) < 0.00001)
       return;
@@ -266,19 +312,27 @@ export function JournalRow({
 
   const isAlreadyInBreakeven =
     Math.abs(deal.stop_loss - breakevenPrice) < 0.00001;
-  const rowClass = isRowSelected
+
+  const baseRowStyle = isRowSelected
     ? "bg-linear-to-r from-amber-500/10 via-amber-500/5 to-transparent border-amber-500/30 dark:from-amber-500/15 opacity-100!"
     : !isOpen
       ? "opacity-55 hover:bg-muted/40 hover:opacity-100"
       : "hover:bg-muted/40";
 
+  const isManualClosedStatus = deal.status?.toUpperCase() === "CLOSED";
+  const shouldShowTpTouch = deal.tp_touched && !isManualClosedStatus;
+  const shouldShowSlTouch = deal.sl_touched && !isManualClosedStatus;
   return (
     <TableRow
-      className={`transition-all border-b border-border/10 ${rowClass}`}
+      className={cn("transition-all border-b border-border/10", baseRowStyle)}
     >
       <TableCell className="py-2 px-1.5 sm:px-3 relative pl-3.5 sm:pl-5">
         <div
-          className={`absolute left-0 top-0 bottom-0 transition-all duration-300 ${isRowSelected ? "shadow-[2px_0_12px_rgba(245,158,11,0.4)]" : ""} ${isLong ? "bg-emerald-500" : "bg-rose-500"}`}
+          className={cn(
+            "absolute left-0 top-0 bottom-0 transition-all duration-300",
+            isRowSelected ? "shadow-[2px_0_12px_rgba(245,158,11,0.4)]" : "",
+            isLong ? "bg-emerald-500" : "bg-rose-500",
+          )}
           style={{ width: isRowSelected ? "6px" : "4px" }}
         />
         <div className="flex items-start gap-1">
@@ -312,7 +366,12 @@ export function JournalRow({
       </TableCell>
       <TableCell className="py-2 px-1 sm:px-2">
         <span
-          className={`px-0.5 py-0.5 rounded text-[8px] font-black border ${deal.order_type === "LIMIT" ? "bg-violet-500/10 text-violet-500 border-violet-500/15" : "bg-blue-500/10 text-blue-500 border-blue-500/15"}`}
+          className={cn(
+            "px-0.5 py-0.5 rounded text-[8px] font-black border",
+            deal.order_type === "LIMIT"
+              ? "bg-violet-500/10 text-violet-500 border-violet-500/15"
+              : "bg-blue-500/10 text-blue-500 border-blue-500/15",
+          )}
         >
           {deal.order_type}
         </span>
@@ -336,14 +395,14 @@ export function JournalRow({
           <div className="flex flex-col gap-0.5 items-start">
             <span
               className={
-                deal.tp_touched
+                shouldShowTpTouch
                   ? "text-emerald-500 font-bold leading-none"
                   : "text-muted-foreground/40 leading-none"
               }
             >
               {(deal.take_profit ?? 0).toFixed(precision)}
             </span>
-            {deal.tp_touched && (
+            {shouldShowTpTouch && (
               <span className="inline-block mt-0.5 px-1 py-px bg-emerald-500/15 text-emerald-500 text-[7px] sm:text-[8px] font-black tracking-wider rounded-sm uppercase scale-90 origin-left">
                 touch
               </span>
@@ -352,14 +411,14 @@ export function JournalRow({
           <div className="flex flex-col gap-0.5 items-start">
             <span
               className={
-                deal.sl_touched
+                shouldShowSlTouch
                   ? "text-rose-500 font-bold leading-none"
                   : "text-muted-foreground/40 leading-none"
               }
             >
               {(deal.stop_loss ?? 0).toFixed(precision)}
             </span>
-            {deal.sl_touched && (
+            {shouldShowSlTouch && (
               <span className="inline-block mt-0.5 px-1 py-px bg-rose-500/15 text-rose-500 text-[7px] sm:text-[8px] font-black tracking-wider rounded-sm uppercase scale-90 origin-left">
                 touch
               </span>
@@ -421,15 +480,7 @@ export function JournalRow({
                 open={isManualCloseModalOpen}
                 onOpenChange={setIsManualCloseModalOpen}
               >
-                <AlertDialogTrigger
-                  className={buttonVariants({
-                    variant: "ghost",
-                    size: "icon",
-                    className:
-                      "h-7 w-7 text-muted-foreground hover:bg-muted hover:text-foreground rounded-md cursor-pointer",
-                  })}
-                  title="Закрыть вручную с предпросмотром PnL"
-                >
+                <AlertDialogTrigger className="h-7 w-7 text-muted-foreground hover:bg-muted hover:text-foreground rounded-md cursor-pointer flex items-center justify-center">
                   <LogOut className="size-3" />
                 </AlertDialogTrigger>
                 <AlertDialogContent
@@ -486,13 +537,7 @@ export function JournalRow({
             open={activeDeleteId === deal.id}
             onOpenChange={(o) => setActiveDeleteId(o ? deal.id : null)}
           >
-            <AlertDialogTrigger
-              className={buttonVariants({
-                variant: "ghost",
-                size: "icon",
-                className: "h-7 w-7 text-muted-foreground hover:text-rose-500",
-              })}
-            >
+            <AlertDialogTrigger className="h-7 w-7 text-muted-foreground hover:text-rose-500 flex items-center justify-center">
               <Trash2 className="size-3" />
             </AlertDialogTrigger>
             <AlertDialogContent
@@ -512,8 +557,7 @@ export function JournalRow({
                 </AlertDialogCancel>
                 <AlertDialogAction
                   onClick={() => handleDeleteDeal(deal.id)}
-                  variant="destructive"
-                  className="rounded-xl text-white bg-rose-600 border-none text-xs h-9"
+                  className="rounded-xl text-white bg-rose-600 border-none text-xs h-9 cursor-pointer"
                 >
                   Удалить
                 </AlertDialogAction>

@@ -12,16 +12,12 @@ interface TradingViewChartProps {
 export default function TradingViewChart({ coin }: TradingViewChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
-
-  // Состояние контроля за асинхронной перезагрузкой iframe виджета
   const [isChartLoading, setIsChartLoading] = useState(true);
 
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // Включаем скелетон-замок при каждой смене тикера
     setIsChartLoading(true);
-
     containerRef.current.innerHTML = "";
 
     const scriptId = "tradingview-widget-script";
@@ -39,32 +35,32 @@ export default function TradingViewChart({ coin }: TradingViewChartProps) {
       script.async = true;
       document.head.appendChild(script);
     }
-
     const initWidget = () => {
       if (
         typeof window !== "undefined" &&
         (window as any).TradingView &&
         containerRef.current
       ) {
-        new (window as any).TradingView.widget({
-          autosize: true,
-          symbol: `BYBIT:${coin}.P`,
-          interval: "15",
-          timezone: "Etc/UTC",
-          theme: theme === "dark" ? "dark" : "light",
-          style: "1",
-          locale: "ru",
-          enable_publishing: false,
-          hide_side_toolbar: false,
-          allow_symbol_change: false,
-          container_id: containerRef.current.id,
-          studies: [],
-        });
-
-        // Гарантируем мягкое выключение лоадера после развертывания iframe
+        // ФИКС ШИРИНЫ: Микро-таймаут дает CSS-сеткам Next.js
+        // полностью раскрыться (100% ширины) до расчетов TradingView
         setTimeout(() => {
+          if (!containerRef.current) return;
+          new (window as any).TradingView.widget({
+            autosize: true,
+            symbol: `BYBIT:${coin}.P`,
+            interval: "15",
+            timezone: "Etc/UTC",
+            theme: theme === "dark" ? "dark" : "light",
+            style: "1",
+            locale: "ru",
+            enable_publishing: false,
+            hide_side_toolbar: false,
+            allow_symbol_change: false,
+            container_id: containerRef.current.id,
+            studies: [],
+          });
           setIsChartLoading(false);
-        }, 500);
+        }, 120);
       }
     };
 
@@ -80,12 +76,11 @@ export default function TradingViewChart({ coin }: TradingViewChartProps) {
       }
     };
   }, [coin, theme]);
+
   return (
     <div className="w-full h-125 bg-transparent p-4 overflow-hidden relative select-none">
-      {/* ПРОФЕССИОНАЛЬНЫЙ СКЕЛЕТОН ГРАФИКА: Перекрывает экран до полной готовности iframe */}
       {isChartLoading && (
         <div className="absolute inset-4 z-40 bg-background dark:bg-neutral-950 border border-border/40 rounded-xl flex flex-col justify-between p-4 overflow-hidden animate-pulse">
-          {/* Имитируем верхнюю панель инструментов TradingView */}
           <div className="flex items-center justify-between border-b border-border/20 pb-2 w-full">
             <div className="flex items-center gap-2">
               <Skeleton className="h-5 w-20 bg-muted/60" />
@@ -98,9 +93,7 @@ export default function TradingViewChart({ coin }: TradingViewChartProps) {
             </div>
           </div>
 
-          {/* Имитируем сетку котировок и японские свечи */}
           <div className="flex-1 w-full relative my-4 flex items-center justify-center">
-            {/* Тонкие линии координатной сетки графика */}
             <div
               className="absolute inset-0 opacity-20"
               style={{
@@ -111,7 +104,6 @@ export default function TradingViewChart({ coin }: TradingViewChartProps) {
                 backgroundSize: "40px 40px",
               }}
             />
-            {/* Графический вектор свечного паттерна */}
             <div className="flex items-end gap-5 h-2/3 opacity-30 select-none pointer-events-none">
               <div className="flex flex-col items-center">
                 <div className="w-0.5 h-6 bg-emerald-500" />
@@ -139,7 +131,6 @@ export default function TradingViewChart({ coin }: TradingViewChartProps) {
                 <div className="w-0.5 h-4 bg-rose-500" />
               </div>
             </div>
-            {/* Шкала цен справа */}
             <div className="absolute right-0 top-0 bottom-0 border-l border-border/10 flex flex-col justify-between pl-2 opacity-40">
               <Skeleton className="h-2 w-10 bg-muted/40" />
               <Skeleton className="h-2 w-10 bg-muted/40" />
@@ -148,7 +139,6 @@ export default function TradingViewChart({ coin }: TradingViewChartProps) {
             </div>
           </div>
 
-          {/* Имитируем гистограмму объемов снизу */}
           <div className="h-10 w-full flex items-end gap-1.5 opacity-20 border-t border-border/10 pt-2">
             <Skeleton className="h-4 flex-1 bg-emerald-500" />
             <Skeleton className="h-7 flex-1 bg-emerald-500" />
@@ -161,7 +151,6 @@ export default function TradingViewChart({ coin }: TradingViewChartProps) {
         </div>
       )}
 
-      {/* Интерактивный iframe TradingView */}
       <div
         id="tradingview_chart_widget"
         ref={containerRef}

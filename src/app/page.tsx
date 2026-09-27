@@ -13,7 +13,6 @@ interface DealsCount {
   open: number;
   closed: number;
 }
-
 export default function Home() {
   const [selectedCoin, setSelectedCoin] = useState("BTCUSDT");
   const [currentBalance, setCurrentBalance] = useState(100);
@@ -26,6 +25,7 @@ export default function Home() {
   const [isChartExpanded, setIsChartExpanded] = useState(true);
   const [isJournalExpanded, setIsJournalExpanded] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedLayout = localStorage.getItem(STORAGE_KEY_LAYOUT);
@@ -76,7 +76,7 @@ export default function Home() {
   };
   return (
     <main className="min-h-screen py-4 sm:py-8 space-y-4 sm:space-y-6 max-w-[2000px] mx-auto px-2 sm:px-6 xl:px-8">
-      {/* --- ГЛОБАЛЬНАЯ ШАПКА ПРИЛОЖЕНИЯ --- */}
+      {/* ГЛОБАЛЬНАЯ ШАПКА ПРИЛОЖЕНИЯ */}
       <div className="grid grid-cols-[1fr_auto] items-start gap-x-4 border-b border-border/20 pb-4 select-none">
         <div className="space-y-1 min-w-0">
           <h1 className="text-base sm:text-xl font-bold tracking-tight text-foreground truncate">
@@ -98,10 +98,9 @@ export default function Home() {
         </div>
       </div>
 
-      {/* --- СЕТКА GRID --- */}
+      {/* СЕТКА GRID */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start w-full">
-        {/* БЛОК 1: КАЛЬКУЛЯТОР ПОЗИЦИЙ 
-            ФИКС: Фон изменен на bg-background для идеального слияния */}
+        {/* БЛОК 1: КАЛЬКУЛЯТОР ПОЗИЦИЙ */}
         <div className="xl:col-span-5 xl:sticky xl:top-4 order-first xl:order-last">
           <div className="border border-border/40 bg-background rounded-2xl sm:rounded-[2rem] p-1 sm:p-2 transition-all duration-300">
             <div

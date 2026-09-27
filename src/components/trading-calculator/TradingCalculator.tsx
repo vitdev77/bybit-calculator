@@ -37,7 +37,6 @@ interface TickerData {
   fundingRate: number;
   turnover24h: number;
 }
-
 function useTabTicker(
   price: number | undefined,
   coin: string,
@@ -60,7 +59,8 @@ function useTabTicker(
       else return;
     }
     prevPriceRef.current = price;
-    const nextTitle = `${triangle} ${formattedPrice} | ${coin} | Bybit Futures Calculator`;
+    const nextTitle =
+      `${triangle} ${formattedPrice} | ${coin} | ` + `Bybit Futures Calculator`;
 
     if (document.title !== nextTitle) document.title = nextTitle;
   }, [price, coin, decimals]);
@@ -221,6 +221,7 @@ export default function TradingCalculator({
     const ideal = getCalculatedIdealLeverage();
     setLeverage(ideal);
   }, [partsCount]);
+
   const fetchLiveTicker = useCallback(
     async (coin: string, isFirstInit: boolean, isCurrent: () => boolean) => {
       try {
@@ -316,7 +317,6 @@ export default function TradingCalculator({
     partsCount,
     isLoaded,
   ]);
-
   useEffect(() => {
     if (entryPrice <= 0 || stopLossPercent <= 0 || balance <= 0) return;
 
@@ -397,6 +397,7 @@ export default function TradingCalculator({
 
   return (
     <div className="w-full p-1.5 sm:p-4 space-y-3 sm:space-y-4">
+      {/* ИНФОРМЕР НА СВОЁМ ЗАКОННОМ МЕСТЕ ВНУТРИ СТРУКТУРЫ КАЛЬКУЛЯТОРА */}
       <MarketTicker
         data={tickerData}
         loading={tickerLoading}
@@ -405,7 +406,6 @@ export default function TradingCalculator({
         selectedCoin={selectedCoin}
         onCoinChange={handleCoinChange}
       />
-      {/* МАКСИМАЛЬНЫЙ ОТКАТ: Возвращена чистая исходная сетка 50/50 бок о бок */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 items-stretch">
         <Card className="shadow-sm border border-border/40 bg-background flex flex-col rounded-xl sm:rounded-2xl">
           <CardHeader className="py-2 px-2.5 sm:py-2.5 sm:px-4 border-b border-border/40">
