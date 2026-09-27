@@ -85,13 +85,13 @@ export default function MarketTicker({
     return (
       <div
         className={cn(
-          "p-3 border rounded-xl shadow-inner",
-          "border-border/40 dark:border-black/40",
-          "bg-muted/30 dark:bg-black/40 w-full",
-          "grid grid-cols-2 md:grid-cols-6",
-          "gap-x-2 gap-y-3 sm:gap-4 items-center",
-          "h-auto md:h-22.5 select-none",
-          "box-border overflow-hidden",
+          "p-3 border border-border/40",
+          "dark:border-black/40 rounded-xl",
+          "bg-muted/30 dark:bg-black/40 shadow-inner",
+          "grid grid-cols-2 md:grid-cols-6 gap-x-2",
+          "gap-y-3 sm:gap-4 w-full items-center",
+          "h-auto md:h-22.5 select-none box-border",
+          "overflow-hidden",
         )}
       >
         <div
@@ -112,17 +112,15 @@ export default function MarketTicker({
 
         <div
           className={cn(
-            "p-0.5 w-full md:col-span-2 h-12",
-            "md:h-11 flex flex-col justify-center",
-            "space-y-1.5 border-b md:border-b-0",
-            "border-border/30 pb-2 md:pb-0",
-            "pl-1 md:pl-5 text-right md:text-left",
+            "p-0.5 w-full md:col-span-2 h-12 md:h-11",
+            "flex flex-col justify-center space-y-1.5",
+            "border-b md:border-b-0 border-border/30",
+            "pb-2 md:pb-0 pl-1 md:pl-5 text-right",
+            "md:text-left",
           )}
         >
-          <Skeleton className={cn("h-2 w-14 opacity-60", "ml-auto md:ml-7")} />
-          <Skeleton
-            className={cn("h-5 sm:h-6 w-28 sm:w-36", "ml-auto md:ml-7")}
-          />
+          <Skeleton className="h-2 w-14 opacity-60 ml-auto md:ml-7" />
+          <Skeleton className="h-5 sm:h-6 w-28 sm:w-36 ml-auto md:ml-7" />
         </div>
 
         <div
@@ -139,8 +137,8 @@ export default function MarketTicker({
         <div
           className={cn(
             "p-0.5 hidden md:flex flex-col",
-            "justify-center min-w-24 h-10",
-            "md:col-span-1 space-y-2",
+            "justify-center min-w-24 md:col-span-1",
+            "h-10 space-y-2",
           )}
         >
           <Skeleton className="h-2 w-12 opacity-60" />
@@ -154,8 +152,8 @@ export default function MarketTicker({
             "text-right md:text-left pr-1 md:pr-0",
           )}
         >
-          <Skeleton className={cn("h-2 w-14 opacity-60", "ml-auto md:ml-0")} />
-          <Skeleton className={cn("h-3 w-16 ml-auto md:ml-0")} />
+          <Skeleton className="h-2 w-14 opacity-60 ml-auto md:ml-0" />
+          <Skeleton className="h-3 w-16 ml-auto md:ml-0" />
         </div>
       </div>
     );
@@ -170,12 +168,10 @@ export default function MarketTicker({
       : 50;
 
   let priceColor = "text-foreground font-black";
-  if (tickDirection === "up") {
-    priceColor = cn("text-emerald-600 dark:text-emerald-400", "font-black");
-  }
-  if (tickDirection === "down") {
-    priceColor = cn("text-rose-600 dark:text-rose-400", "font-black");
-  }
+  if (tickDirection === "up")
+    priceColor = "text-emerald-600 dark:text-emerald-400 font-black";
+  if (tickDirection === "down")
+    priceColor = "text-rose-600 dark:text-rose-400 font-black";
 
   const hasRealData = data && data.lastPrice > 0 && data.turnover24h > 0;
   const changeValue = data.price24hPcnt;
@@ -195,15 +191,13 @@ export default function MarketTicker({
   return (
     <div
       className={cn(
-        "p-3 border rounded-xl shadow-inner",
-        "border-border/40 dark:border-black/40",
-        "bg-muted/30 dark:bg-black/40 w-full",
-        "grid grid-cols-2 md:grid-cols-6",
-        "gap-x-2 gap-y-3 sm:gap-4 items-center",
-        "h-auto md:h-22.5 box-border select-none",
+        "p-3 border border-border/40 w-full",
+        "dark:border-black/40 rounded-xl box-border",
+        "bg-muted/30 dark:bg-black/40 shadow-inner",
+        "grid grid-cols-2 md:grid-cols-6 gap-x-2",
+        "gap-y-3 sm:gap-4 items-center select-none",
       )}
     >
-      {/* ВОЗВРАЩЕНО ИСХОДНОЕ md:col-span-1 */}
       <div
         className={cn(
           "p-0.5 md:col-span-1 border-b h-12",
@@ -216,8 +210,8 @@ export default function MarketTicker({
           <DropdownMenuTrigger
             className={cn(
               "flex items-center gap-1.5 sm:gap-3",
-              "text-left p-1 rounded-xl outline-none",
-              "border border-transparent w-full",
+              "text-left p-1 rounded-xl w-full",
+              "border border-transparent outline-none",
               "transition-all duration-200 cursor-pointer",
               "hover:bg-muted/60 dark:hover:bg-muted/20",
               "active:scale-[0.98] group/trigger",
@@ -249,11 +243,11 @@ export default function MarketTicker({
                 </div>
               )}
             </div>
-            {/* ИСПРАВЛЕНО: Чистый вертикальный justify-center и min-w-0 */}
             <div
               className={cn(
                 "flex flex-col min-w-0 flex-1",
-                "pr-1 relative h-7 justify-center",
+                "pr-1 relative h-7 Hong-center",
+                "justify-center",
               )}
             >
               <div className="flex items-center gap-0.5 h-4">
@@ -277,7 +271,7 @@ export default function MarketTicker({
               </div>
               <span
                 className={cn(
-                  "text-[9px] font-semibold h-3 w-full",
+                  "text-[9px] font-semibold h-3",
                   "text-muted-foreground/70 truncate",
                   "leading-none mt-0.5 block",
                 )}
@@ -348,7 +342,6 @@ export default function MarketTicker({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      {/* ВОЗВРАЩЕНО ИСХОДНОЕ md:col-span-2 */}
       <div
         className={cn(
           "p-0.5 w-full overflow-hidden bg-transparent",

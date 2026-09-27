@@ -142,10 +142,19 @@ export default function TradingJournal({
           ) || null;
       }
 
+      // Всеядный локальный поиск последней архивной сделки (CLOSED, PROFIT, LOSS)
+      const anyLastClosedDeal =
+        cleanArray.find(
+          (d: Deal) => d.coin === activeCoin && d.status !== "OPEN",
+        ) || null;
+
       setActiveOpenDeal(currentOpen);
       setLastManualClosedDeal(currentClosed);
 
       setFocusedDeal((prevFocused) => {
+        if (prevFocused && prevFocused.coin !== activeCoin) {
+          return currentOpen || anyLastClosedDeal || null;
+        }
         if (isUserInteractedRef.current && prevFocused) {
           const freshData = cleanArray.find(
             (d: Deal) => d.id === prevFocused.id,
@@ -154,15 +163,9 @@ export default function TradingJournal({
         }
         isUserInteractedRef.current = false;
         if (statusFilter === "CLOSED") {
-          return (
-            currentClosed ||
-            cleanArray.find(
-              (d: Deal) => d.status !== "OPEN" && d.coin === activeCoin,
-            ) ||
-            null
-          );
+          return anyLastClosedDeal || null;
         }
-        return currentOpen || currentClosed || null;
+        return currentOpen || anyLastClosedDeal || null;
       });
 
       const openCount = cleanArray.filter(
