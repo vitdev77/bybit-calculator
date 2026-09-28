@@ -6,27 +6,6 @@ export const dynamic = "force-dynamic";
 const sql = neon(process.env.DATABASE_URL || "");
 let isTableVerified = false;
 
-// Базовый мини-резерв гарантированных пар
-const REAL_STABLE_COINS = [
-  { coin: "BTCUSDT", decimals: 2 },
-  { coin: "ETHUSDT", decimals: 2 },
-  { coin: "SOLUSDT", decimals: 2 },
-  { coin: "SUIUSDT", decimals: 4 },
-  { coin: "XRPUSDT", decimals: 4 },
-  { coin: "DOGEUSDT", decimals: 5 },
-  { coin: "NEARUSDT", decimals: 3 },
-  { coin: "LINKUSDT", decimals: 3 },
-  { coin: "MNTUSDT", decimals: 4 },
-  { coin: "HYPEUSDT", decimals: 2 },
-];
-
-function getDecimalsFromTick(tickStr: string): number {
-  if (!tickStr) return 2;
-  const num = parseFloat(tickStr);
-  if (isNaN(num) || num >= 1) return 0;
-  const parts = tickStr.split(".");
-  return parts ? parts.length - 1 : 2;
-}
 async function ensureTableExists() {
   if (isTableVerified) return;
   try {
@@ -52,103 +31,16 @@ async function ensureTableExists() {
     `;
 
     await sql`
-      CREATE TABLE IF NOT EXISTS coins (
-        coin VARCHAR(50) PRIMARY KEY,
-        decimals INTEGER NOT NULL DEFAULT 2,
-        is_favorite BOOLEAN NOT NULL DEFAULT FALSE
-      );
-    `;
-
-    await sql`
       CREATE INDEX IF NOT EXISTS idx_deals_status_coin 
       ON deals (status, coin);
     `;
 
-    const countResult = await sql`
-      SELECT COUNT(*) as count FROM coins;
-    `;
-
-    // ИСПРАВЛЕНО: Чистый одиночный оператор к первому элементу массива ответа
-    const coinCount = parseInt(
-      (countResult && countResult[0]?.count) || "0",
-      10,
-    );
-
-    if (coinCount === 0) {
-      console.log("Синхронизация с Bybit...");
-      const bybitUrl = "https://bytick.com" + "?category=linear&limit=1000";
-
-      let itemsLoaded = false;
-      try {
-        const response = await fetch(bybitUrl, {
-          cache: "no-store",
-          signal: AbortSignal.timeout(5000),
-        });
-
-        if (response.ok) {
-          const json = await response.json();
-          const list = json.result?.list || [];
-
-          const liveUsdtPairs = list.filter(
-            (item: any) =>
-              item.status === "Trading" && item.quoteCoin === "USDT",
-          );
-
-          if (liveUsdtPairs.length > 0) {
-            const oldFavs = await sql`
-              SELECT coin FROM coins WHERE is_favorite = TRUE;
-            `;
-            const favNames = (oldFavs || []).map((f: any) => f.coin);
-
-            await sql`TRUNCATE TABLE coins;`;
-
-            for (const item of liveUsdtPairs) {
-              const coinName = item.symbol;
-              const tickSize = item.priceFilter?.tickSize || "0.01";
-              const decimals = getDecimalsFromTick(tickSize);
-
-              const defaultFavs = [
-                "BTCUSDT",
-                "ETHUSDT",
-                "SOLUSDT",
-                "SUIUSDT",
-                "XRPUSDT",
-              ];
-              const isFav =
-                defaultFavs.includes(coinName) || favNames.includes(coinName);
-
-              await sql`
-                INSERT INTO coins (coin, decimals, is_favorite)
-                VALUES (${coinName}, ${decimals}, ${isFav})
-                ON CONFLICT (coin) DO UPDATE 
-                SET decimals = ${decimals};
-              `;
-            }
-            itemsLoaded = true;
-          }
-        }
-      } catch (fetchErr) {
-        console.warn("Bybit API офлайн");
-      }
-
-      if (!itemsLoaded) {
-        for (const item of REAL_STABLE_COINS) {
-          const defaultFavs = ["BTCUSDT", "ETHUSDT", "SOLUSDT"];
-          const isFav = defaultFavs.includes(item.coin);
-
-          await sql`
-            INSERT INTO coins (coin, decimals, is_favorite)
-            VALUES (${item.coin}, ${item.decimals}, ${isFav})
-            ON CONFLICT (coin) DO NOTHING;
-          `;
-        }
-      }
-    }
     isTableVerified = true;
   } catch (err) {
-    console.error("Database Migration Error:", err);
+    console.error("Database Deals Migration Error:", err);
   }
 }
+
 export async function GET(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
@@ -161,18 +53,6 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const activeCoin = searchParams.get("activeCoin");
-    const mode = searchParams.get("mode");
-
-    if (mode === "get_coins") {
-      const allCoins = await sql`
-        SELECT coin, decimals, is_favorite 
-        FROM coins 
-        ORDER BY is_favorite DESC, coin ASC;
-      `;
-      return NextResponse.json({
-        coins: allCoins || [],
-      });
-    }
 
     const allDeals = await sql`
       SELECT * FROM deals ORDER BY created_at DESC;
@@ -247,7 +127,6 @@ export async function POST(request: Request) {
       WHERE coin = ${coin} LIMIT 1;
     `;
 
-    // ИСПРАВЛЕНО: Чистый одиночный оператор к первому элементу массива ответа
     const decimals = (coinData && coinData[0]?.decimals) ?? 2;
     const priceEpsilon = decimals >= 4 ? 0.000001 : 0.0001;
 
@@ -266,7 +145,6 @@ export async function POST(request: Request) {
         { status: 409 },
       );
     }
-
     const result = await sql`
       INSERT INTO deals (
         coin, side, order_type, entry_price, stop_loss, 
@@ -288,6 +166,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
 export async function PATCH(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
@@ -298,33 +177,6 @@ export async function PATCH(request: Request) {
     }
     await ensureTableExists();
     const body = await request.json();
-
-    if (body.action === "TOGGLE_FAVORITE" && body.coin) {
-      const coinName = String(body.coin);
-      const coinCheck = await sql`
-        SELECT is_favorite FROM coins 
-        WHERE coin = ${coinName} LIMIT 1;
-      `;
-
-      if (!coinCheck || coinCheck.length === 0) {
-        return NextResponse.json(
-          { error: "Монета не найдена в БД" },
-          { status: 404 },
-        );
-      }
-
-      // ИСПРАВЛЕНО: Чистый одиночный оператор к первому элементу массива ответа
-      const nextFavStatus = !coinCheck[0]?.is_favorite;
-      await sql`
-        UPDATE coins 
-        SET is_favorite = ${nextFavStatus} 
-        WHERE coin = ${coinName};
-      `;
-      return NextResponse.json({
-        success: true,
-        is_favorite: nextFavStatus,
-      });
-    }
 
     if (!body.id) {
       return NextResponse.json({ error: "Пропущен id" }, { status: 400 });
@@ -421,11 +273,9 @@ export async function DELETE(request: Request) {
 
     if (!id) {
       await sql`TRUNCATE TABLE deals;`;
-      await sql`TRUNCATE TABLE coins;`;
-      isTableVerified = false;
       return NextResponse.json({
         success: true,
-        message: "Журнал и кэш монет полностью очищены",
+        message: "Журнал сделок полностью очищен",
       });
     }
 

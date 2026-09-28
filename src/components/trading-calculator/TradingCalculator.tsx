@@ -16,6 +16,8 @@ export interface DBAssetCoin {
   coin: string;
   decimals: number;
   is_favorite: boolean;
+  is_active: boolean;
+  is_delisted: boolean;
 }
 
 interface TickerData {
@@ -60,7 +62,6 @@ function useTabTicker(
     document.title = "Bybit Futures Calculator";
   }, [coin]);
 }
-
 interface TradingCalculatorProps {
   selectedCoin: string;
   setSelectedCoin: (coin: string) => void;
@@ -91,20 +92,22 @@ export default function TradingCalculator({
   const [tickerLoading, setTickerLoading] = useState(false);
   const [idealLeverage, setIdealLeverage] = useState(10);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-
-  // Динамический список всех монет из базы данных
   const [availableCoinsList, setAvailableCoinsList] = useState<DBAssetCoin[]>(
     [],
   );
 
+  // ИСПРАВЛЕНО: Реестр хранения суточной статистики, полученный безопасным путем с бэкенда
+  const [tickerRegistry, setTickerRegistry] = useState<
+    Record<string, { price24hPcnt: number; turnover24h: number }>
+  >({});
+
   const partsCount = externalPartsCount;
   const setPartsCount = setExternalPartsCount;
-  // Динамически вычисляем decimals на основе текущего состояния загруженных монет
+
   const currentCoinMeta = availableCoinsList.find(
     (c) => c.coin === selectedCoin,
   );
   const currentDecimals = currentCoinMeta ? currentCoinMeta.decimals : 2;
-
   const maxSafeLeverage =
     selectedCoin === "BTCUSDT" || selectedCoin === "ETHUSDT" ? 100 : 50;
 
@@ -126,7 +129,6 @@ export default function TradingCalculator({
   });
 
   useTabTicker(tickerData?.lastPrice, selectedCoin, currentDecimals);
-
   const prevCoinRef = useRef(selectedCoin);
   const entryPriceRef = useRef(entryPrice);
 
@@ -134,30 +136,31 @@ export default function TradingCalculator({
     entryPriceRef.current = entryPrice;
   }, [entryPrice]);
 
-  // Функция для загрузки списка монет из БД
   const loadDatabaseCoins = useCallback(async () => {
     try {
-      const res = await fetch("/api/journal?mode=get_coins");
+      const res = await fetch("/api/coins");
       if (!res.ok) throw new Error("Load coins error");
       const data = await res.json();
+
+      // ИСПРАВЛЕНО: Синхронно раскладываем список монет и суточную статистику Bybit из серверного ответа
       if (data.coins && Array.isArray(data.coins)) {
         setAvailableCoinsList(data.coins);
+      }
+      if (data.tickerRegistry) {
+        setTickerRegistry(data.tickerRegistry);
       }
     } catch (e) {
       console.error("Ошибка загрузки монет:", e);
     }
   }, []);
 
-  // Вызываем загрузку справочника монет при монтировании
   useEffect(() => {
     loadDatabaseCoins();
-    // Слушаем глобальное событие обновления, чтобы синхронизировать звезды
     window.addEventListener("refresh-calculator-coins", loadDatabaseCoins);
     return () => {
       window.removeEventListener("refresh-calculator-coins", loadDatabaseCoins);
     };
   }, [loadDatabaseCoins]);
-
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedState = localStorage.getItem(STORAGE_KEY);
@@ -194,7 +197,6 @@ export default function TradingCalculator({
   const getCalculatedIdealLeverage = useCallback(() => {
     const baseRiskAmount = (balance * riskPercent) / 100;
     const allocatedMarginMax = balance / partsCount;
-
     const totalFeeRate = 0.0013;
     const priceLossFactor = stopLossPercent / 100;
 
@@ -341,7 +343,6 @@ export default function TradingCalculator({
     partsCount,
     isLoaded,
   ]);
-
   useEffect(() => {
     if (entryPrice <= 0 || stopLossPercent <= 0 || balance <= 0) return;
 
@@ -419,6 +420,7 @@ export default function TradingCalculator({
     maxSafeLeverage,
     partsCount,
   ]);
+
   return (
     <div className="w-full p-1.5 sm:p-4 space-y-3 sm:space-y-4">
       <MarketTicker
@@ -428,7 +430,6 @@ export default function TradingCalculator({
         onPriceClick={handlePriceApply}
         selectedCoin={selectedCoin}
         onCoinChange={handleCoinChange}
-        // Передаем динамический список монет в тикер
         availableCoinsList={availableCoinsList}
       />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 items-stretch">
@@ -439,13 +440,14 @@ export default function TradingCalculator({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3.5 sm:space-y-4 p-2.5 sm:p-4 flex-1">
+            {/* ИСПРАВЛЕНО: Теперь пробрасывается живой реестр тикеров Bybit для вычисления RISK и LIQ маркеров */}
             <CoinSelector
               selectedCoin={selectedCoin}
               onCoinChange={handleCoinChange}
               orderType={orderType}
               setOrderType={setOrderType}
-              // Пробрасываем динамические монеты в селектор формы
               availableCoinsList={availableCoinsList}
+              tickerRegistry={tickerRegistry}
             />
             <BalanceRiskForm
               balance={balance}

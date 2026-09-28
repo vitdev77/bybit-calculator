@@ -47,19 +47,12 @@ const COIN_NAMES: Record<string, string> = {
   LINK: "Chainlink",
 };
 function formatCompactNumber(num: number): string {
-  if (num >= 1_000_000_000) {
-    return `${(num / 1_000_000_000).toFixed(2)}B`;
-  }
-  if (num >= 1_000_000) {
-    return `${(num / 1_000_000).toFixed(2)}M`;
-  }
-  if (num >= 1_000) {
-    return `${(num / 1_000).toFixed(1)}K`;
-  }
+  if (num >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(2)}B`;
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(2)}M`;
+  if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;
   return num.toFixed(0);
 }
 
-// Функция генерации уникального цвета, если нет SVG-иконки
 function getCoinGradient(name: string): string {
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
@@ -93,15 +86,14 @@ export default function MarketTicker({
   useEffect(() => {
     if (data?.lastPrice) {
       if (prevPriceRef.current !== null) {
-        if (data.lastPrice > prevPriceRef.current) {
-          setTickDirection("up");
-        } else if (data.lastPrice < prevPriceRef.current) {
+        if (data.lastPrice > prevPriceRef.current) setTickDirection("up");
+        else if (data.lastPrice < prevPriceRef.current)
           setTickDirection("down");
-        }
       }
       prevPriceRef.current = data.lastPrice;
     }
   }, [data?.lastPrice]);
+
   const handleStarToggleInMenu = async (
     e: React.MouseEvent,
     coinName: string,
@@ -111,19 +103,13 @@ export default function MarketTicker({
     if (isStarToggling) return;
     setIsStarToggling(true);
     try {
-      const response = await fetch("/api/journal", {
+      const response = await fetch("/api/coins", {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          action: "TOGGLE_FAVORITE",
-          coin: coinName,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "TOGGLE_FAVORITE", coin: coinName }),
       });
-      if (response.ok) {
+      if (response.ok)
         window.dispatchEvent(new Event("refresh-calculator-coins"));
-      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -131,18 +117,15 @@ export default function MarketTicker({
     }
   };
 
-  // Группировка монет для выпадающего меню информера
   const groupedCoins: GroupedCoins = {};
   const favoriteCoins: DBAssetCoin[] = [];
+  const filteredActiveCoinsList = availableCoinsList.filter((c) => c.is_active);
 
-  availableCoinsList.forEach((asset) => {
-    if (asset.is_favorite) {
-      favoriteCoins.push(asset);
-    } else {
+  filteredActiveCoinsList.forEach((asset) => {
+    if (asset.is_favorite) favoriteCoins.push(asset);
+    else {
       const firstLetter = asset.coin.charAt(0).toUpperCase();
-      if (!groupedCoins[firstLetter]) {
-        groupedCoins[firstLetter] = [];
-      }
+      if (!groupedCoins[firstLetter]) groupedCoins[firstLetter] = [];
       groupedCoins[firstLetter].push(asset);
     }
   });
@@ -153,57 +136,36 @@ export default function MarketTicker({
     return (
       <div
         className={cn(
-          "p-3 border w-full select-none",
-          "border-border/40 rounded-xl",
-          "dark:border-black/40 box-border",
-          "bg-muted/30 dark:bg-black/40",
-          "shadow-inner grid grid-cols-2",
-          "md:grid-cols-6 gap-x-2 gap-y-3",
-          "sm:gap-4 items-center overflow-hidden",
-          "h-auto md:h-22.5",
+          "p-3 border w-full select-none border-border/40 rounded-xl box-border",
+          "bg-muted/30 dark:bg-black/40 shadow-inner grid grid-cols-2",
+          "md:grid-cols-12 gap-x-3 gap-y-3 sm:gap-4 items-center overflow-hidden h-auto md:h-22.5",
         )}
       >
-        <div
-          className={cn(
-            "flex items-center gap-2 p-0.5 h-12",
-            "md:col-span-1 border-b md:border-b-0",
-            "md:border-r border-border/30 pb-2",
-            "md:pb-0 pr-1 sm:pr-3 shrink-0",
-          )}
-        >
-          <Skeleton className="size-8 sm:size-10 rounded-full" />
-          <div className="space-y-1 flex-1">
-            <Skeleton className="h-3.5 w-12" />
-            <Skeleton className="h-2.5 w-16 opacity-60" />
+        <div className="flex items-center gap-2 p-0.5 h-12 md:col-span-3 border-b md:border-b-0 md:border-r border-border/30 pb-2 md:pb-0 pr-3 shrink-0">
+          <Skeleton className="size-8 sm:size-10 rounded-full shrink-0" />
+          <div className="space-y-1 flex-1 min-w-0">
+            <Skeleton className="h-3.5 w-14" />
+            <Skeleton className="h-2.5 w-20 opacity-60" />
           </div>
         </div>
-        <div
-          className={cn(
-            "p-0.5 w-full md:col-span-2 h-12",
-            "md:h-11 flex flex-col justify-center",
-            "space-y-1.5 border-b md:border-b-0",
-            "border-border/30 pb-2 md:pb-0 pl-1",
-            "md:pl-5 text-right md:text-left",
-          )}
-        >
-          <Skeleton className="h-2 w-14 opacity-60 ml-auto" />
-          <Skeleton className="h-5 sm:h-6 w-28 ml-auto" />
+        <div className="p-0.5 w-full md:col-span-3 h-12 md:h-11 flex flex-col justify-center space-y-1.5 border-b md:border-b-0 border-border/30 pb-2 md:pb-0 pl-1 md:pl-4 text-right md:text-left">
+          <Skeleton className="h-2 w-16 opacity-60 ml-auto md:ml-0" />
+          <Skeleton className="h-5 sm:h-6 w-32 ml-auto md:ml-0" />
         </div>
-        <div className="p-0.5 md:col-span-1 h-10 pl-1">
+        <div className="p-0.5 md:col-span-2 h-10 pl-1">
           <Skeleton className="h-2 w-16 opacity-60" />
-          <Skeleton className="h-4 w-12 mt-1" />
+          <Skeleton className="h-4 w-14 mt-1" />
         </div>
-        <div className="p-0.5 hidden md:flex col-span-1">
+        <div className="p-0.5 hidden md:flex md:col-span-2">
           <Skeleton className="h-1.5 w-full mt-4" />
         </div>
-        <div className="p-0.5 md:col-span-1 pr-1 text-right">
+        <div className="p-0.5 md:col-span-2 pr-1 text-right">
           <Skeleton className="h-2 w-14 ml-auto" />
           <Skeleton className="h-3 w-16 ml-auto mt-1" />
         </div>
       </div>
     );
   }
-
   const priceRange = data.highPrice24h - data.lowPrice24h;
   const currentPositionPercent =
     priceRange > 0
@@ -214,16 +176,13 @@ export default function MarketTicker({
       : 50;
 
   let priceColor = "text-foreground font-black";
-  if (tickDirection === "up") {
+  if (tickDirection === "up")
     priceColor = "text-emerald-600 dark:text-emerald-400 font-black";
-  }
-  if (tickDirection === "down") {
+  if (tickDirection === "down")
     priceColor = "text-rose-600 dark:text-rose-400 font-black";
-  }
 
   const hasRealData = data && data.lastPrice > 0 && data.turnover24h > 0;
   const changeValue = data.price24hPcnt;
-
   const changeColor = !hasRealData
     ? "text-muted-foreground"
     : changeValue > 0
@@ -235,33 +194,22 @@ export default function MarketTicker({
   const coinBaseName = selectedCoin.replace("USDT", "");
   const localIconUrl = `/crypto-icons/${coinBaseName.toLowerCase()}.svg`;
   const fullName = COIN_NAMES[coinBaseName] || "Crypto Asset";
+
   return (
     <div
       className={cn(
-        "p-3 border border-border/40 w-full",
-        "dark:border-black/40 rounded-xl box-border",
-        "bg-muted/30 dark:bg-black/40 shadow-inner",
-        "grid grid-cols-2 md:grid-cols-6 gap-x-2",
-        "gap-y-3 sm:gap-4 items-center select-none",
+        "p-3 border border-border/40 w-full dark:border-black/40 rounded-xl box-border",
+        "bg-muted/30 dark:bg-black/40 shadow-inner grid grid-cols-2 md:grid-cols-12",
+        "gap-x-3 gap-y-3 sm:gap-4 items-center select-none",
       )}
     >
-      <div
-        className={cn(
-          "p-0.5 md:col-span-1 border-b h-12",
-          "md:border-b-0 md:border-r flex",
-          "border-border/30 pb-2 md:pb-0",
-          "items-center pr-1 sm:pr-3 shrink-0",
-        )}
-      >
+      <div className="p-0.5 md:col-span-3 border-b h-12 md:border-b-0 md:border-r flex border-border/30 pb-2 md:pb-0 items-center pr-1 sm:pr-3 shrink-0 min-w-0">
         <DropdownMenu>
           <DropdownMenuTrigger
             className={cn(
-              "flex items-center gap-1.5 sm:gap-3",
-              "text-left p-1 rounded-xl w-full",
-              "border border-transparent outline-none",
-              "transition-all duration-200 cursor-pointer",
-              "hover:bg-muted/60 dark:hover:bg-muted/20",
-              "active:scale-[0.98] group/trigger",
+              "flex items-center gap-1.5 sm:gap-3 text-left p-1 rounded-xl w-full",
+              "border border-transparent outline-none transition-all duration-200",
+              "cursor-pointer hover:bg-muted/60 dark:hover:bg-muted/20 active:scale-[0.98] min-w-0",
             )}
           >
             <div className="relative shrink-0">
@@ -269,17 +217,14 @@ export default function MarketTicker({
                 <img
                   src={localIconUrl}
                   alt={coinBaseName}
-                  className="size-8 sm:size-10 rounded-full"
+                  className="size-8 sm:size-10 rounded-full shrink-0"
                   onError={() =>
-                    setIconErrorMap((p) => ({
-                      ...p,
-                      [selectedCoin]: true,
-                    }))
+                    setIconErrorMap((p) => ({ ...p, [selectedCoin]: true }))
                   }
                 />
               ) : (
                 <div
-                  className="size-8 sm:size-10 rounded-full flex items-center justify-center font-black text-white text-xs sm:text-sm uppercase tracking-wider"
+                  className="size-8 sm:size-10 rounded-full flex items-center justify-center font-black text-white text-xs uppercase tracking-wider shrink-0"
                   style={{ backgroundImage: getCoinGradient(coinBaseName) }}
                 >
                   {coinBaseName.slice(0, 2)}
@@ -288,22 +233,16 @@ export default function MarketTicker({
             </div>
             <div className="flex flex-col min-w-0 flex-1">
               <div className="flex items-center gap-0.5">
-                <span className="text-xs font-black">{coinBaseName}</span>
-                <ChevronDown className="size-3" />
+                <span className="text-xs font-black truncate">
+                  {coinBaseName}
+                </span>
+                <ChevronDown className="size-3 shrink-0" />
               </div>
               <span className="text-[9px] opacity-60 truncate">{fullName}</span>
             </div>
           </DropdownMenuTrigger>
-          {/* ФИКС ШИРИНЫ ОКНА ИНФОРМЕРА: w-64! min-w-64! */}
-          <DropdownMenuContent
-            className={cn(
-              "z-50 bg-popover/75 backdrop-blur-md",
-              "rounded-xl p-1 shadow-xl border w-64! min-w-64!",
-              "border-border/40 dark:border-white/10",
-            )}
-          >
+          <DropdownMenuContent className="z-50 bg-popover/75 backdrop-blur-md rounded-xl p-1 shadow-xl border w-64! min-w-64! border-border/40 dark:border-white/10">
             <div className="max-h-60 overflow-y-auto scrollbar-thin">
-              {/* 1. Секция Избранного */}
               {favoriteCoins.length > 0 && (
                 <div className="px-2 py-1 text-[10px] font-black text-amber-500 tracking-wider">
                   ★ ИЗБРАННОЕ
@@ -326,7 +265,7 @@ export default function MarketTicker({
                         <img
                           src={`/crypto-icons/${base.toLowerCase()}.svg`}
                           alt={base}
-                          className="size-4 rounded-full"
+                          className="size-4 rounded-full shrink-0"
                           onError={() =>
                             setIconErrorMap((p) => ({
                               ...p,
@@ -336,7 +275,7 @@ export default function MarketTicker({
                         />
                       ) : (
                         <div
-                          className="size-4 rounded-full flex items-center justify-center font-black text-white text-[8px] uppercase"
+                          className="size-4 rounded-full flex items-center justify-center font-black text-white text-[8px] uppercase shrink-0"
                           style={{ backgroundImage: getCoinGradient(base) }}
                         >
                           {base.slice(0, 2)}
@@ -346,7 +285,6 @@ export default function MarketTicker({
                         {asset.coin}
                       </span>
                     </div>
-                    {/* ФИКС ВЫРАВНИВАНИЯ: Прижато в самый правый край */}
                     <div className="flex items-center gap-2 shrink-0 ml-auto">
                       {isSel && <Check className="size-3 text-amber-500" />}
                       <button
@@ -360,8 +298,6 @@ export default function MarketTicker({
                   </DropdownMenuItem>
                 );
               })}
-
-              {/* 2. Алфавитные группы */}
               {sortedLetters.map((letter) => (
                 <React.Fragment key={letter}>
                   <div className="px-2 py-0.5 text-[10px] font-bold text-muted-foreground border-b border-border/10 mt-1.5 pb-0.5">
@@ -386,7 +322,7 @@ export default function MarketTicker({
                             <img
                               src={`/crypto-icons/${base.toLowerCase()}.svg`}
                               alt={base}
-                              className="size-4 rounded-full"
+                              className="size-4 rounded-full shrink-0"
                               onError={() =>
                                 setIconErrorMap((p) => ({
                                   ...p,
@@ -396,7 +332,7 @@ export default function MarketTicker({
                             />
                           ) : (
                             <div
-                              className="size-4 rounded-full flex items-center justify-center font-black text-white text-[8px] uppercase"
+                              className="size-4 rounded-full flex items-center justify-center font-black text-white text-[8px] uppercase shrink-0"
                               style={{ backgroundImage: getCoinGradient(base) }}
                             >
                               {base.slice(0, 2)}
@@ -427,21 +363,20 @@ export default function MarketTicker({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <div
-        className={cn(
-          "w-full overflow-hidden flex flex-col justify-center",
-          "border-b md:border-b-0 border-border/30 pl-1 md:pl-5",
-          "text-right md:text-left h-12 md:h-11",
-        )}
-      >
+      <div className="md:col-span-3 overflow-hidden flex flex-col justify-center border-b md:border-b-0 border-border/30 pl-1 md:pl-4 text-right md:text-left h-12 md:h-11 min-w-0">
         <span className="text-[8px] opacity-60 block uppercase">
           Live Price
         </span>
         <div
-          className="flex items-center justify-end md:justify-start"
+          className="flex items-center justify-end md:justify-start min-w-0 cursor-pointer"
           onClick={() => onPriceClick?.(data.lastPrice)}
         >
-          <span className={cn("text-base sm:text-xl truncate", priceColor)}>
+          <span
+            className={cn(
+              "text-sm sm:text-lg font-black tracking-tight whitespace-nowrap",
+              priceColor,
+            )}
+          >
             {tickDirection === "up"
               ? "▲ "
               : tickDirection === "down"
@@ -451,16 +386,21 @@ export default function MarketTicker({
           </span>
         </div>
       </div>
-      <div className="p-0.5 md:col-span-1 h-10 flex flex-col justify-center pl-1">
+      <div className="p-0.5 md:col-span-2 h-10 flex flex-col justify-center pl-1">
         <span className="text-[8px] opacity-60 uppercase block">
           24h Change
         </span>
-        <span className={cn("text-xs font-bold block mt-0.5", changeColor)}>
+        <span
+          className={cn(
+            "text-xs font-bold block mt-0.5 whitespace-nowrap",
+            changeColor,
+          )}
+        >
           {hasRealData && changeValue > 0 ? "+" : ""}
           {hasRealData ? `${changeValue.toFixed(2)}%` : "--.--%"}
         </span>
       </div>
-      <div className="p-0.5 hidden md:flex flex-col h-10 justify-center">
+      <div className="p-0.5 hidden md:flex flex-col h-10 justify-center md:col-span-2">
         <span className="text-[8px] opacity-60 uppercase block mb-1">
           24h Range
         </span>
@@ -471,8 +411,8 @@ export default function MarketTicker({
           />
         </div>
       </div>
-      <div className="p-0.5 md:col-span-1 h-10 flex flex-col justify-between pr-1 text-right md:text-left">
-        <div>
+      <div className="p-0.5 md:col-span-2 h-10 flex flex-col justify-between pr-1 text-right md:text-left min-w-0">
+        <div className="min-w-0">
           <span className="text-[8px] opacity-60 uppercase block">
             Turnover
           </span>
@@ -480,7 +420,7 @@ export default function MarketTicker({
             {formatCompactNumber(data.turnover24h)}
           </span>
         </div>
-        <div className="flex items-center justify-end md:justify-start gap-1">
+        <div className="flex items-center justify-end md:justify-start gap-1 whitespace-nowrap">
           <span className="text-[8px] opacity-60 uppercase">Funding:</span>
           <span className="text-[9px] font-bold text-amber-500">
             {(data.fundingRate * 100).toFixed(4)}%
