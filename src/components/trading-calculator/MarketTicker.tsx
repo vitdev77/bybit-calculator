@@ -2,15 +2,15 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronDown, Check } from "lucide-react";
+import { ChevronDown, Check, Star } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { AVAILABLE_COINS } from "./CoinSelector";
 import { cn } from "cn";
+import { DBAssetCoin } from "./TradingCalculator";
 
 interface TickerData {
   lastPrice: number;
@@ -28,6 +28,7 @@ interface MarketTickerProps {
   onPriceClick?: (price: number) => void;
   selectedCoin: string;
   onCoinChange?: (coin: string) => void;
+  availableCoinsList: DBAssetCoin[];
 }
 
 const COIN_NAMES: Record<string, string> = {
@@ -45,13 +46,34 @@ const COIN_NAMES: Record<string, string> = {
   NEAR: "Near Protocol",
   LINK: "Chainlink",
 };
-
 function formatCompactNumber(num: number): string {
-  if (num >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(2)}B`;
-  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(2)}M`;
-  if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;
+  if (num >= 1_000_000_000) {
+    return `${(num / 1_000_000_000).toFixed(2)}B`;
+  }
+  if (num >= 1_000_000) {
+    return `${(num / 1_000_000).toFixed(2)}M`;
+  }
+  if (num >= 1_000) {
+    return `${(num / 1_000).toFixed(1)}K`;
+  }
   return num.toFixed(0);
 }
+
+// Функция генерации уникального цвета, если нет SVG-иконки
+function getCoinGradient(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const c1 = Math.abs((hash & 0xff0000) >> 16) % 360;
+  const c2 = (c1 + 40) % 360;
+  return `linear-gradient(135deg, hsl(${c1}, 70%, 45%), hsl(${c2}, 80%, 35%))`;
+}
+
+interface GroupedCoins {
+  [key: string]: DBAssetCoin[];
+}
+
 export default function MarketTicker({
   data,
   loading,
@@ -59,105 +81,129 @@ export default function MarketTicker({
   onPriceClick,
   selectedCoin,
   onCoinChange,
+  availableCoinsList = [],
 }: MarketTickerProps) {
   const [tickDirection, setTickDirection] = useState<"up" | "down" | "stable">(
     "stable",
   );
-  const [iconError, setIconError] = useState(false);
+  const [iconErrorMap, setIconErrorMap] = useState<Record<string, boolean>>({});
+  const [isStarToggling, setIsStarToggling] = useState(false);
   const prevPriceRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    setIconError(false);
-  }, [selectedCoin]);
 
   useEffect(() => {
     if (data?.lastPrice) {
       if (prevPriceRef.current !== null) {
-        if (data.lastPrice > prevPriceRef.current) setTickDirection("up");
-        else if (data.lastPrice < prevPriceRef.current)
+        if (data.lastPrice > prevPriceRef.current) {
+          setTickDirection("up");
+        } else if (data.lastPrice < prevPriceRef.current) {
           setTickDirection("down");
+        }
       }
       prevPriceRef.current = data.lastPrice;
     }
   }, [data?.lastPrice]);
+  const handleStarToggleInMenu = async (
+    e: React.MouseEvent,
+    coinName: string,
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isStarToggling) return;
+    setIsStarToggling(true);
+    try {
+      const response = await fetch("/api/journal", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "TOGGLE_FAVORITE",
+          coin: coinName,
+        }),
+      });
+      if (response.ok) {
+        window.dispatchEvent(new Event("refresh-calculator-coins"));
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsStarToggling(false);
+    }
+  };
+
+  // Группировка монет для выпадающего меню информера
+  const groupedCoins: GroupedCoins = {};
+  const favoriteCoins: DBAssetCoin[] = [];
+
+  availableCoinsList.forEach((asset) => {
+    if (asset.is_favorite) {
+      favoriteCoins.push(asset);
+    } else {
+      const firstLetter = asset.coin.charAt(0).toUpperCase();
+      if (!groupedCoins[firstLetter]) {
+        groupedCoins[firstLetter] = [];
+      }
+      groupedCoins[firstLetter].push(asset);
+    }
+  });
+
+  const sortedLetters = Object.keys(groupedCoins).sort();
 
   if (loading || !data) {
     return (
       <div
         className={cn(
-          "p-3 border border-border/40",
-          "dark:border-black/40 rounded-xl",
-          "bg-muted/30 dark:bg-black/40 shadow-inner",
-          "grid grid-cols-2 md:grid-cols-6 gap-x-2",
-          "gap-y-3 sm:gap-4 w-full items-center",
-          "h-auto md:h-22.5 select-none box-border",
-          "overflow-hidden",
+          "p-3 border w-full select-none",
+          "border-border/40 rounded-xl",
+          "dark:border-black/40 box-border",
+          "bg-muted/30 dark:bg-black/40",
+          "shadow-inner grid grid-cols-2",
+          "md:grid-cols-6 gap-x-2 gap-y-3",
+          "sm:gap-4 items-center overflow-hidden",
+          "h-auto md:h-22.5",
         )}
       >
         <div
           className={cn(
-            "flex items-center gap-2 p-0.5",
-            "md:col-span-1 border-b h-12",
-            "md:border-b-0 md:border-r",
-            "border-border/30 pb-2 md:pb-0",
-            "pr-1 sm:pr-3 shrink-0 min-w-fit",
+            "flex items-center gap-2 p-0.5 h-12",
+            "md:col-span-1 border-b md:border-b-0",
+            "md:border-r border-border/30 pb-2",
+            "md:pb-0 pr-1 sm:pr-3 shrink-0",
           )}
         >
-          <Skeleton className="size-8 sm:size-10 rounded-full shrink-0" />
-          <div className="space-y-1 flex-1 min-w-0">
+          <Skeleton className="size-8 sm:size-10 rounded-full" />
+          <div className="space-y-1 flex-1">
             <Skeleton className="h-3.5 w-12" />
             <Skeleton className="h-2.5 w-16 opacity-60" />
           </div>
         </div>
-
         <div
           className={cn(
-            "p-0.5 w-full md:col-span-2 h-12 md:h-11",
-            "flex flex-col justify-center space-y-1.5",
-            "border-b md:border-b-0 border-border/30",
-            "pb-2 md:pb-0 pl-1 md:pl-5 text-right",
-            "md:text-left",
+            "p-0.5 w-full md:col-span-2 h-12",
+            "md:h-11 flex flex-col justify-center",
+            "space-y-1.5 border-b md:border-b-0",
+            "border-border/30 pb-2 md:pb-0 pl-1",
+            "md:pl-5 text-right md:text-left",
           )}
         >
-          <Skeleton className="h-2 w-14 opacity-60 ml-auto md:ml-7" />
-          <Skeleton className="h-5 sm:h-6 w-28 sm:w-36 ml-auto md:ml-7" />
+          <Skeleton className="h-2 w-14 opacity-60 ml-auto" />
+          <Skeleton className="h-5 sm:h-6 w-28 ml-auto" />
         </div>
-
-        <div
-          className={cn(
-            "p-0.5 md:col-span-1 h-10 flex",
-            "flex-col justify-center space-y-1.5",
-            "pl-1 md:pl-0",
-          )}
-        >
+        <div className="p-0.5 md:col-span-1 h-10 pl-1">
           <Skeleton className="h-2 w-16 opacity-60" />
-          <Skeleton className="h-4 w-12" />
+          <Skeleton className="h-4 w-12 mt-1" />
         </div>
-
-        <div
-          className={cn(
-            "p-0.5 hidden md:flex flex-col",
-            "justify-center min-w-24 md:col-span-1",
-            "h-10 space-y-2",
-          )}
-        >
-          <Skeleton className="h-2 w-12 opacity-60" />
-          <Skeleton className="h-1.5 w-full rounded-full" />
+        <div className="p-0.5 hidden md:flex col-span-1">
+          <Skeleton className="h-1.5 w-full mt-4" />
         </div>
-
-        <div
-          className={cn(
-            "p-0.5 md:col-span-1 h-10 flex",
-            "flex-col justify-center space-y-1.5",
-            "text-right md:text-left pr-1 md:pr-0",
-          )}
-        >
-          <Skeleton className="h-2 w-14 opacity-60 ml-auto md:ml-0" />
-          <Skeleton className="h-3 w-16 ml-auto md:ml-0" />
+        <div className="p-0.5 md:col-span-1 pr-1 text-right">
+          <Skeleton className="h-2 w-14 ml-auto" />
+          <Skeleton className="h-3 w-16 ml-auto mt-1" />
         </div>
       </div>
     );
   }
+
   const priceRange = data.highPrice24h - data.lowPrice24h;
   const currentPositionPercent =
     priceRange > 0
@@ -168,10 +214,12 @@ export default function MarketTicker({
       : 50;
 
   let priceColor = "text-foreground font-black";
-  if (tickDirection === "up")
+  if (tickDirection === "up") {
     priceColor = "text-emerald-600 dark:text-emerald-400 font-black";
-  if (tickDirection === "down")
+  }
+  if (tickDirection === "down") {
     priceColor = "text-rose-600 dark:text-rose-400 font-black";
+  }
 
   const hasRealData = data && data.lastPrice > 0 && data.turnover24h > 0;
   const changeValue = data.price24hPcnt;
@@ -187,7 +235,6 @@ export default function MarketTicker({
   const coinBaseName = selectedCoin.replace("USDT", "");
   const localIconUrl = `/crypto-icons/${coinBaseName.toLowerCase()}.svg`;
   const fullName = COIN_NAMES[coinBaseName] || "Crypto Asset";
-
   return (
     <div
       className={cn(
@@ -202,8 +249,8 @@ export default function MarketTicker({
         className={cn(
           "p-0.5 md:col-span-1 border-b h-12",
           "md:border-b-0 md:border-r flex",
-          "border-border/30 pb-2 md:pb-0 items-center",
-          "pr-1 sm:pr-3 min-w-fit shrink-0",
+          "border-border/30 pb-2 md:pb-0",
+          "items-center pr-1 sm:pr-3 shrink-0",
         )}
       >
         <DropdownMenu>
@@ -218,298 +265,224 @@ export default function MarketTicker({
             )}
           >
             <div className="relative shrink-0">
-              {!iconError ? (
+              {!iconErrorMap[selectedCoin] ? (
                 <img
                   src={localIconUrl}
                   alt={coinBaseName}
-                  className={cn(
-                    "size-8 sm:size-10 rounded-full",
-                    "block object-contain shrink-0",
-                  )}
-                  onError={() => setIconError(true)}
+                  className="size-8 sm:size-10 rounded-full"
+                  onError={() =>
+                    setIconErrorMap((p) => ({
+                      ...p,
+                      [selectedCoin]: true,
+                    }))
+                  }
                 />
               ) : (
                 <div
-                  className={cn(
-                    "size-8 sm:size-10 rounded-full",
-                    "bg-emerald-600/10 text-xs",
-                    "dark:bg-emerald-400/10 flex",
-                    "items-center justify-center font-black",
-                    "text-emerald-600 dark:text-emerald-400",
-                    "shrink-0 uppercase",
-                  )}
+                  className="size-8 sm:size-10 rounded-full flex items-center justify-center font-black text-white text-xs sm:text-sm uppercase tracking-wider"
+                  style={{ backgroundImage: getCoinGradient(coinBaseName) }}
                 >
-                  {coinBaseName.charAt(0)}
+                  {coinBaseName.slice(0, 2)}
                 </div>
               )}
             </div>
-            <div
-              className={cn(
-                "flex flex-col min-w-0 flex-1",
-                "pr-1 relative h-7 Hong-center",
-                "justify-center",
-              )}
-            >
-              <div className="flex items-center gap-0.5 h-4">
-                <span
-                  className={cn(
-                    "text-xs sm:text-sm font-black",
-                    "tracking-tight text-foreground",
-                    "leading-none transition-colors",
-                    "group-hover/trigger:text-amber-500",
-                  )}
-                >
-                  {coinBaseName}
-                </span>
-                <ChevronDown
-                  className={cn(
-                    "size-3 text-muted-foreground/60",
-                    "transition-colors shrink-0",
-                    "group-hover/trigger:text-foreground",
-                  )}
-                />
+            <div className="flex flex-col min-w-0 flex-1">
+              <div className="flex items-center gap-0.5">
+                <span className="text-xs font-black">{coinBaseName}</span>
+                <ChevronDown className="size-3" />
               </div>
-              <span
-                className={cn(
-                  "text-[9px] font-semibold h-3",
-                  "text-muted-foreground/70 truncate",
-                  "leading-none mt-0.5 block",
-                )}
-              >
-                {fullName}
-              </span>
+              <span className="text-[9px] opacity-60 truncate">{fullName}</span>
             </div>
           </DropdownMenuTrigger>
+          {/* ФИКС ШИРИНЫ ОКНА ИНФОРМЕРА: w-64! min-w-64! */}
           <DropdownMenuContent
             className={cn(
-              "z-50 bg-popover/75 dark:bg-zinc-950/75",
-              "backdrop-blur-md rounded-xl p-1 shadow-xl",
-              "border border-border/40 dark:border-white/10",
-              "min-w-48 overflow-hidden",
+              "z-50 bg-popover/75 backdrop-blur-md",
+              "rounded-xl p-1 shadow-xl border w-64! min-w-64!",
+              "border-border/40 dark:border-white/10",
             )}
           >
-            <div
-              className={cn(
-                "max-h-60 overflow-y-auto overflow-x-hidden",
-                "scrollbar-thin rounded-lg",
+            <div className="max-h-60 overflow-y-auto scrollbar-thin">
+              {/* 1. Секция Избранного */}
+              {favoriteCoins.length > 0 && (
+                <div className="px-2 py-1 text-[10px] font-black text-amber-500 tracking-wider">
+                  ★ ИЗБРАННОЕ
+                </div>
               )}
-            >
-              {AVAILABLE_COINS.map((coin) => {
-                const base = coin.replace("USDT", "");
-                const iconPath = `/crypto-icons/${base.toLowerCase()}.svg`;
-                const isSelected = selectedCoin === coin;
+              {favoriteCoins.map((asset) => {
+                const base = asset.coin.replace("USDT", "");
+                const isSel = selectedCoin === asset.coin;
                 return (
                   <DropdownMenuItem
-                    key={coin}
-                    onClick={() => onCoinChange?.(coin)}
+                    key={asset.coin}
+                    onClick={() => onCoinChange?.(asset.coin)}
                     className={cn(
-                      "flex items-center justify-between",
-                      "gap-2 px-2.5 py-1.5 rounded-lg",
-                      "text-xs sm:text-sm cursor-pointer",
-                      "transition-colors focus:bg-accent",
-                      "focus:text-accent-foreground",
-                      isSelected
-                        ? "bg-amber-500/10 text-amber-500 font-bold"
-                        : "text-foreground",
+                      "flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs",
+                      isSel ? "text-amber-500 font-bold" : "text-foreground",
                     )}
                   >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <img
-                        src={iconPath}
-                        alt={base}
-                        className={cn(
-                          "size-4 object-contain",
-                          "rounded-full shrink-0",
-                        )}
-                        onError={(e) => {
-                          (e.target as HTMLElement).style.display = "none";
-                        }}
-                      />
-                      <span className="truncate">{coin}</span>
+                    <div className="flex items-center gap-2 truncate flex-1">
+                      {!iconErrorMap[asset.coin] ? (
+                        <img
+                          src={`/crypto-icons/${base.toLowerCase()}.svg`}
+                          alt={base}
+                          className="size-4 rounded-full"
+                          onError={() =>
+                            setIconErrorMap((p) => ({
+                              ...p,
+                              [asset.coin]: true,
+                            }))
+                          }
+                        />
+                      ) : (
+                        <div
+                          className="size-4 rounded-full flex items-center justify-center font-black text-white text-[8px] uppercase"
+                          style={{ backgroundImage: getCoinGradient(base) }}
+                        >
+                          {base.slice(0, 2)}
+                        </div>
+                      )}
+                      <span className="truncate font-semibold">
+                        {asset.coin}
+                      </span>
                     </div>
-                    {isSelected && (
-                      <Check
-                        className={cn(
-                          "size-3.5 sm:size-4 text-amber-500",
-                          "shrink-0 ml-auto",
-                        )}
-                      />
-                    )}
+                    {/* ФИКС ВЫРАВНИВАНИЯ: Прижато в самый правый край */}
+                    <div className="flex items-center gap-2 shrink-0 ml-auto">
+                      {isSel && <Check className="size-3 text-amber-500" />}
+                      <button
+                        type="button"
+                        onClick={(e) => handleStarToggleInMenu(e, asset.coin)}
+                        className="p-0.5 text-amber-500 bg-transparent border-none cursor-pointer"
+                      >
+                        <Star className="size-3" fill="currentColor" />
+                      </button>
+                    </div>
                   </DropdownMenuItem>
                 );
               })}
+
+              {/* 2. Алфавитные группы */}
+              {sortedLetters.map((letter) => (
+                <React.Fragment key={letter}>
+                  <div className="px-2 py-0.5 text-[10px] font-bold text-muted-foreground border-b border-border/10 mt-1.5 pb-0.5">
+                    {letter}
+                  </div>
+                  {groupedCoins[letter].map((asset) => {
+                    const base = asset.coin.replace("USDT", "");
+                    const isSel = selectedCoin === asset.coin;
+                    return (
+                      <DropdownMenuItem
+                        key={asset.coin}
+                        onClick={() => onCoinChange?.(asset.coin)}
+                        className={cn(
+                          "flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs",
+                          isSel
+                            ? "text-foreground font-bold bg-muted/20"
+                            : "text-foreground",
+                        )}
+                      >
+                        <div className="flex items-center gap-2 truncate flex-1">
+                          {!iconErrorMap[asset.coin] ? (
+                            <img
+                              src={`/crypto-icons/${base.toLowerCase()}.svg`}
+                              alt={base}
+                              className="size-4 rounded-full"
+                              onError={() =>
+                                setIconErrorMap((p) => ({
+                                  ...p,
+                                  [asset.coin]: true,
+                                }))
+                              }
+                            />
+                          ) : (
+                            <div
+                              className="size-4 rounded-full flex items-center justify-center font-black text-white text-[8px] uppercase"
+                              style={{ backgroundImage: getCoinGradient(base) }}
+                            >
+                              {base.slice(0, 2)}
+                            </div>
+                          )}
+                          <span className="truncate">{asset.coin}</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0 ml-auto">
+                          {isSel && (
+                            <Check className="size-3 text-muted-foreground/60" />
+                          )}
+                          <button
+                            type="button"
+                            onClick={(e) =>
+                              handleStarToggleInMenu(e, asset.coin)
+                            }
+                            className="p-0.5 text-muted-foreground/20 hover:text-amber-500 bg-transparent border-none cursor-pointer"
+                          >
+                            <Star className="size-3" fill="none" />
+                          </button>
+                        </div>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </React.Fragment>
+              ))}
             </div>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
       <div
         className={cn(
-          "p-0.5 w-full overflow-hidden bg-transparent",
-          "md:col-span-2 h-12 md:h-11 flex flex-col",
-          "justify-center border-b md:border-b-0",
-          "border-border/30 pb-2 md:pb-0 pl-1",
-          "md:pl-5 text-right md:text-left",
+          "w-full overflow-hidden flex flex-col justify-center",
+          "border-b md:border-b-0 border-border/30 pl-1 md:pl-5",
+          "text-right md:text-left h-12 md:h-11",
         )}
       >
-        <span
-          className={cn(
-            "text-[8px] font-medium uppercase h-2",
-            "tracking-wider text-muted-foreground",
-            "block md:pl-7 select-none leading-none mb-1",
-          )}
-        >
+        <span className="text-[8px] opacity-60 block uppercase">
           Live Price
         </span>
-        <div className="flex items-center justify-end md:justify-start h-6">
-          <div
-            className={cn(
-              "relative md:pl-7 flex items-center",
-              "justify-end md:justify-start cursor-copy",
-              "group select-none w-full whitespace-nowrap",
-            )}
-            onClick={() => onPriceClick?.(data.lastPrice)}
-            title="Добавить цену в калькулятор"
-          >
-            <span
-              className={cn(
-                "text-base sm:text-xl md:text-2xl",
-                "tracking-tight transition-all h-6",
-                "duration-300 leading-none",
-                "group-hover:opacity-80",
-                priceColor,
-              )}
-            >
-              {tickDirection === "up"
-                ? "▲ "
-                : tickDirection === "down"
-                  ? "▼ "
-                  : "• "}
-              {data.lastPrice.toFixed(decimals)}
-            </span>
-          </div>
+        <div
+          className="flex items-center justify-end md:justify-start"
+          onClick={() => onPriceClick?.(data.lastPrice)}
+        >
+          <span className={cn("text-base sm:text-xl truncate", priceColor)}>
+            {tickDirection === "up"
+              ? "▲ "
+              : tickDirection === "down"
+                ? "▼ "
+                : "• "}
+            {data.lastPrice.toFixed(decimals)}
+          </span>
         </div>
       </div>
-
-      <div
-        className={cn(
-          "space-y-0.5 p-0.5 md:col-span-1 h-10 flex",
-          "flex-col justify-center pl-1 md:pl-0",
-        )}
-      >
-        <span
-          className={cn(
-            "text-[8px] font-medium uppercase h-2",
-            "tracking-wider text-muted-foreground",
-            "block select-none leading-none",
-          )}
-        >
+      <div className="p-0.5 md:col-span-1 h-10 flex flex-col justify-center pl-1">
+        <span className="text-[8px] opacity-60 uppercase block">
           24h Change
         </span>
-        <span
-          className={cn(
-            "text-xs sm:text-sm md:text-base font-bold",
-            "block tracking-tight whitespace-nowrap mt-1",
-            "leading-none h-4",
-            changeColor,
-          )}
-        >
-          {hasRealData ? (changeValue > 0 ? "+" : "") : ""}
+        <span className={cn("text-xs font-bold block mt-0.5", changeColor)}>
+          {hasRealData && changeValue > 0 ? "+" : ""}
           {hasRealData ? `${changeValue.toFixed(2)}%` : "--.--%"}
         </span>
       </div>
-
-      <div
-        className={cn(
-          "p-0.5 hidden md:flex flex-col h-10",
-          "justify-center min-w-24 md:col-span-1",
-        )}
-      >
-        <span
-          className={cn(
-            "text-[8px] font-medium uppercase h-2",
-            "tracking-wider text-muted-foreground",
-            "block select-none leading-none mb-1",
-          )}
-        >
+      <div className="p-0.5 hidden md:flex flex-col h-10 justify-center">
+        <span className="text-[8px] opacity-60 uppercase block mb-1">
           24h Range
         </span>
         <div className="relative w-full h-1 bg-muted-foreground/20 rounded-full">
           <div
-            className={cn(
-              "absolute top-1/2 -translate-y-1/2",
-              "-translate-x-1/2 w-1.5 h-1.5 rounded-full",
-              "border border-background shadow-xs",
-              "transition-all duration-500",
-              changeValue >= 0 ? "bg-emerald-500" : "bg-rose-500",
-            )}
+            className="absolute top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-amber-500"
             style={{ left: `${currentPositionPercent}%` }}
           />
         </div>
-        <div
-          className={cn(
-            "flex justify-between text-[8px] h-2",
-            "text-muted-foreground/80 whitespace-nowrap mt-1",
-            "leading-none",
-          )}
-        >
-          <span>{data.lowPrice24h.toFixed(decimals)}</span>
-          <span>{data.highPrice24h.toFixed(decimals)}</span>
-        </div>
       </div>
-
-      <div
-        className={cn(
-          "p-0.5 md:col-span-1 h-10 flex flex-col",
-          "justify-between overflow-hidden pr-1 md:pr-0",
-          "text-right md:text-left",
-        )}
-      >
-        <div className="h-5">
-          <span
-            className={cn(
-              "text-[8px] font-medium uppercase h-1.5",
-              "tracking-wider text-muted-foreground",
-              "block select-none leading-none",
-            )}
-          >
+      <div className="p-0.5 md:col-span-1 h-10 flex flex-col justify-between pr-1 text-right md:text-left">
+        <div>
+          <span className="text-[8px] opacity-60 uppercase block">
             Turnover
           </span>
-          <span
-            className={cn(
-              "text-xs font-bold text-foreground block",
-              "tracking-tight whitespace-nowrap leading-none mt-0.5",
-            )}
-          >
-            {formatCompactNumber(data.turnover24h)}{" "}
-            <span className="text-[8px] font-normal text-muted-foreground">
-              USDT
-            </span>
+          <span className="text-xs font-bold text-foreground block truncate">
+            {formatCompactNumber(data.turnover24h)}
           </span>
         </div>
-        <div
-          className={cn(
-            "flex items-center justify-end h-3",
-            "md:justify-start gap-1 min-h-3 mt-0.5",
-          )}
-        >
-          <span
-            className={cn(
-              "text-[8px] font-medium uppercase h-3",
-              "tracking-wider text-muted-foreground",
-              "block select-none leading-none",
-            )}
-          >
-            Funding:
-          </span>
-          <span
-            className={cn(
-              "text-[9px] font-bold block whitespace-nowrap",
-              "leading-none",
-              data.fundingRate >= 0
-                ? "text-amber-600 dark:text-amber-400"
-                : "text-violet-600 dark:text-violet-400",
-            )}
-          >
+        <div className="flex items-center justify-end md:justify-start gap-1">
+          <span className="text-[8px] opacity-60 uppercase">Funding:</span>
+          <span className="text-[9px] font-bold text-amber-500">
             {(data.fundingRate * 100).toFixed(4)}%
           </span>
         </div>
