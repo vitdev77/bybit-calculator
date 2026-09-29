@@ -33,7 +33,7 @@ interface TradingJournalProps {
   livePrice?: number;
   activeCoin?: string;
   onCoinSelect?: (coin: string) => void;
-  availableCoinsList: DBAssetCoin[];
+  availableCoinsList?: DBAssetCoin[]; // Сделано необязательным
 }
 
 export default function TradingJournal({
@@ -41,7 +41,7 @@ export default function TradingJournal({
   livePrice = 0,
   activeCoin = "",
   onCoinSelect,
-  availableCoinsList = [],
+  availableCoinsList = [], // Дефолтное значение
 }: TradingJournalProps) {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [activeOpenDeal, setActiveOpenDeal] = useState<Deal | null>(null);
@@ -70,7 +70,6 @@ export default function TradingJournal({
   useEffect(() => {
     document.title = `Журнал сделок (${openDealsCount})`;
   }, [openDealsCount]);
-
   useEffect(() => {
     if (!activeCoin || !isChangingCoin) return;
     if (!activeOpenDeal || activeOpenDeal.coin !== activeCoin) {
@@ -87,6 +86,7 @@ export default function TradingJournal({
       setIsChangingCoin(false);
     }
   }, [livePrice, activeCoin, activeOpenDeal, isChangingCoin]);
+
   const fetchJournal = useCallback(async () => {
     try {
       const url = activeCoin
@@ -212,7 +212,6 @@ export default function TradingJournal({
     },
     [livePrice, fetchJournal],
   );
-
   useEffect(() => {
     if (livePrice <= 0 || !activeCoin || deals.length === 0 || isChangingCoin)
       return;
@@ -230,11 +229,9 @@ export default function TradingJournal({
 
     if (isLong) {
       if (livePrice >= activeOpenDeal.take_profit) isTpCrossed = true;
-      // ФИКС: Убрано ограничение !isAlreadyInBreakeven. Касание БУ-стопа теперь зажигается штатно.
       if (livePrice <= activeOpenDeal.stop_loss) isSlCrossed = true;
     } else {
       if (livePrice <= activeOpenDeal.take_profit) isTpCrossed = true;
-      // ФИКС: Убрано ограничение !isAlreadyInBreakeven для Short-сделок.
       if (livePrice >= activeOpenDeal.stop_loss) isSlCrossed = true;
     }
 
@@ -302,6 +299,7 @@ export default function TradingJournal({
       window.removeEventListener("refresh-trading-journal", fetchJournal);
     };
   }, [fetchJournal]);
+
   const exportToCSV = () => {
     if (!deals || deals.length === 0) return;
     const headers = [

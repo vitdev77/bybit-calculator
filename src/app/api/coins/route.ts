@@ -21,7 +21,7 @@ const REAL_STABLE_COINS = [
 function getDecimalsFromTick(tickStr: string): number {
   if (!tickStr || !tickStr.includes(".")) return 0;
   const parts = tickStr.split(".");
-  return parts ? parts.length : 2;
+  return parts[1] ? parts[1].length : 2; // ФИКС: Возвращаем реальную длину дробной части
 }
 
 async function ensureCoinsTableExists() {
@@ -45,7 +45,8 @@ async function ensureCoinsTableExists() {
       NOT NULL DEFAULT FALSE;
     `;
 
-    const bybitApiUrl = "https://bybit.com";
+    // Использование официального поддомена Bybit API
+    const bybitApiUrl = process.env.BYBIT_API_URL || "https://bytick.com";
     const endpoint = "/v5/market/instruments-info";
 
     let allLiveUsdtPairs: any[] = [];
@@ -63,6 +64,7 @@ async function ensureCoinsTableExists() {
       try {
         const response = await fetch(targetUrl, {
           cache: "no-store",
+          headers: { Accept: "application/json" },
           signal: AbortSignal.timeout(6000),
         });
 
@@ -128,7 +130,6 @@ async function ensureCoinsTableExists() {
     }
 
     const res: any = await sql`SELECT COUNT(*) as count FROM coins;`;
-    // ФИКС: Явное приведение res к типу any устраняет ошибку компиляции .count
     const coinCount = parseInt((res && res[0]?.count) || "0", 10);
 
     if (allLiveUsdtPairs.length === 0 && coinCount === 0) {
@@ -151,6 +152,7 @@ async function ensureCoinsTableExists() {
     console.error("Sync Error", err);
   }
 }
+
 export async function GET() {
   try {
     if (!process.env.DATABASE_URL) {
@@ -173,7 +175,7 @@ export async function GET() {
     > = {};
 
     try {
-      const bybitApiUrl = "https://bybit.com";
+      const bybitApiUrl = process.env.BYBIT_API_URL || "https://bytick.com";
       const endpoint = "/v5/market/tickers";
       const tickersUrl = `${bybitApiUrl}${endpoint}?category=linear`;
 
@@ -203,6 +205,7 @@ export async function GET() {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
 export async function PATCH(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
