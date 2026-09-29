@@ -38,6 +38,40 @@ interface GroupedCoins {
   [key: string]: DBAssetCoin[];
 }
 
+function getCoinGradient(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const c1 = Math.abs((hash & 0xff0000) >> 16) % 360;
+  const c2 = (c1 + 40) % 360;
+  return `linear-gradient(135deg, hsl(${c1}, 70%, 45%), hsl(${c2}, 80%, 35%))`;
+}
+
+// Изолированный гибридный компонент иконки для списка Select
+function CoinIcon({ symbol }: { symbol: string }) {
+  const [error, setError] = useState(false);
+  const base = symbol.replace("USDT", "");
+
+  if (!error) {
+    return (
+      <img
+        src={`/crypto-icons/${base.toLowerCase()}.svg`}
+        alt={base}
+        className="size-4 rounded-full object-cover shrink-0"
+        onError={() => setError(true)}
+      />
+    );
+  }
+  return (
+    <div
+      className="size-4 rounded-full flex items-center justify-center font-black text-white text-[8px] uppercase shrink-0"
+      style={{ backgroundImage: getCoinGradient(base) }}
+    >
+      {base.slice(0, 2)}
+    </div>
+  );
+}
 export default function CoinSelector({
   selectedCoin,
   onCoinChange,
@@ -49,8 +83,6 @@ export default function CoinSelector({
   const [isStarToggling, setIsStarToggling] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // РАЗДЕЛЕНИЕ СТЕЙТОВ: inputValue для мгновенного ввода,
-  // debouncedSearch для тяжелого поиска по базе
   const [inputValue, setInputValue] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [searchResults, setSearchResults] = useState<DBAssetCoin[]>([]);
@@ -64,20 +96,17 @@ export default function CoinSelector({
   const isCurrentFavorite = currentCoinData
     ? currentCoinData.is_favorite
     : false;
-  // Моментальный дебаунс текстового стейта ввода
+
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-
     debounceRef.current = setTimeout(() => {
       setDebouncedSearch(inputValue);
-    }, 300); // 300мс паузы перед фильтрацией
-
+    }, 300);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [inputValue]);
 
-  // Запрос к API Bybit/NeonDB только по дебаунс-стейту
   useEffect(() => {
     const query = debouncedSearch.trim();
     if (!query) {
@@ -104,7 +133,6 @@ export default function CoinSelector({
     };
     executeSearch();
   }, [debouncedSearch]);
-
   const handleToggleFavoriteClick = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -144,6 +172,7 @@ export default function CoinSelector({
       setIsStarToggling(false);
     }
   };
+
   const handleToggleFavInMenu = async (
     e: React.MouseEvent,
     coinName: string,
@@ -184,15 +213,12 @@ export default function CoinSelector({
     (c) => c.is_favorite,
   );
   const groupedCoins: GroupedCoins = {};
-
-  // Используем debouncedSearch для тяжелой фильтрации списков
   let baseSourceList = debouncedSearch.trim()
     ? searchResults
     : availableCoinsList;
 
   baseSourceList.forEach((asset) => {
     if (!debouncedSearch.trim() && asset.is_favorite) return;
-
     const firstLetter = asset.coin.charAt(0).toUpperCase();
     if (!groupedCoins[firstLetter]) groupedCoins[firstLetter] = [];
     if (!groupedCoins[firstLetter].some((c) => c.coin === asset.coin)) {
@@ -234,7 +260,7 @@ export default function CoinSelector({
         </ButtonGroup>
       </div>
 
-      {/* РЯД 2 — Выбор торговой пары */}
+      {/* РЯД 2 — Выбор пары */}
       <div className="space-y-1 w-full min-w-0">
         <Label
           htmlFor="coin-select"
@@ -268,7 +294,6 @@ export default function CoinSelector({
                   ) : (
                     <Search className="size-3 text-muted-foreground/60 shrink-0 ml-1" />
                   )}
-                  {/* ПОЛНОСТЬЮ ОТЗЫВЧИВЫЙ ИНПУТ: Слушает inputValue мгновенно */}
                   <input
                     type="text"
                     placeholder="Поиск по всей базе..."
@@ -296,7 +321,6 @@ export default function CoinSelector({
                 <div className="max-h-56 overflow-y-auto scrollbar-thin mt-1">
                   {favoriteCoins.length > 0 && !debouncedSearch.trim() && (
                     <SelectGroup>
-                      {/* ФИКС: Выводим сочное количество избранных монет в скобках */}
                       <SelectLabel className="text-amber-500 font-black text-[10px] tracking-wide">
                         ★ ИЗБРАННОЕ ({favoriteCoins.length})
                       </SelectLabel>
@@ -309,9 +333,13 @@ export default function CoinSelector({
                             className="text-xs sm:text-sm pr-2! flex items-center w-full justify-between [&>span:last-child]:hidden"
                           >
                             <div className="flex items-center justify-between w-full">
-                              <span className="truncate font-semibold">
-                                {asset.coin}
-                              </span>
+                              {/* ИСПРАВЛЕНО: Бесшовная гибридная иконка для избранного */}
+                              <div className="flex items-center gap-2 truncate flex-1">
+                                <CoinIcon symbol={asset.coin} />
+                                <span className="truncate font-semibold">
+                                  {asset.coin}
+                                </span>
+                              </div>
                               <div className="flex items-center gap-2 shrink-0 ml-auto">
                                 {isSel && (
                                   <Check className="size-3 text-amber-500" />
@@ -351,16 +379,20 @@ export default function CoinSelector({
                             className="text-xs sm:text-sm pr-2! flex items-center w-full justify-between [&>span:last-child]:hidden"
                           >
                             <div className="flex items-center justify-between w-full">
-                              <span
-                                className={cn(
-                                  "truncate",
-                                  asset.is_favorite
-                                    ? "font-semibold text-amber-500"
-                                    : "",
-                                )}
-                              >
-                                {asset.coin}
-                              </span>
+                              {/* ИСПРАВЛЕНО: Бесшовная гибридная иконка для общего списка и результатов поиска */}
+                              <div className="flex items-center gap-2 truncate flex-1">
+                                <CoinIcon symbol={asset.coin} />
+                                <span
+                                  className={cn(
+                                    "truncate",
+                                    asset.is_favorite
+                                      ? "font-semibold text-amber-500"
+                                      : "",
+                                  )}
+                                >
+                                  {asset.coin}
+                                </span>
+                              </div>
                               <div className="flex items-center gap-2 shrink-0 ml-auto">
                                 {isSel && (
                                   <Check

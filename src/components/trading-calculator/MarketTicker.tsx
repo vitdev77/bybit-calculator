@@ -65,7 +65,14 @@ export default function MarketTicker({
   const [tickDirection, setTickDirection] = useState<"up" | "down" | "stable">(
     "stable",
   );
+  // Стейт для отслеживания падения загрузки физического SVG-файла
+  const [iconImgError, setIconImgError] = useState(false);
   const prevPriceRef = useRef<number | null>(null);
+
+  // Сбрасываем ошибку иконки при переключении торговой пары
+  useEffect(() => {
+    setIconImgError(false);
+  }, [selectedCoin]);
 
   useEffect(() => {
     if (data?.lastPrice) {
@@ -148,16 +155,26 @@ export default function MarketTicker({
         "gap-x-3 gap-y-3 sm:gap-4 items-center select-none",
       )}
     >
-      {/* ИСПРАВЛЕНО: Чистый статичный вывод иконки и тикера монеты без DropdownMenu */}
       <div className="p-0.5 md:col-span-3 border-b h-12 md:border-b-0 md:border-r flex border-border/30 pb-2 md:pb-0 items-center px-1 sm:pr-3 shrink-0 min-w-0 gap-1.5 sm:gap-3">
-        <div className="relative shrink-0">
-          <div
-            className="size-8 sm:size-10 rounded-full flex items-center justify-center font-black text-white text-xs uppercase tracking-wider shrink-0 shadow-sm"
-            style={{ backgroundImage: getCoinGradient(coinBaseName) }}
-          >
-            {coinBaseName.slice(0, 2)}
-          </div>
+        {/* ИСПРАВЛЕНО: Бесшовная гибридная подгрузка родных SVG из public/crypto-icons/ */}
+        <div className="relative size-8 sm:size-10 rounded-full overflow-hidden shrink-0 flex items-center justify-center">
+          {!iconImgError ? (
+            <img
+              src={`/crypto-icons/${coinBaseName.toLowerCase()}.svg`}
+              alt={coinBaseName}
+              className="w-full h-full object-cover"
+              onError={() => setIconImgError(true)} // Если файла нет — врубаем заглушку
+            />
+          ) : (
+            <div
+              className="w-full h-full flex items-center justify-center font-black text-white text-xs uppercase tracking-wider shadow-sm"
+              style={{ backgroundImage: getCoinGradient(coinBaseName) }}
+            >
+              {coinBaseName.slice(0, 2)}
+            </div>
+          )}
         </div>
+
         <div className="flex flex-col min-w-0 flex-1">
           <span className="text-xs font-black truncate text-foreground">
             {coinBaseName}
