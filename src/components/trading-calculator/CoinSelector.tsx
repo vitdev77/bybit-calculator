@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Select,
   SelectContent,
@@ -13,7 +13,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
-import { Star, Check, Search, X } from "lucide-react";
+import { Star, Check, Search, X, Loader2, Settings } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { cn } from "cn";
 import { OrderType, DBAssetCoin } from "./TradingCalculator";
@@ -47,31 +47,89 @@ export default function CoinSelector({
   tickerRegistry = {},
 }: CoinSelectorProps) {
   const [isStarToggling, setIsStarToggling] = useState(false);
-  const [menuSearch, setMenuSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const currentCoinData = availableCoinsList.find(
-    (c) => c.coin === selectedCoin,
-  );
+  // РАЗДЕЛЕНИЕ СТЕЙТОВ: inputValue для мгновенного ввода,
+  // debouncedSearch для тяжелого поиска по базе
+  const [inputValue, setInputValue] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<DBAssetCoin[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  const currentCoinData =
+    availableCoinsList.find((c) => c.coin === selectedCoin) ||
+    searchResults.find((c) => c.coin === selectedCoin);
+
   const isCurrentFavorite = currentCoinData
     ? currentCoinData.is_favorite
     : false;
+  // Моментальный дебаунс текстового стейта ввода
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    debounceRef.current = setTimeout(() => {
+      setDebouncedSearch(inputValue);
+    }, 300); // 300мс паузы перед фильтрацией
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [inputValue]);
+
+  // Запрос к API Bybit/NeonDB только по дебаунс-стейту
+  useEffect(() => {
+    const query = debouncedSearch.trim();
+    if (!query) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    const executeSearch = async () => {
+      try {
+        const res = await fetch(
+          `/api/coins?search=${encodeURIComponent(query)}`,
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.coins)) setSearchResults(data.coins);
+        }
+      } catch (err) {
+        console.error("Ошибка поиска:", err);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+    executeSearch();
+  }, [debouncedSearch]);
+
   const handleToggleFavoriteClick = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (isStarToggling || !selectedCoin) return;
     setIsStarToggling(true);
+
+    const nextState = !isCurrentFavorite;
+    setSearchResults((prev) =>
+      prev.map((c) =>
+        c.coin === selectedCoin ? { ...c, is_favorite: nextState } : c,
+      ),
+    );
+
     try {
       const response = await fetch("/api/coins", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "TOGGLE_FAVORITE",
-          coin: selectedCoin,
-        }),
+        body: JSON.stringify({ action: "TOGGLE_FAVORITE", coin: selectedCoin }),
       });
       if (response.ok) {
-        window.dispatchEvent(new Event("refresh-calculator-coins"));
+        window.dispatchEvent(
+          new CustomEvent("refresh-calculator-coins", {
+            detail: { coin: selectedCoin, is_favorite: nextState },
+          }),
+        );
         toast.add({
           title: isCurrentFavorite ? "Удалено" : "Добавлено",
           description: isCurrentFavorite
@@ -86,42 +144,58 @@ export default function CoinSelector({
       setIsStarToggling(false);
     }
   };
-
   const handleToggleFavInMenu = async (
     e: React.MouseEvent,
     coinName: string,
   ) => {
     e.preventDefault();
     e.stopPropagation();
+
+    const targetCoin =
+      availableCoinsList.find((c) => c.coin === coinName) ||
+      searchResults.find((c) => c.coin === coinName);
+    const nextState = targetCoin ? !targetCoin.is_favorite : true;
+
+    setSearchResults((prev) =>
+      prev.map((c) =>
+        c.coin === coinName ? { ...c, is_favorite: nextState } : c,
+      ),
+    );
+
     try {
       const response = await fetch("/api/coins", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "TOGGLE_FAVORITE",
-          coin: coinName,
-        }),
+        body: JSON.stringify({ action: "TOGGLE_FAVORITE", coin: coinName }),
       });
       if (response.ok) {
-        window.dispatchEvent(new Event("refresh-calculator-coins"));
+        window.dispatchEvent(
+          new CustomEvent("refresh-calculator-coins", {
+            detail: { coin: coinName, is_favorite: nextState },
+          }),
+        );
       }
     } catch (err) {
       console.error(err);
     }
   };
 
-  const groupedCoins: GroupedCoins = {};
-  const favoriteCoins: DBAssetCoin[] = [];
-
-  const filteredActiveCoins = availableCoinsList.filter((c) =>
-    c.coin.toLowerCase().includes(menuSearch.toLowerCase()),
+  const favoriteCoins: DBAssetCoin[] = availableCoinsList.filter(
+    (c) => c.is_favorite,
   );
+  const groupedCoins: GroupedCoins = {};
 
-  filteredActiveCoins.forEach((asset) => {
-    if (asset.is_favorite) favoriteCoins.push(asset);
-    else {
-      const firstLetter = asset.coin.charAt(0).toUpperCase();
-      if (!groupedCoins[firstLetter]) groupedCoins[firstLetter] = [];
+  // Используем debouncedSearch для тяжелой фильтрации списков
+  let baseSourceList = debouncedSearch.trim()
+    ? searchResults
+    : availableCoinsList;
+
+  baseSourceList.forEach((asset) => {
+    if (!debouncedSearch.trim() && asset.is_favorite) return;
+
+    const firstLetter = asset.coin.charAt(0).toUpperCase();
+    if (!groupedCoins[firstLetter]) groupedCoins[firstLetter] = [];
+    if (!groupedCoins[firstLetter].some((c) => c.coin === asset.coin)) {
       groupedCoins[firstLetter].push(asset);
     }
   });
@@ -129,7 +203,7 @@ export default function CoinSelector({
   const sortedLetters = Object.keys(groupedCoins).sort();
   return (
     <div className="space-y-3.5 w-full">
-      {/* РЯД 1 — Тип ордера на самом верху */}
+      {/* РЯД 1 — Тип ордера */}
       <div className="space-y-1 w-full">
         <Label className="text-[10px] sm:text-xs text-muted-foreground font-bold uppercase tracking-wider block">
           Тип ордера
@@ -139,8 +213,7 @@ export default function CoinSelector({
             type="button"
             variant={orderType === "MARKET" ? "default" : "outline"}
             className={cn(
-              "flex-1 h-full text-[11px] sm:text-xs px-1",
-              "font-semibold shadow-none border border-input",
+              "flex-1 h-full text-[11px] sm:text-xs px-1 font-semibold shadow-none border border-input",
               orderType === "MARKET" ? "font-bold" : "",
             )}
             onClick={() => setOrderType("MARKET")}
@@ -151,8 +224,7 @@ export default function CoinSelector({
             type="button"
             variant={orderType === "LIMIT" ? "default" : "outline"}
             className={cn(
-              "flex-1 h-full text-[11px] sm:text-xs px-1",
-              "font-semibold shadow-none border border-input",
+              "flex-1 h-full text-[11px] sm:text-xs px-1 font-semibold shadow-none border border-input",
               orderType === "LIMIT" ? "font-bold" : "",
             )}
             onClick={() => setOrderType("LIMIT")}
@@ -178,37 +250,41 @@ export default function CoinSelector({
               onValueChange={(value) => {
                 if (value) {
                   onCoinChange(value);
-                  setMenuSearch("");
+                  setInputValue("");
+                  setDebouncedSearch("");
                 }
               }}
             >
               <SelectTrigger
                 id="coin-select"
-                className={cn(
-                  "w-full bg-background border border-input",
-                  "shadow-none text-[11px] sm:text-sm pl-2 pr-3 h-9.5! sm:h-9!", // ФИКС: правый отступ pr-3 убрал пустое место после шеврона
-                )}
+                className="w-full bg-background border border-input shadow-none text-[11px] sm:text-sm pl-2 pr-3 h-9.5! sm:h-9!"
               >
                 <SelectValue placeholder="Монета" />
               </SelectTrigger>
               <SelectContent className="w-64! min-w-64! max-w-64! overflow-x-hidden p-1">
                 <div className="p-1 border-b border-border/40 sticky top-0 bg-popover z-30 flex items-center gap-1.5">
-                  <Search className="size-3 text-muted-foreground/60 shrink-0 ml-1" />
+                  {isSearching ? (
+                    <Loader2 className="size-3 text-amber-500 animate-spin shrink-0 ml-1" />
+                  ) : (
+                    <Search className="size-3 text-muted-foreground/60 shrink-0 ml-1" />
+                  )}
+                  {/* ПОЛНОСТЬЮ ОТЗЫВЧИВЫЙ ИНПУТ: Слушает inputValue мгновенно */}
                   <input
                     type="text"
-                    placeholder="Поиск..."
-                    value={menuSearch}
+                    placeholder="Поиск по всей базе..."
+                    value={inputValue}
                     onClick={(e) => e.stopPropagation()}
                     onKeyDown={(e) => e.stopPropagation()}
-                    onChange={(e) => setMenuSearch(e.target.value)}
+                    onChange={(e) => setInputValue(e.target.value)}
                     className="w-full text-xs bg-transparent outline-none h-6 p-0 text-foreground"
                   />
-                  {menuSearch && (
+                  {inputValue && (
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setMenuSearch("");
+                        setInputValue("");
+                        setDebouncedSearch("");
                       }}
                       className="p-0.5 bg-transparent border-none text-muted-foreground hover:text-foreground cursor-pointer"
                     >
@@ -218,10 +294,11 @@ export default function CoinSelector({
                 </div>
 
                 <div className="max-h-56 overflow-y-auto scrollbar-thin mt-1">
-                  {favoriteCoins.length > 0 && (
+                  {favoriteCoins.length > 0 && !debouncedSearch.trim() && (
                     <SelectGroup>
-                      <SelectLabel className="text-amber-500 font-black text-[10px]">
-                        ★ ИЗБРАННОЕ
+                      {/* ФИКС: Выводим сочное количество избранных монет в скобках */}
+                      <SelectLabel className="text-amber-500 font-black text-[10px] tracking-wide">
+                        ★ ИЗБРАННОЕ ({favoriteCoins.length})
                       </SelectLabel>
                       {favoriteCoins.map((asset) => {
                         const isSel = selectedCoin === asset.coin;
@@ -261,7 +338,9 @@ export default function CoinSelector({
                   {sortedLetters.map((letter) => (
                     <SelectGroup key={letter}>
                       <SelectLabel className="text-muted-foreground font-bold text-[10px] border-b border-border/10 pb-0.5 mt-1">
-                        {letter}
+                        {debouncedSearch.trim()
+                          ? `РЕЗУЛЬТАТЫ (${letter})`
+                          : letter}
                       </SelectLabel>
                       {groupedCoins[letter].map((asset) => {
                         const isSel = selectedCoin === asset.coin;
@@ -272,19 +351,43 @@ export default function CoinSelector({
                             className="text-xs sm:text-sm pr-2! flex items-center w-full justify-between [&>span:last-child]:hidden"
                           >
                             <div className="flex items-center justify-between w-full">
-                              <span className="truncate">{asset.coin}</span>
+                              <span
+                                className={cn(
+                                  "truncate",
+                                  asset.is_favorite
+                                    ? "font-semibold text-amber-500"
+                                    : "",
+                                )}
+                              >
+                                {asset.coin}
+                              </span>
                               <div className="flex items-center gap-2 shrink-0 ml-auto">
                                 {isSel && (
-                                  <Check className="size-3 text-muted-foreground/60" />
+                                  <Check
+                                    className={cn(
+                                      "size-3",
+                                      asset.is_favorite
+                                        ? "text-amber-500"
+                                        : "text-muted-foreground/60",
+                                    )}
+                                  />
                                 )}
                                 <button
                                   type="button"
                                   onClick={(e) =>
                                     handleToggleFavInMenu(e, asset.coin)
                                   }
-                                  className="p-0.5 text-muted-foreground/20 hover:text-amber-500 bg-transparent border-none cursor-pointer"
+                                  className="p-0.5 bg-transparent border-none cursor-pointer text-muted-foreground/20 hover:text-amber-500 data-[fav=true]:text-amber-500"
+                                  data-fav={asset.is_favorite}
                                 >
-                                  <Star className="size-3" fill="none" />
+                                  <Star
+                                    className="size-3"
+                                    fill={
+                                      asset.is_favorite
+                                        ? "currentColor"
+                                        : "none"
+                                    }
+                                  />
                                 </button>
                               </div>
                             </div>
@@ -293,7 +396,7 @@ export default function CoinSelector({
                       })}
                     </SelectGroup>
                   ))}
-                  {filteredActiveCoins.length === 0 && (
+                  {!isSearching && baseSourceList.length === 0 && (
                     <div className="text-center p-3 text-[11px] text-muted-foreground">
                       Ничего не найдено
                     </div>
@@ -308,8 +411,7 @@ export default function CoinSelector({
             disabled={isStarToggling}
             onClick={handleToggleFavoriteClick}
             className={cn(
-              "p-0 text-muted-foreground/40 hover:text-foreground bg-transparent border border-input rounded-xl",
-              "flex items-center justify-center shrink-0 h-9.5 w-9.5 sm:h-9 sm:w-9 transition-colors hover:bg-muted/40 outline-none cursor-pointer",
+              "p-0 text-muted-foreground/40 hover:text-foreground bg-transparent border border-input rounded-xl flex items-center justify-center shrink-0 h-9.5 w-9.5 sm:h-9 sm:w-9 transition-colors hover:bg-muted/40 outline-none cursor-pointer",
               isCurrentFavorite ? "text-amber-500! hover:text-amber-600!" : "",
             )}
             title={isCurrentFavorite ? "Из избранного" : "В избранное"}
@@ -319,7 +421,16 @@ export default function CoinSelector({
               fill={isCurrentFavorite ? "currentColor" : "none"}
             />
           </button>
-
+          <button
+            type="button"
+            onClick={() => setIsModalOpen(true)}
+            className={cn(
+              "p-0 text-muted-foreground hover:text-foreground bg-transparent border border-input rounded-xl flex items-center justify-center shrink-0 h-9.5 w-9.5 sm:h-9 sm:w-9 transition-colors hover:bg-muted/40 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 cursor-pointer",
+            )}
+            title="Просмотр статистики листинга"
+          >
+            <Settings className="size-4" />
+          </button>
           <ListingManagerModal
             availableCoinsList={availableCoinsList}
             tickerRegistry={tickerRegistry}

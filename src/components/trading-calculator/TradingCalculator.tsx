@@ -7,8 +7,6 @@ import BalanceRiskForm from "./BalanceRiskForm";
 import PriceLevelsForm from "./PriceLevelsForm";
 import ResultsDisplay from "./ResultsDisplay";
 import MarketTicker from "./MarketTicker";
-import TradingJournal from "./TradingJournal";
-import { ChevronUp, ChevronDown } from "lucide-react";
 
 export type OrderType = "MARKET" | "LIMIT";
 export type PositionSide = "BUY" | "SELL";
@@ -37,7 +35,6 @@ function useTabTicker(
   decimals: number,
 ) {
   const prevPriceRef = useRef<number | null>(null);
-
   useEffect(() => {
     if (!price) {
       if (document.title !== "Bybit Futures Calculator") {
@@ -53,9 +50,7 @@ function useTabTicker(
       else return;
     }
     prevPriceRef.current = price;
-    const nextTitle =
-      `${triangle} ${formattedPrice} | ${coin} | ` + `Bybit Futures Calculator`;
-
+    const nextTitle = `${triangle} ${formattedPrice} | ${coin} | Bybit Futures Calculator`;
     if (document.title !== nextTitle) document.title = nextTitle;
   }, [price, coin, decimals]);
 
@@ -64,7 +59,6 @@ function useTabTicker(
     document.title = "Bybit Futures Calculator";
   }, [coin]);
 }
-
 interface TradingCalculatorProps {
   selectedCoin: string;
   setSelectedCoin: (coin: string) => void;
@@ -73,6 +67,7 @@ interface TradingCalculatorProps {
   externalPartsCount: number;
   setExternalPartsCount: (v: number) => void;
 }
+
 export default function TradingCalculator({
   selectedCoin,
   setSelectedCoin,
@@ -94,12 +89,9 @@ export default function TradingCalculator({
   const [tickerLoading, setTickerLoading] = useState(false);
   const [idealLeverage, setIdealLeverage] = useState(10);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [isJournalExpanded, setIsJournalExpanded] = useState(false);
-  const [dealsSummary, setDealsSummary] = useState({ open: 0, closed: 0 });
   const [availableCoinsList, setAvailableCoinsList] = useState<DBAssetCoin[]>(
     [],
   );
-
   const [tickerRegistry, setTickerRegistry] = useState<
     Record<string, { price24hPcnt: number; turnover24h: number }>
   >({});
@@ -138,19 +130,32 @@ export default function TradingCalculator({
   useEffect(() => {
     entryPriceRef.current = entryPrice;
   }, [entryPrice]);
-
-  const loadDatabaseCoins = useCallback(async () => {
+  const loadDatabaseCoins = useCallback(async (event?: Event) => {
     try {
       const res = await fetch("/api/coins");
       if (!res.ok) throw new Error("Load coins error");
       const data = await res.json();
+      let fetchedCoins: DBAssetCoin[] = data.coins || [];
 
-      if (data.coins && Array.isArray(data.coins)) {
-        setAvailableCoinsList(data.coins);
+      if (event && (event as CustomEvent).detail) {
+        const { coin, is_favorite } = (event as CustomEvent).detail;
+        const exists = fetchedCoins.some((c) => c.coin === coin);
+        if (exists) {
+          fetchedCoins = fetchedCoins.map((c) =>
+            c.coin === coin ? { ...c, is_favorite } : c,
+          );
+        } else if (is_favorite) {
+          fetchedCoins.push({
+            coin,
+            decimals: 4,
+            is_favorite: true,
+            is_active: true,
+            is_delisted: false,
+          });
+        }
       }
-      if (data.tickerRegistry) {
-        setTickerRegistry(data.tickerRegistry);
-      }
+      setAvailableCoinsList(fetchedCoins);
+      if (data.tickerRegistry) setTickerRegistry(data.tickerRegistry);
     } catch (e) {
       console.error("Ошибка загрузки монет:", e);
     }
@@ -158,9 +163,12 @@ export default function TradingCalculator({
 
   useEffect(() => {
     loadDatabaseCoins();
-    window.addEventListener("refresh-calculator-coins", loadDatabaseCoins);
+    const handleRefresh = (e: Event) => {
+      loadDatabaseCoins(e);
+    };
+    window.addEventListener("refresh-calculator-coins", handleRefresh);
     return () => {
-      window.removeEventListener("refresh-calculator-coins", loadDatabaseCoins);
+      window.removeEventListener("refresh-calculator-coins", handleRefresh);
     };
   }, [loadDatabaseCoins]);
 
@@ -175,15 +183,13 @@ export default function TradingCalculator({
             onBalanceChange?.(parsed.balance);
           }
           if (parsed.riskPercent) setRiskPercent(parsed.riskPercent);
-          if (parsed.riskRewardRatio) {
+          if (parsed.riskRewardRatio)
             setRiskRewardRatio(parsed.riskRewardRatio);
-          }
           if (parsed.selectedCoin) setSelectedCoin(parsed.selectedCoin);
           if (parsed.orderType) setOrderType(parsed.orderType);
           if (parsed.entryPrice) setEntryPrice(parsed.entryPrice);
-          if (parsed.stopLossPercent) {
+          if (parsed.stopLossPercent)
             setStopLossPercent(parsed.stopLossPercent);
-          }
           if (parsed.leverage) setLeverage(Number(parsed.leverage));
           if (parsed.side) setSide(parsed.side);
           if (parsed.partsCount) setPartsCount(Number(parsed.partsCount));
@@ -198,23 +204,19 @@ export default function TradingCalculator({
   useEffect(() => {
     if (isLoaded) onBalanceChange?.(balance);
   }, [balance, isLoaded, onBalanceChange]);
+
   const getCalculatedIdealLeverage = useCallback(() => {
     const baseRiskAmount = (balance * riskPercent) / 100;
     const allocatedMarginMax = balance / partsCount;
     const totalFeeRate = 0.0013;
     const priceLossFactor = stopLossPercent / 100;
-
     const idealPositionSizeUsdt =
       baseRiskAmount / (priceLossFactor + totalFeeRate);
     const calculatedRecLeverage = Math.ceil(
       idealPositionSizeUsdt / allocatedMarginMax,
     );
-
-    const standardSteps = [
-      1, 2, 3, 4, 5, 6, 7, 8, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100,
-    ];
+    const standardSteps = [1, 2, 5, 10, 15, 20, 25, 30, 50, 75, 100];
     let finalRecLeverage = 10;
-
     for (const step of standardSteps) {
       if (step >= calculatedRecLeverage) {
         finalRecLeverage = step;
@@ -236,12 +238,10 @@ export default function TradingCalculator({
     isLoaded,
     getCalculatedIdealLeverage,
   ]);
-
   const handleAutoLeverageCalculate = useCallback(() => {
     const ideal = getCalculatedIdealLeverage();
     setLeverage(ideal);
   }, [getCalculatedIdealLeverage]);
-
   useEffect(() => {
     if (!isLoaded) return;
     if (isInitialLoad) {
@@ -251,14 +251,13 @@ export default function TradingCalculator({
     const ideal = getCalculatedIdealLeverage();
     setLeverage(ideal);
   }, [partsCount]);
-
   const fetchLiveTicker = useCallback(
     async (coin: string, isFirstInit: boolean, isCurrent: () => boolean) => {
       try {
         if (isFirstInit) setTickerLoading(true);
         const res = await fetch(`/api/bybit?symbol=${coin}`);
         if (!res.ok) throw new Error("API error");
-        const data: TickerData = await res.json();
+        const data = await res.json();
         if (!isCurrent()) return;
         setTickerData(data);
         if (onPriceUpdate && data.lastPrice) onPriceUpdate(data.lastPrice);
@@ -282,7 +281,6 @@ export default function TradingCalculator({
   const handlePriceApply = (price: number) => {
     if (price > 0) setEntryPrice(price);
   };
-
   const handleCoinChange = (newCoin: string) => {
     setSelectedCoin(newCoin);
   };
@@ -305,24 +303,14 @@ export default function TradingCalculator({
     );
   };
 
-  const handleDealsCountChange = useCallback(
-    (summary: { open: number; closed: number }) => {
-      setDealsSummary(summary);
-    },
-    [],
-  );
-
   useEffect(() => {
     if (!isLoaded) return;
-
     let active = true;
     const isCurrent = () => active;
-
     fetchLiveTicker(selectedCoin, true, isCurrent);
     const interval = setInterval(() => {
       fetchLiveTicker(selectedCoin, false, isCurrent);
     }, 3000);
-
     return () => {
       active = false;
       clearInterval(interval);
@@ -361,11 +349,9 @@ export default function TradingCalculator({
 
   useEffect(() => {
     if (entryPrice <= 0 || stopLossPercent <= 0 || balance <= 0) return;
-
     const isLong = side === "BUY";
     const baseRiskAmount = (balance * riskPercent) / 100;
     const allocatedMarginMax = balance / partsCount;
-
     const stopLossPrice =
       entryPrice *
       (isLong ? 1 - stopLossPercent / 100 : 1 + stopLossPercent / 100);
@@ -374,37 +360,28 @@ export default function TradingCalculator({
       (isLong
         ? 1 + (stopLossPercent * riskRewardRatio) / 100
         : 1 - (stopLossPercent * riskRewardRatio) / 100);
-
     const totalFeeRate = 0.0013;
     const priceLossFactor = stopLossPercent / 100;
-
     let positionSizeUsdt = baseRiskAmount / (priceLossFactor + totalFeeRate);
     let marginUsed = positionSizeUsdt / leverage;
-
     if (marginUsed > allocatedMarginMax) {
       marginUsed = allocatedMarginMax;
       positionSizeUsdt = marginUsed * leverage;
     }
-
     const positionSizeCrypto = positionSizeUsdt / entryPrice;
     const totalFeeUsdt = positionSizeUsdt * totalFeeRate;
     const rawLossUsdt =
       positionSizeCrypto * Math.abs(entryPrice - stopLossPrice);
-
     const actualRiskAmount = rawLossUsdt + totalFeeUsdt;
     const netProfitUsdt =
       positionSizeCrypto * Math.abs(entryPrice - takeProfitPrice) -
       totalFeeUsdt;
-
     const MMR = 0.005;
     const closeFeeRate = 0.0006;
-
     let liquidationPrice = isLong
       ? entryPrice * (1 - 1 / leverage + MMR + closeFeeRate)
       : entryPrice * (1 + 1 / leverage - MMR - closeFeeRate);
-
     if (liquidationPrice < 0) liquidationPrice = 0;
-
     setResults({
       riskAmount: actualRiskAmount,
       positionSizeCrypto,
@@ -421,7 +398,6 @@ export default function TradingCalculator({
       riskRewardRatio,
       liquidationPrice,
     });
-    // ФИКС: Опечатка maxSafeBreakLeverage полностью удалена из зависимостей, оставлен чистый maxSafeLeverage
   }, [
     balance,
     riskPercent,
@@ -437,6 +413,7 @@ export default function TradingCalculator({
     maxSafeLeverage,
     partsCount,
   ]);
+
   return (
     <div className="w-full p-1.5 sm:p-4 space-y-3 sm:space-y-4">
       <MarketTicker
@@ -491,7 +468,6 @@ export default function TradingCalculator({
             />
           </CardContent>
         </Card>
-
         <Card className="shadow-sm border border-border/40 bg-background flex flex-col rounded-xl sm:rounded-2xl">
           <CardHeader className="py-2 px-2.5 sm:py-2.5 sm:px-4 border-b border-border/40">
             <CardTitle className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -508,57 +484,6 @@ export default function TradingCalculator({
             />
           </CardContent>
         </Card>
-      </div>
-
-      <div className="border border-border/40 bg-background rounded-2xl sm:rounded-[2rem] p-1 sm:p-2 transition-all duration-300">
-        <div
-          onClick={() => setIsJournalExpanded(!isJournalExpanded)}
-          className="flex items-center justify-between px-3 sm:px-6 py-2 sm:py-3 select-none cursor-pointer group/header hover:opacity-80 transition-opacity"
-        >
-          <div className="flex flex-col min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-              <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-muted-foreground group-hover/header:text-foreground transition-colors truncate">
-                Журнал сделок и Аналитика
-              </h2>
-              <div className="flex items-center gap-1 shrink-0">
-                {dealsSummary.open > 0 && (
-                  <span className="inline-flex items-center justify-center bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[9px] sm:text-[10px] font-black px-1.5 py-0.5 rounded-md animate-pulse whitespace-nowrap">
-                    {dealsSummary.open} OPEN
-                  </span>
-                )}
-                {dealsSummary.closed > 0 && (
-                  <span className="inline-flex items-center justify-center bg-muted text-muted-foreground border border-border/60 text-[9px] sm:text-[10px] font-black px-1.5 py-0.5 rounded-md whitespace-nowrap">
-                    {dealsSummary.closed} CLOSE
-                  </span>
-                )}
-              </div>
-            </div>
-            <p className="text-[11px] sm:text-xs text-muted-foreground/70 truncate">
-              История торгов из облачной базы
-            </p>
-          </div>
-          <div className="p-1.5 sm:p-2 rounded-xl text-muted-foreground shrink-0">
-            {isJournalExpanded ? (
-              <ChevronUp className="size-3.5 sm:size-4" />
-            ) : (
-              <ChevronDown className="size-3.5 sm:size-4" />
-            )}
-          </div>
-        </div>
-
-        <div
-          className={`journal-container-grid grid transition-all duration-300 ease-in-out ${isJournalExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0 overflow-hidden"}`}
-        >
-          <div className="overflow-hidden">
-            <TradingJournal
-              onDealsCountChange={handleDealsCountChange}
-              livePrice={tickerData?.lastPrice || 0}
-              activeCoin={selectedCoin}
-              onCoinSelect={setSelectedCoin}
-              availableCoinsList={availableCoinsList}
-            />
-          </div>
-        </div>
       </div>
     </div>
   );

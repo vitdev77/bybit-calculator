@@ -21,7 +21,7 @@ const REAL_STABLE_COINS = [
 function getDecimalsFromTick(tickStr: string): number {
   if (!tickStr || !tickStr.includes(".")) return 0;
   const parts = tickStr.split(".");
-  return parts[1] ? parts[1].length : 2; // ФИКС: Возвращаем реальную длину дробной части
+  return parts[1] ? parts[1].length : 2;
 }
 
 async function ensureCoinsTableExists() {
@@ -45,7 +45,6 @@ async function ensureCoinsTableExists() {
       NOT NULL DEFAULT FALSE;
     `;
 
-    // Использование официального поддомена Bybit API
     const bybitApiUrl = process.env.BYBIT_API_URL || "https://bytick.com";
     const endpoint = "/v5/market/instruments-info";
 
@@ -89,7 +88,6 @@ async function ensureCoinsTableExists() {
         hasNextPage = false;
       }
     }
-
     if (allLiveUsdtPairs.length > 0) {
       const names = allLiveUsdtPairs.map((i: any) => i.symbol);
 
@@ -152,8 +150,7 @@ async function ensureCoinsTableExists() {
     console.error("Sync Error", err);
   }
 }
-
-export async function GET() {
+export async function GET(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
       return NextResponse.json(
@@ -163,11 +160,38 @@ export async function GET() {
     }
     await ensureCoinsTableExists();
 
-    const allCoins = await sql`
-      SELECT coin, decimals, is_favorite, is_active, is_delisted 
-      FROM coins 
-      ORDER BY is_favorite DESC, coin ASC;
-    `;
+    const { searchParams } = new URL(request.url);
+    const search = searchParams.get("search");
+    const all = searchParams.get("all");
+
+    let coinsResult;
+
+    if (all === "true") {
+      // Для ListingManagerModal запрашиваем всё
+      coinsResult = await sql`
+        SELECT coin, decimals, is_favorite, is_active, is_delisted 
+        FROM coins 
+        ORDER BY is_favorite DESC, coin ASC;
+      `;
+    } else if (search) {
+      // Для точечного текстового поиска новой пары
+      const cleanSearch = `%${search.trim().toUpperCase()}%`;
+      coinsResult = await sql`
+        SELECT coin, decimals, is_favorite, is_active, is_delisted 
+        FROM coins 
+        WHERE coin LIKE ${cleanSearch}
+        ORDER BY is_favorite DESC, coin ASC 
+        LIMIT 30;
+      `;
+    } else {
+      // По умолчанию отдаем ТОЛЬКО Избранное (Разгрузка базы!)
+      coinsResult = await sql`
+        SELECT coin, decimals, is_favorite, is_active, is_delisted 
+        FROM coins 
+        WHERE is_favorite = TRUE
+        ORDER BY coin ASC;
+      `;
+    }
 
     const registryMap: Record<
       string,
@@ -187,10 +211,17 @@ export async function GET() {
         const bulkJson = await tickersRes.json();
         const list = bulkJson.result?.list || [];
         list.forEach((item: any) => {
-          registryMap[item.symbol] = {
-            price24hPcnt: parseFloat(item.price24hPcnt || "0"),
-            turnover24h: parseFloat(item.turnover24h || "0"),
-          };
+          // Записываем данные котировок только для тех монет,
+          // которые попали в выборку
+          const isInSelection = coinsResult.some(
+            (c: any) => c.coin === item.symbol,
+          );
+          if (isInSelection || all === "true") {
+            registryMap[item.symbol] = {
+              price24hPcnt: parseFloat(item.price24hPcnt || "0"),
+              turnover24h: parseFloat(item.turnover24h || "0"),
+            };
+          }
         });
       }
     } catch (e) {
@@ -198,7 +229,7 @@ export async function GET() {
     }
 
     return NextResponse.json({
-      coins: allCoins || [],
+      coins: coinsResult || [],
       tickerRegistry: registryMap,
     });
   } catch (err: any) {

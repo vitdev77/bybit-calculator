@@ -2,13 +2,6 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronDown, Check, Star, Search, X } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
 import { cn } from "cn";
 import { DBAssetCoin } from "./TradingCalculator";
 
@@ -63,24 +56,15 @@ function getCoinGradient(name: string): string {
   const c2 = (c1 + 40) % 360;
   return `linear-gradient(135deg, hsl(${c1}, 70%, 45%), hsl(${c2}, 80%, 35%))`;
 }
-
-interface GroupedCoins {
-  [key: string]: DBAssetCoin[];
-}
 export default function MarketTicker({
   data,
-  loading,
   decimals,
   onPriceClick,
   selectedCoin,
-  onCoinChange,
-  availableCoinsList = [],
 }: MarketTickerProps) {
   const [tickDirection, setTickDirection] = useState<"up" | "down" | "stable">(
     "stable",
   );
-  const [isStarToggling, setIsStarToggling] = useState(false);
-  const [tickerSearch, setTickerSearch] = useState("");
   const prevPriceRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -94,48 +78,6 @@ export default function MarketTicker({
     }
   }, [data?.lastPrice]);
 
-  const handleStarToggleInMenu = async (
-    e: React.MouseEvent,
-    coinName: string,
-  ) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (isStarToggling) return;
-    setIsStarToggling(true);
-    try {
-      const response = await fetch("/api/coins", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "TOGGLE_FAVORITE", coin: coinName }),
-      });
-      if (response.ok) {
-        window.dispatchEvent(new Event("refresh-calculator-coins"));
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsStarToggling(false);
-    }
-  };
-
-  const groupedCoins: GroupedCoins = {};
-  const favoriteCoins: DBAssetCoin[] = [];
-
-  const filteredActiveCoinsList = availableCoinsList.filter((c) =>
-    c.coin.toLowerCase().includes(tickerSearch.toLowerCase()),
-  );
-
-  filteredActiveCoinsList.forEach((asset) => {
-    if (asset.is_favorite) favoriteCoins.push(asset);
-    else {
-      const firstLetter = asset.coin.charAt(0).toUpperCase();
-      if (!groupedCoins[firstLetter]) groupedCoins[firstLetter] = [];
-      groupedCoins[firstLetter].push(asset);
-    }
-  });
-
-  const sortedLetters = Object.keys(groupedCoins).sort();
-  // ФИКС: Очищено от прыжков скелетона и зависших кэшей тикеров
   if (!data || data.lastPrice <= 0) {
     return (
       <div
@@ -206,165 +148,24 @@ export default function MarketTicker({
         "gap-x-3 gap-y-3 sm:gap-4 items-center select-none",
       )}
     >
-      <div className="p-0.5 md:col-span-3 border-b h-12 md:border-b-0 md:border-r flex border-border/30 pb-2 md:pb-0 items-center pr-1 sm:pr-3 shrink-0 min-w-0">
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            className={cn(
-              "flex items-center gap-1.5 sm:gap-3 text-left p-1 rounded-xl w-full",
-              "border border-transparent outline-none transition-all duration-200",
-              "cursor-pointer hover:bg-muted/60 dark:hover:bg-muted/20 active:scale-[0.98] min-w-0",
-            )}
+      {/* ИСПРАВЛЕНО: Чистый статичный вывод иконки и тикера монеты без DropdownMenu */}
+      <div className="p-0.5 md:col-span-3 border-b h-12 md:border-b-0 md:border-r flex border-border/30 pb-2 md:pb-0 items-center px-1 sm:pr-3 shrink-0 min-w-0 gap-1.5 sm:gap-3">
+        <div className="relative shrink-0">
+          <div
+            className="size-8 sm:size-10 rounded-full flex items-center justify-center font-black text-white text-xs uppercase tracking-wider shrink-0 shadow-sm"
+            style={{ backgroundImage: getCoinGradient(coinBaseName) }}
           >
-            {/* ФИКС: Главная иконка в шапке теперь всегда рендерится как CSS-градиент, исключая 404 ошибки в консоли */}
-            <div className="relative shrink-0">
-              <div
-                className="size-8 sm:size-10 rounded-full flex items-center justify-center font-black text-white text-xs uppercase tracking-wider shrink-0 shadow-sm"
-                style={{ backgroundImage: getCoinGradient(coinBaseName) }}
-              >
-                {coinBaseName.slice(0, 2)}
-              </div>
-            </div>
-            <div className="flex flex-col min-w-0 flex-1">
-              <div className="flex items-center gap-0.5">
-                <span className="text-xs font-black truncate">
-                  {coinBaseName}
-                </span>
-                <ChevronDown className="size-3 shrink-0" />
-              </div>
-              <span className="text-[9px] opacity-60 truncate">{fullName}</span>
-            </div>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="z-50 bg-popover/75 backdrop-blur-md rounded-xl p-1 shadow-xl border w-64! min-w-64! border-border/40 dark:border-white/10">
-            <div className="p-1 border-b border-border/40 bg-popover z-30 flex items-center gap-1.5">
-              <Search className="size-3 text-muted-foreground/60 shrink-0 ml-1" />
-              <input
-                type="text"
-                placeholder="Поиск..."
-                value={tickerSearch}
-                onClick={(e) => e.stopPropagation()}
-                onChange={(e) => setTickerSearch(e.target.value)}
-                className="w-full text-xs bg-transparent outline-none h-6 p-0 text-foreground"
-              />
-              {tickerSearch && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setTickerSearch("");
-                  }}
-                  className="p-0.5 bg-transparent border-none text-muted-foreground hover:text-foreground cursor-pointer"
-                >
-                  <X className="size-3" />
-                </button>
-              )}
-            </div>
-
-            <div className="max-h-60 overflow-y-auto scrollbar-thin mt-1">
-              {favoriteCoins.length > 0 && (
-                <div className="px-2 py-1 text-[10px] font-black text-amber-500 tracking-wider">
-                  ★ ИЗБРАННОЕ
-                </div>
-              )}
-              {favoriteCoins.map((asset) => {
-                const base = asset.coin.replace("USDT", "");
-                const isSel = selectedCoin === asset.coin;
-                return (
-                  <DropdownMenuItem
-                    key={asset.coin}
-                    onClick={() => {
-                      onCoinChange?.(asset.coin);
-                      setTickerSearch("");
-                    }}
-                    className={cn(
-                      "flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs",
-                      isSel ? "text-amber-500 font-bold" : "text-foreground",
-                    )}
-                  >
-                    {/* ФИКС: Все иконки в меню заменены на легковесные CSS-текстовые аватарки. Запросы к диску за 800+ картинками ПОЛНОСТЬЮ прекращены */}
-                    <div className="flex items-center gap-2 truncate flex-1">
-                      <div
-                        className="size-4 rounded-full flex items-center justify-center font-black text-white text-[8px] uppercase shrink-0"
-                        style={{ backgroundImage: getCoinGradient(base) }}
-                      >
-                        {base.slice(0, 2)}
-                      </div>
-                      <span className="truncate font-semibold">
-                        {asset.coin}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 ml-auto">
-                      {isSel && <Check className="size-3 text-amber-500" />}
-                      <button
-                        type="button"
-                        onClick={(e) => handleStarToggleInMenu(e, asset.coin)}
-                        className="p-0.5 text-amber-500 bg-transparent border-none cursor-pointer"
-                      >
-                        <Star className="size-3" fill="currentColor" />
-                      </button>
-                    </div>
-                  </DropdownMenuItem>
-                );
-              })}
-              {sortedLetters.map((letter) => (
-                <React.Fragment key={letter}>
-                  <div className="px-2 py-0.5 text-[10px] font-bold text-muted-foreground border-b border-border/10 mt-1.5 pb-0.5">
-                    {letter}
-                  </div>
-                  {groupedCoins[letter].map((asset) => {
-                    const base = asset.coin.replace("USDT", "");
-                    const isSel = selectedCoin === asset.coin;
-                    return (
-                      <DropdownMenuItem
-                        key={asset.coin}
-                        onClick={() => {
-                          onCoinChange?.(asset.coin);
-                          setTickerSearch("");
-                        }}
-                        className={cn(
-                          "flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs",
-                          isSel
-                            ? "text-foreground font-bold bg-muted/20"
-                            : "text-foreground",
-                        )}
-                      >
-                        {/* ФИКС: Аналогично для общего алфавитного списка листинга — только CSS-градиенты, консоль теперь абсолютно чиста! */}
-                        <div className="flex items-center gap-2 truncate flex-1">
-                          <div
-                            className="size-4 rounded-full flex items-center justify-center font-black text-white text-[8px] uppercase shrink-0"
-                            style={{ backgroundImage: getCoinGradient(base) }}
-                          >
-                            {base.slice(0, 2)}
-                          </div>
-                          <span className="truncate">{asset.coin}</span>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0 ml-auto">
-                          {isSel && (
-                            <Check className="size-3 text-muted-foreground/60" />
-                          )}
-                          <button
-                            type="button"
-                            onClick={(e) =>
-                              handleStarToggleInMenu(e, asset.coin)
-                            }
-                            className="p-0.5 text-muted-foreground/20 hover:text-amber-500 bg-transparent border-none cursor-pointer"
-                          >
-                            <Star className="size-3" fill="none" />
-                          </button>
-                        </div>
-                      </DropdownMenuItem>
-                    );
-                  })}
-                </React.Fragment>
-              ))}
-              {filteredActiveCoinsList.length === 0 && (
-                <div className="text-center p-3 text-[11px] text-muted-foreground">
-                  Ничего не найдено
-                </div>
-              )}
-            </div>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            {coinBaseName.slice(0, 2)}
+          </div>
+        </div>
+        <div className="flex flex-col min-w-0 flex-1">
+          <span className="text-xs font-black truncate text-foreground">
+            {coinBaseName}
+          </span>
+          <span className="text-[9px] opacity-60 truncate">{fullName}</span>
+        </div>
       </div>
+
       <div className="md:col-span-3 overflow-hidden flex flex-col justify-center border-b md:border-b-0 border-border/30 pl-1 md:pl-4 text-right md:text-left h-12 md:h-11 min-w-0">
         <span className="text-[8px] opacity-60 block uppercase">
           Live Price
@@ -388,6 +189,7 @@ export default function MarketTicker({
           </span>
         </div>
       </div>
+
       <div className="p-0.5 md:col-span-2 h-10 flex flex-col justify-center pl-1">
         <span className="text-[8px] opacity-60 uppercase block">
           24h Change
@@ -402,6 +204,7 @@ export default function MarketTicker({
           {hasRealData ? `${changeValue.toFixed(2)}%` : "--.--%"}
         </span>
       </div>
+
       <div className="p-0.5 hidden md:flex flex-col h-10 justify-center md:col-span-2">
         <span className="text-[8px] opacity-60 uppercase block mb-1">
           24h Range
@@ -413,6 +216,7 @@ export default function MarketTicker({
           />
         </div>
       </div>
+
       <div className="p-0.5 md:col-span-2 h-10 flex flex-col justify-between pr-1 text-right md:text-left min-w-0">
         <div className="min-w-0">
           <span className="text-[8px] opacity-60 uppercase block">
