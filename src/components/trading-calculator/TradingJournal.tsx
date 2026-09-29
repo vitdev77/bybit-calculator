@@ -7,6 +7,7 @@ import { JournalTable } from "./JournalTable";
 import { JournalRow } from "./JournalRow";
 import { OrderRuntimeMap } from "./OrderRuntimeMap";
 import { cn } from "cn";
+import { DBAssetCoin } from "./TradingCalculator";
 
 interface Deal {
   id: number;
@@ -24,6 +25,7 @@ interface Deal {
   closed_at_price?: number | string | null;
   tp_touched?: boolean;
   sl_touched?: boolean;
+  precision?: number;
 }
 
 interface TradingJournalProps {
@@ -31,28 +33,15 @@ interface TradingJournalProps {
   livePrice?: number;
   activeCoin?: string;
   onCoinSelect?: (coin: string) => void;
+  availableCoinsList: DBAssetCoin[];
 }
 
-const JOURNAL_PRECISION_MAP: Record<string, number> = {
-  BTCUSDT: 2,
-  ETHUSDT: 2,
-  XAUTUSDT: 2,
-  ZECUSDT: 2,
-  SOLUSDT: 2,
-  HYPEUSDT: 2,
-  LINKUSDT: 3,
-  NEARUSDT: 3,
-  GRAMUSDT: 3,
-  MNTUSDT: 4,
-  XRPUSDT: 4,
-  SUIUSDT: 4,
-  DOGEUSDT: 5,
-};
 export default function TradingJournal({
   onDealsCountChange,
   livePrice = 0,
   activeCoin = "",
   onCoinSelect,
+  availableCoinsList = [],
 }: TradingJournalProps) {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [activeOpenDeal, setActiveOpenDeal] = useState<Deal | null>(null);
@@ -98,7 +87,6 @@ export default function TradingJournal({
       setIsChangingCoin(false);
     }
   }, [livePrice, activeCoin, activeOpenDeal, isChangingCoin]);
-
   const fetchJournal = useCallback(async () => {
     try {
       const url = activeCoin
@@ -142,7 +130,6 @@ export default function TradingJournal({
           ) || null;
       }
 
-      // Всеядный локальный поиск последней архивной сделки (CLOSED, PROFIT, LOSS)
       const anyLastClosedDeal =
         cleanArray.find(
           (d: Deal) => d.coin === activeCoin && d.status !== "OPEN",
@@ -215,7 +202,7 @@ export default function TradingJournal({
 
         toast.add({
           title: "Позиция закрыта",
-          description: `Статус изменен на ${statusRu} по цене ${targetPrice}.`,
+          description: `Статус изменен ${statusRu} по цене ${targetPrice}.`,
           type: "success",
         });
         fetchJournal();
@@ -225,6 +212,7 @@ export default function TradingJournal({
     },
     [livePrice, fetchJournal],
   );
+
   useEffect(() => {
     if (livePrice <= 0 || !activeCoin || deals.length === 0 || isChangingCoin)
       return;
@@ -240,25 +228,14 @@ export default function TradingJournal({
     let isTpCrossed = false;
     let isSlCrossed = false;
 
-    const openFeeRate = 0.0006;
-    const closeFeeRate = 0.0006;
-    const breakevenPrice = isLong
-      ? activeOpenDeal.entry_price *
-        ((1 + openFeeRate) / (1 - closeFeeRate - 0.0001))
-      : activeOpenDeal.entry_price *
-        ((1 - openFeeRate) / (1 + closeFeeRate + 0.0001));
-
-    const isAlreadyInBreakeven =
-      Math.abs(activeOpenDeal.stop_loss - breakevenPrice) < 0.0001;
-
     if (isLong) {
       if (livePrice >= activeOpenDeal.take_profit) isTpCrossed = true;
-      if (livePrice <= activeOpenDeal.stop_loss && !isAlreadyInBreakeven)
-        isSlCrossed = true;
+      // ФИКС: Убрано ограничение !isAlreadyInBreakeven. Касание БУ-стопа теперь зажигается штатно.
+      if (livePrice <= activeOpenDeal.stop_loss) isSlCrossed = true;
     } else {
       if (livePrice <= activeOpenDeal.take_profit) isTpCrossed = true;
-      if (livePrice >= activeOpenDeal.stop_loss && !isAlreadyInBreakeven)
-        isSlCrossed = true;
+      // ФИКС: Убрано ограничение !isAlreadyInBreakeven для Short-сделок.
+      if (livePrice >= activeOpenDeal.stop_loss) isSlCrossed = true;
     }
 
     if (isTpCrossed && !activeOpenDeal.tp_touched) {
@@ -321,10 +298,10 @@ export default function TradingJournal({
 
   useEffect(() => {
     window.addEventListener("refresh-trading-journal", fetchJournal);
-    return () =>
+    return () => {
       window.removeEventListener("refresh-trading-journal", fetchJournal);
+    };
   }, [fetchJournal]);
-
   const exportToCSV = () => {
     if (!deals || deals.length === 0) return;
     const headers = [
@@ -333,7 +310,7 @@ export default function TradingJournal({
       "Пара",
       "Тип",
       "Объем",
-      "Маржа",
+      "Margin",
       "Плечо",
       "Вход",
       "SL",
@@ -428,8 +405,7 @@ export default function TradingJournal({
   return (
     <div
       className={cn(
-        "w-full bg-transparent flex flex-col px-0.5",
-        "sm:px-6 space-y-4",
+        "w-full bg-transparent flex flex-col px-0.5 sm:px-6 space-y-4",
       )}
     >
       <div
@@ -446,7 +422,13 @@ export default function TradingJournal({
         <OrderRuntimeMap
           focusedDeal={focusedDeal}
           livePrice={livePrice}
-          precision={JOURNAL_PRECISION_MAP[activeCoin] ?? 4}
+          precision={
+            focusedDeal
+              ? focusedDeal.precision || 4
+              : activeOpenDeal
+                ? activeOpenDeal.precision || 4
+                : 4
+          }
           isChangingCoin={isChangingCoin}
           storedPnL={activeDealStoredPnL}
         />
@@ -465,7 +447,7 @@ export default function TradingJournal({
           exportToCSV={exportToCSV}
           handleClearAllDeals={handleClearAllDeals}
           renderDealRow={(deal) => {
-            const rowPrecision = JOURNAL_PRECISION_MAP[deal.coin] ?? 4;
+            const rowPrecision = deal.precision || 2;
             return (
               <JournalRow
                 key={deal.id}

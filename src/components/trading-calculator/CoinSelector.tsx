@@ -13,7 +13,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
-import { Star, Check } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Star, Check, Search, X } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { cn } from "cn";
 import { OrderType, DBAssetCoin } from "./TradingCalculator";
@@ -48,6 +49,7 @@ export default function CoinSelector({
 }: CoinSelectorProps) {
   const [isStarToggling, setIsStarToggling] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [menuSearch, setMenuSearch] = useState("");
 
   const currentCoinData = availableCoinsList.find(
     (c) => c.coin === selectedCoin,
@@ -82,7 +84,6 @@ export default function CoinSelector({
     } catch (err) {
       console.error(err);
     } finally {
-      // ИСПРАВЛЕНО: Заменено ошибочное "finaly" на корректное "finally"
       setIsStarToggling(false);
     }
   };
@@ -145,7 +146,10 @@ export default function CoinSelector({
 
   const groupedCoins: GroupedCoins = {};
   const favoriteCoins: DBAssetCoin[] = [];
-  const filteredActiveCoins = availableCoinsList.filter((c) => c.is_active);
+
+  const filteredActiveCoins = availableCoinsList.filter((c) =>
+    c.coin.toLowerCase().includes(menuSearch.toLowerCase()),
+  );
 
   filteredActiveCoins.forEach((asset) => {
     if (asset.is_favorite) favoriteCoins.push(asset);
@@ -160,7 +164,6 @@ export default function CoinSelector({
   return (
     <div className="space-y-1.5 w-full">
       <div className="grid grid-cols-2 gap-2.5 w-full items-center">
-        {/* ЛЕВАЯ КОЛОНКА: Выбор торговой пары */}
         <div className="space-y-1 w-full min-w-0">
           <Label
             htmlFor="coin-select"
@@ -176,7 +179,10 @@ export default function CoinSelector({
             <Select
               value={selectedCoin}
               onValueChange={(value) => {
-                if (value) onCoinChange(value);
+                if (value) {
+                  onCoinChange(value);
+                  setMenuSearch("");
+                }
               }}
             >
               <SelectTrigger
@@ -190,78 +196,113 @@ export default function CoinSelector({
                 <SelectValue placeholder="Монета" />
               </SelectTrigger>
               <SelectContent className="w-64! min-w-64! max-w-64! overflow-x-hidden p-1">
-                {favoriteCoins.length > 0 && (
-                  <SelectGroup>
-                    <SelectLabel className="text-amber-500 font-black text-[10px]">
-                      ★ ИЗБРАННОЕ
-                    </SelectLabel>
-                    {favoriteCoins.map((asset) => {
-                      const isSel = selectedCoin === asset.coin;
-                      return (
-                        <SelectItem
-                          key={asset.coin}
-                          value={asset.coin}
-                          className="text-xs sm:text-sm pr-2! flex items-center w-full justify-between [&>span:last-child]:hidden"
-                        >
-                          <div className="flex items-center justify-between w-full">
-                            <span className="truncate font-semibold">
-                              {asset.coin}
-                            </span>
-                            <div className="flex items-center gap-2 shrink-0 ml-auto">
-                              {isSel && (
-                                <Check className="size-3 text-amber-500" />
-                              )}
-                              <button
-                                type="button"
-                                onClick={(e) =>
-                                  handleToggleFavInMenu(e, asset.coin)
-                                }
-                                className="p-0.5 text-amber-500 bg-transparent border-none cursor-pointer"
-                              >
-                                <Star className="size-3" fill="currentColor" />
-                              </button>
+                <div className="p-1 border-b border-border/40 sticky top-0 bg-popover z-30 flex items-center gap-1.5">
+                  <Search className="size-3 text-muted-foreground/60 shrink-0 ml-1" />
+                  <input
+                    type="text"
+                    placeholder="Поиск..."
+                    value={menuSearch}
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    onChange={(e) => setMenuSearch(e.target.value)}
+                    className="w-full text-xs bg-transparent outline-none h-6 p-0 text-foreground"
+                  />
+                  {menuSearch && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMenuSearch("");
+                      }}
+                      className="p-0.5 bg-transparent border-none text-muted-foreground hover:text-foreground cursor-pointer"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="max-h-56 overflow-y-auto scrollbar-thin mt-1">
+                  {favoriteCoins.length > 0 && (
+                    <SelectGroup>
+                      <SelectLabel className="text-amber-500 font-black text-[10px]">
+                        ★ ИЗБРАННОЕ
+                      </SelectLabel>
+                      {favoriteCoins.map((asset) => {
+                        const isSel = selectedCoin === asset.coin;
+                        return (
+                          <SelectItem
+                            key={asset.coin}
+                            value={asset.coin}
+                            className="text-xs sm:text-sm pr-2! flex items-center w-full justify-between [&>span:last-child]:hidden"
+                          >
+                            <div className="flex items-center justify-between w-full">
+                              <span className="truncate font-semibold">
+                                {asset.coin}
+                              </span>
+                              <div className="flex items-center gap-2 shrink-0 ml-auto">
+                                {isSel && (
+                                  <Check className="size-3 text-amber-500" />
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={(e) =>
+                                    handleToggleFavInMenu(e, asset.coin)
+                                  }
+                                  className="p-0.5 text-amber-500 bg-transparent border-none cursor-pointer"
+                                >
+                                  <Star
+                                    className="size-3"
+                                    fill="currentColor"
+                                  />
+                                </button>
+                              </div>
                             </div>
-                          </div>
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectGroup>
-                )}
-                {sortedLetters.map((letter) => (
-                  <SelectGroup key={letter}>
-                    <SelectLabel className="text-muted-foreground font-bold text-[10px] border-b border-border/10 pb-0.5 mt-1">
-                      {letter}
-                    </SelectLabel>
-                    {groupedCoins[letter].map((asset) => {
-                      const isSel = selectedCoin === asset.coin;
-                      return (
-                        <SelectItem
-                          key={asset.coin}
-                          value={asset.coin}
-                          className="text-xs sm:text-sm pr-2! flex items-center w-full justify-between [&>span:last-child]:hidden"
-                        >
-                          <div className="flex items-center justify-between w-full">
-                            <span className="truncate">{asset.coin}</span>
-                            <div className="flex items-center gap-2 shrink-0 ml-auto">
-                              {isSel && (
-                                <Check className="size-3 text-muted-foreground/60" />
-                              )}
-                              <button
-                                type="button"
-                                onClick={(e) =>
-                                  handleToggleFavInMenu(e, asset.coin)
-                                }
-                                className="p-0.5 text-muted-foreground/20 hover:text-amber-500 bg-transparent border-none cursor-pointer"
-                              >
-                                <Star className="size-3" fill="none" />
-                              </button>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectGroup>
+                  )}
+                  {sortedLetters.map((letter) => (
+                    <SelectGroup key={letter}>
+                      <SelectLabel className="text-muted-foreground font-bold text-[10px] border-b border-border/10 pb-0.5 mt-1">
+                        {letter}
+                      </SelectLabel>
+                      {groupedCoins[letter].map((asset) => {
+                        const isSel = selectedCoin === asset.coin;
+                        return (
+                          <SelectItem
+                            key={asset.coin}
+                            value={asset.coin}
+                            className="text-xs sm:text-sm pr-2! flex items-center w-full justify-between [&>span:last-child]:hidden"
+                          >
+                            <div className="flex items-center justify-between w-full">
+                              <span className="truncate">{asset.coin}</span>
+                              <div className="flex items-center gap-2 shrink-0 ml-auto">
+                                {isSel && (
+                                  <Check className="size-3 text-muted-foreground/60" />
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={(e) =>
+                                    handleToggleFavInMenu(e, asset.coin)
+                                  }
+                                  className="p-0.5 text-muted-foreground/20 hover:text-amber-500 bg-transparent border-none cursor-pointer"
+                                >
+                                  <Star className="size-3" fill="none" />
+                                </button>
+                              </div>
                             </div>
-                          </div>
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectGroup>
-                ))}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectGroup>
+                  ))}
+                  {filteredActiveCoins.length === 0 && (
+                    <div className="text-center p-3 text-[11px] text-muted-foreground">
+                      Ничего не найдено
+                    </div>
+                  )}
+                </div>
               </SelectContent>
             </Select>
 
@@ -298,7 +339,6 @@ export default function CoinSelector({
           </div>
         </div>
 
-        {/* ПРАВАЯ КОЛОНКА: Выбор типа ордера */}
         <div className="space-y-1 w-full min-w-0">
           <Label className="text-[10px] sm:text-xs text-muted-foreground truncate block font-bold uppercase tracking-wider">
             Тип ордера

@@ -7,6 +7,8 @@ import BalanceRiskForm from "./BalanceRiskForm";
 import PriceLevelsForm from "./PriceLevelsForm";
 import ResultsDisplay from "./ResultsDisplay";
 import MarketTicker from "./MarketTicker";
+import TradingJournal from "./TradingJournal";
+import { ChevronUp, ChevronDown } from "lucide-react";
 
 export type OrderType = "MARKET" | "LIMIT";
 export type PositionSide = "BUY" | "SELL";
@@ -62,6 +64,7 @@ function useTabTicker(
     document.title = "Bybit Futures Calculator";
   }, [coin]);
 }
+
 interface TradingCalculatorProps {
   selectedCoin: string;
   setSelectedCoin: (coin: string) => void;
@@ -70,7 +73,6 @@ interface TradingCalculatorProps {
   externalPartsCount: number;
   setExternalPartsCount: (v: number) => void;
 }
-
 export default function TradingCalculator({
   selectedCoin,
   setSelectedCoin,
@@ -96,7 +98,6 @@ export default function TradingCalculator({
     [],
   );
 
-  // ИСПРАВЛЕНО: Реестр хранения суточной статистики, полученный безопасным путем с бэкенда
   const [tickerRegistry, setTickerRegistry] = useState<
     Record<string, { price24hPcnt: number; turnover24h: number }>
   >({});
@@ -142,7 +143,6 @@ export default function TradingCalculator({
       if (!res.ok) throw new Error("Load coins error");
       const data = await res.json();
 
-      // ИСПРАВЛЕНО: Синхронно раскладываем список монет и суточную статистику Bybit из серверного ответа
       if (data.coins && Array.isArray(data.coins)) {
         setAvailableCoinsList(data.coins);
       }
@@ -172,13 +172,15 @@ export default function TradingCalculator({
             onBalanceChange?.(parsed.balance);
           }
           if (parsed.riskPercent) setRiskPercent(parsed.riskPercent);
-          if (parsed.riskRewardRatio)
+          if (parsed.riskRewardRatio) {
             setRiskRewardRatio(parsed.riskRewardRatio);
+          }
           if (parsed.selectedCoin) setSelectedCoin(parsed.selectedCoin);
           if (parsed.orderType) setOrderType(parsed.orderType);
           if (parsed.entryPrice) setEntryPrice(parsed.entryPrice);
-          if (parsed.stopLossPercent)
+          if (parsed.stopLossPercent) {
             setStopLossPercent(parsed.stopLossPercent);
+          }
           if (parsed.leverage) setLeverage(Number(parsed.leverage));
           if (parsed.side) setSide(parsed.side);
           if (parsed.partsCount) setPartsCount(Number(parsed.partsCount));
@@ -247,6 +249,7 @@ export default function TradingCalculator({
     const ideal = getCalculatedIdealLeverage();
     setLeverage(ideal);
   }, [partsCount]);
+
   const fetchLiveTicker = useCallback(
     async (coin: string, isFirstInit: boolean, isCurrent: () => boolean) => {
       try {
@@ -343,6 +346,7 @@ export default function TradingCalculator({
     partsCount,
     isLoaded,
   ]);
+
   useEffect(() => {
     if (entryPrice <= 0 || stopLossPercent <= 0 || balance <= 0) return;
 
@@ -420,7 +424,6 @@ export default function TradingCalculator({
     maxSafeLeverage,
     partsCount,
   ]);
-
   return (
     <div className="w-full p-1.5 sm:p-4 space-y-3 sm:space-y-4">
       <MarketTicker
@@ -440,7 +443,6 @@ export default function TradingCalculator({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3.5 sm:space-y-4 p-2.5 sm:p-4 flex-1">
-            {/* ИСПРАВЛЕНО: Теперь пробрасывается живой реестр тикеров Bybit для вычисления RISK и LIQ маркеров */}
             <CoinSelector
               selectedCoin={selectedCoin}
               onCoinChange={handleCoinChange}

@@ -116,15 +116,13 @@ export function JournalRow({
   let pnlDisplay = null;
   const isCurrentActiveCoin = activeCoin === deal.coin;
 
-  // ЖЕСТКИЙ ЛАЙВ-ФИКС: Строка имеет право выделиться только
-  // в том случае, если ее монета совпадает с выбранной парой.
   const isRowSelected =
     isCurrentActiveCoin && (focusedDeal ? focusedDeal.id === deal.id : isOpen);
 
   const isPriceValid =
     livePrice > 0 &&
-    livePrice / deal.entry_price < 1.2 &&
-    deal.entry_price / livePrice < 1.2;
+    livePrice / deal.entry_price < 1.4 &&
+    deal.entry_price / livePrice < 1.4;
 
   const cryptoQty = deal.entry_price > 0 ? deal.volume / deal.entry_price : 0;
   const currentPriceDiff = isLong
@@ -133,6 +131,9 @@ export function JournalRow({
   const livePnlUsdt = currentPriceDiff * cryptoQty - deal.volume * totalFeeRate;
   const liveRoi = deal.margin > 0 ? (livePnlUsdt / deal.margin) * 100 : 0;
   const isLiveProfit = livePnlUsdt >= 0;
+
+  // ФИКС: Для PnL микроцен используем точность 4 знака вместо 3, чтобы видеть сотые доли цента
+  const pnlDecimalSteps = precision >= 4 ? 4 : 3;
 
   if (isOpen && isCurrentActiveCoin && isPriceValid) {
     if (frozenPnL[deal.id]?.pnl !== livePnlUsdt) {
@@ -147,15 +148,13 @@ export function JournalRow({
     pnlDisplay = (
       <div
         className={cn(
-          "flex flex-col text-right select-none",
-          "relative w-full pl-5 sm:pl-6",
+          "flex flex-col text-right select-none relative w-full pl-5 sm:pl-6",
         )}
       >
         <span className="absolute left-1 top-1.5 flex h-1.5 w-1.5">
           <span
             className={cn(
-              "animate-ping absolute inline-flex",
-              "h-full w-full rounded-full opacity-75",
+              "animate-ping absolute inline-flex h-full w-full rounded-full opacity-75",
               isLiveProfit ? "bg-emerald-500" : "bg-rose-500",
             )}
           />
@@ -175,7 +174,7 @@ export function JournalRow({
           )}
         >
           {isLiveProfit ? "+" : ""}
-          {livePnlUsdt.toFixed(3)} USDT
+          {livePnlUsdt.toFixed(pnlDecimalSteps)} USDT
         </span>
         <span
           className={cn(
@@ -196,14 +195,12 @@ export function JournalRow({
       pnlDisplay = (
         <div
           className={cn(
-            "flex flex-col text-right select-none",
-            "opacity-45 relative w-full pl-5 sm:pl-6",
+            "flex flex-col text-right select-none opacity-45 relative w-full pl-5 sm:pl-6",
           )}
         >
           <Pause
             className={cn(
-              "size-2 text-muted-foreground",
-              "absolute left-0.5 top-1.5",
+              "size-2 text-muted-foreground absolute left-0.5 top-1.5",
             )}
           />
           <span
@@ -215,7 +212,7 @@ export function JournalRow({
             )}
           >
             {isLastProfit ? "+" : ""}
-            {lastKnown.pnl.toFixed(3)} USDT
+            {lastKnown.pnl.toFixed(pnlDecimalSteps)} USDT
           </span>
           <span
             className={cn(
@@ -259,7 +256,7 @@ export function JournalRow({
             )}
           >
             {isFinalProfit ? "+" : ""}
-            {finalPnlUsdt.toFixed(3)} USDT
+            {finalPnlUsdt.toFixed(pnlDecimalSteps)} USDT
           </span>
           <span
             className={cn(
@@ -276,7 +273,7 @@ export function JournalRow({
   }
 
   const handleMoveToBreakevenClick = async () => {
-    if (isMovingToBu || Math.abs(deal.stop_loss - breakevenPrice) < 0.00001)
+    if (isMovingToBu || Math.abs(deal.stop_loss - breakevenPrice) < 0.00000001)
       return;
     setIsMovingToBu(true);
     try {
@@ -311,8 +308,7 @@ export function JournalRow({
   };
 
   const isAlreadyInBreakeven =
-    Math.abs(deal.stop_loss - breakevenPrice) < 0.00001;
-
+    Math.abs(deal.stop_loss - breakevenPrice) < 0.00000001;
   const baseRowStyle = isRowSelected
     ? "bg-linear-to-r from-amber-500/10 via-amber-500/5 to-transparent border-amber-500/30 dark:from-amber-500/15 opacity-100!"
     : !isOpen
@@ -384,6 +380,7 @@ export function JournalRow({
           М: {(deal.margin || 0).toFixed(1)} (x{deal.leverage})
         </div>
       </TableCell>
+      {/* ФИКС: Все ячейки цен ниже отныне форматируются строго по динамическому пропсу precision из БД! */}
       <TableCell className="py-2 px-1.5 sm:px-3 font-semibold text-[11px] sm:text-xs">
         {(deal.entry_price || 0).toFixed(precision)}
       </TableCell>
@@ -508,7 +505,7 @@ export function JournalRow({
                           )}
                         >
                           {isLiveProfit ? "+" : ""}
-                          {livePnlUsdt.toFixed(3)} USDT (
+                          {livePnlUsdt.toFixed(pnlDecimalSteps)} USDT (
                           {isLiveProfit ? "+" : ""}
                           {liveRoi.toFixed(2)}%)
                         </div>

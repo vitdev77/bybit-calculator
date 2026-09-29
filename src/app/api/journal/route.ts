@@ -17,17 +17,25 @@ async function ensureTableExists() {
         coin VARCHAR(50) NOT NULL,
         side VARCHAR(10) NOT NULL,
         order_type VARCHAR(10) NOT NULL,
-        entry_price DOUBLE PRECISION NOT NULL,
-        stop_loss DOUBLE PRECISION NOT NULL,
-        take_profit DOUBLE PRECISION NOT NULL,
+        entry_price NUMERIC(20, 8) NOT NULL,
+        stop_loss NUMERIC(20, 8) NOT NULL,
+        take_profit NUMERIC(20, 8) NOT NULL,
         volume DOUBLE PRECISION NOT NULL,
         margin DOUBLE PRECISION NOT NULL,
         leverage INTEGER NOT NULL,
         status VARCHAR(20) DEFAULT 'OPEN',
-        closed_at_price DOUBLE PRECISION,
+        closed_at_price NUMERIC(20, 8),
         tp_touched BOOLEAN DEFAULT FALSE,
         sl_touched BOOLEAN DEFAULT FALSE
       );
+    `;
+
+    await sql`
+      ALTER TABLE deals 
+      ALTER COLUMN entry_price TYPE NUMERIC(20, 8),
+      ALTER COLUMN stop_loss TYPE NUMERIC(20, 8),
+      ALTER COLUMN take_profit TYPE NUMERIC(20, 8),
+      ALTER COLUMN closed_at_price TYPE NUMERIC(20, 8);
     `;
 
     await sql`
@@ -54,8 +62,19 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const activeCoin = searchParams.get("activeCoin");
 
-    const allDeals = await sql`
-      SELECT * FROM deals ORDER BY created_at DESC;
+    // ФИКС: Делаем LEFT JOIN с таблицей coins, чтобы вытащить точный decimals из БД
+    const rawDeals = await sql`
+      SELECT d.id, d.created_at, d.coin, d.side, d.order_type, 
+             d.entry_price::TEXT as entry_price, 
+             d.stop_loss::TEXT as stop_loss, 
+             d.take_profit::TEXT as take_profit, 
+             d.volume, d.margin, d.leverage, d.status, 
+             d.closed_at_price::TEXT as closed_at_price, 
+             d.tp_touched, d.sl_touched,
+             COALESCE(c.decimals, 2) as precision
+      FROM deals d
+      LEFT JOIN coins c ON d.coin = c.coin
+      ORDER BY d.created_at DESC;
     `;
 
     let activeOpenDeal = null;
@@ -63,8 +82,17 @@ export async function GET(request: Request) {
 
     if (activeCoin) {
       const openResult = await sql`
-        SELECT * FROM deals 
-        WHERE coin = ${activeCoin} AND status = 'OPEN' 
+        SELECT d.id, d.created_at, d.coin, d.side, d.order_type, 
+               d.entry_price::TEXT as entry_price, 
+               d.stop_loss::TEXT as stop_loss, 
+               d.take_profit::TEXT as take_profit, 
+               d.volume, d.margin, d.leverage, d.status, 
+               d.closed_at_price::TEXT as closed_at_price, 
+               d.tp_touched, d.sl_touched,
+               COALESCE(c.decimals, 2) as precision
+        FROM deals d
+        LEFT JOIN coins c ON d.coin = c.coin
+        WHERE d.coin = ${activeCoin} AND d.status = 'OPEN' 
         LIMIT 1;
       `;
       if (openResult && openResult.length > 0) {
@@ -73,9 +101,18 @@ export async function GET(request: Request) {
 
       if (!activeOpenDeal) {
         const closedResult = await sql`
-          SELECT * FROM deals 
-          WHERE coin = ${activeCoin} AND status = 'CLOSED' 
-          ORDER BY created_at DESC 
+          SELECT d.id, d.created_at, d.coin, d.side, d.order_type, 
+                 d.entry_price::TEXT as entry_price, 
+                 d.stop_loss::TEXT as stop_loss, 
+                 d.take_profit::TEXT as take_profit, 
+                 d.volume, d.margin, d.leverage, d.status, 
+                 d.closed_at_price::TEXT as closed_at_price, 
+                 d.tp_touched, d.sl_touched,
+                 COALESCE(c.decimals, 2) as precision
+          FROM deals d
+          LEFT JOIN coins c ON d.coin = c.coin
+          WHERE d.coin = ${activeCoin} AND d.status = 'CLOSED' 
+          ORDER BY d.created_at DESC 
           LIMIT 1;
         `;
         if (closedResult && closedResult.length > 0) {
@@ -84,16 +121,46 @@ export async function GET(request: Request) {
       }
     }
 
+    const parsedDeals = rawDeals.map((d: any) => ({
+      ...d,
+      entry_price: parseFloat(d.entry_price) || 0,
+      stop_loss: parseFloat(d.stop_loss) || 0,
+      take_profit: parseFloat(d.take_profit) || 0,
+      closed_at_price: d.closed_at_price ? parseFloat(d.closed_at_price) : null,
+      precision: parseInt(d.precision, 10) || 2,
+    }));
+
     return NextResponse.json({
-      deals: allDeals || [],
-      activeOpenDeal,
-      lastManualClosedDeal,
+      deals: parsedDeals || [],
+      activeOpenDeal: activeOpenDeal
+        ? {
+            ...activeOpenDeal,
+            entry_price: parseFloat(activeOpenDeal.entry_price) || 0,
+            stop_loss: parseFloat(activeOpenDeal.stop_loss) || 0,
+            take_profit: parseFloat(activeOpenDeal.take_profit) || 0,
+            closed_at_price: activeOpenDeal.closed_at_price
+              ? parseFloat(activeOpenDeal.closed_at_price)
+              : null,
+            precision: parseInt(activeOpenDeal.precision, 10) || 2,
+          }
+        : null,
+      lastManualClosedDeal: lastManualClosedDeal
+        ? {
+            ...lastManualClosedDeal,
+            entry_price: parseFloat(lastManualClosedDeal.entry_price) || 0,
+            stop_loss: parseFloat(lastManualClosedDeal.stop_loss) || 0,
+            take_profit: parseFloat(lastManualClosedDeal.take_profit) || 0,
+            closed_at_price: lastManualClosedDeal.closed_at_price
+              ? parseFloat(lastManualClosedDeal.closed_at_price)
+              : null,
+            precision: parseInt(lastManualClosedDeal.precision, 10) || 2,
+          }
+        : null,
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
-
 export async function POST(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
@@ -115,9 +182,10 @@ export async function POST(request: Request) {
     const coin = String(body.coin);
     const side = String(body.side);
     const order_type = String(body.order_type);
-    const entry_price = parseFloat(Number(body.entry_price).toFixed(6));
-    const stop_loss = parseFloat(Number(body.stop_loss).toFixed(6));
-    const take_profit = parseFloat(Number(body.take_profit).toFixed(6));
+
+    const entry_price = Number(body.entry_price);
+    const stop_loss = Number(body.stop_loss);
+    const take_profit = Number(body.take_profit);
     const volume = parseFloat(Number(body.volume).toFixed(2));
     const margin = parseFloat(Number(body.margin).toFixed(2));
     const leverage = parseInt(body.leverage, 10);
@@ -128,15 +196,15 @@ export async function POST(request: Request) {
     `;
 
     const decimals = (coinData && coinData[0]?.decimals) ?? 2;
-    const priceEpsilon = decimals >= 4 ? 0.000001 : 0.0001;
+    const priceEpsilon = 1 / Math.pow(10, decimals + 2);
 
     const existingDuplicates = await sql`
       SELECT id FROM deals
       WHERE coin = ${coin} AND side = ${side} 
         AND status = 'OPEN'
-        AND ABS(entry_price - ${entry_price}) < ${priceEpsilon}
-        AND ABS(stop_loss - ${stop_loss}) < ${priceEpsilon}
-        AND ABS(take_profit - ${take_profit}) < ${priceEpsilon};
+        AND ABS(entry_price::DOUBLE PRECISION - ${entry_price}) < ${priceEpsilon}
+        AND ABS(stop_loss::DOUBLE PRECISION - ${stop_loss}) < ${priceEpsilon}
+        AND ABS(take_profit::DOUBLE PRECISION - ${take_profit}) < ${priceEpsilon};
     `;
 
     if (existingDuplicates && existingDuplicates.length > 0) {
@@ -145,6 +213,7 @@ export async function POST(request: Request) {
         { status: 409 },
       );
     }
+
     const result = await sql`
       INSERT INTO deals (
         coin, side, order_type, entry_price, stop_loss, 
@@ -158,6 +227,7 @@ export async function POST(request: Request) {
       )
       RETURNING *;
     `;
+
     return NextResponse.json({
       success: true,
       data: result,
@@ -166,7 +236,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
-
 export async function PATCH(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
@@ -185,7 +254,7 @@ export async function PATCH(request: Request) {
     const targetId = parseInt(body.id, 10);
 
     if (body.action === "MOVE_TO_BREAKEVEN" && body.stop_loss !== undefined) {
-      const nextSl = parseFloat(Number(body.stop_loss).toFixed(6));
+      const nextSl = Number(body.stop_loss);
       const result = await sql`
         UPDATE deals 
         SET stop_loss = ${nextSl} 
@@ -229,7 +298,7 @@ export async function PATCH(request: Request) {
     const targetStatus = String(body.status);
     const closedAtPrice =
       body.closed_at_price !== undefined && body.closed_at_price !== null
-        ? parseFloat(Number(body.closed_at_price).toFixed(6))
+        ? Number(body.closed_at_price)
         : null;
 
     let result;

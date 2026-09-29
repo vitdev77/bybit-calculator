@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronDown, Check, Star } from "lucide-react";
+import { ChevronDown, Check, Star, Search, X } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -46,6 +46,7 @@ const COIN_NAMES: Record<string, string> = {
   NEAR: "Near Protocol",
   LINK: "Chainlink",
 };
+
 function formatCompactNumber(num: number): string {
   if (num >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(2)}B`;
   if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(2)}M`;
@@ -66,7 +67,6 @@ function getCoinGradient(name: string): string {
 interface GroupedCoins {
   [key: string]: DBAssetCoin[];
 }
-
 export default function MarketTicker({
   data,
   loading,
@@ -81,6 +81,7 @@ export default function MarketTicker({
   );
   const [iconErrorMap, setIconErrorMap] = useState<Record<string, boolean>>({});
   const [isStarToggling, setIsStarToggling] = useState(false);
+  const [tickerSearch, setTickerSearch] = useState("");
   const prevPriceRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -108,8 +109,9 @@ export default function MarketTicker({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "TOGGLE_FAVORITE", coin: coinName }),
       });
-      if (response.ok)
+      if (response.ok) {
         window.dispatchEvent(new Event("refresh-calculator-coins"));
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -119,7 +121,11 @@ export default function MarketTicker({
 
   const groupedCoins: GroupedCoins = {};
   const favoriteCoins: DBAssetCoin[] = [];
-  const filteredActiveCoinsList = availableCoinsList.filter((c) => c.is_active);
+
+  // ФИКС: Убрана фильтрация по is_active, чтобы в шапке искались все пары
+  const filteredActiveCoinsList = availableCoinsList.filter((c) =>
+    c.coin.toLowerCase().includes(tickerSearch.toLowerCase()),
+  );
 
   filteredActiveCoinsList.forEach((asset) => {
     if (asset.is_favorite) favoriteCoins.push(asset);
@@ -131,7 +137,6 @@ export default function MarketTicker({
   });
 
   const sortedLetters = Object.keys(groupedCoins).sort();
-
   if (loading || !data) {
     return (
       <div
@@ -166,6 +171,7 @@ export default function MarketTicker({
       </div>
     );
   }
+
   const priceRange = data.highPrice24h - data.lowPrice24h;
   const currentPositionPercent =
     priceRange > 0
@@ -194,7 +200,6 @@ export default function MarketTicker({
   const coinBaseName = selectedCoin.replace("USDT", "");
   const localIconUrl = `/crypto-icons/${coinBaseName.toLowerCase()}.svg`;
   const fullName = COIN_NAMES[coinBaseName] || "Crypto Asset";
-
   return (
     <div
       className={cn(
@@ -242,7 +247,31 @@ export default function MarketTicker({
             </div>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="z-50 bg-popover/75 backdrop-blur-md rounded-xl p-1 shadow-xl border w-64! min-w-64! border-border/40 dark:border-white/10">
-            <div className="max-h-60 overflow-y-auto scrollbar-thin">
+            <div className="p-1 border-b border-border/40 bg-popover z-30 flex items-center gap-1.5">
+              <Search className="size-3 text-muted-foreground/60 shrink-0 ml-1" />
+              <input
+                type="text"
+                placeholder="Поиск..."
+                value={tickerSearch}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => setTickerSearch(e.target.value)}
+                className="w-full text-xs bg-transparent outline-none h-6 p-0 text-foreground"
+              />
+              {tickerSearch && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setTickerSearch("");
+                  }}
+                  className="p-0.5 bg-transparent border-none text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  <X className="size-3" />
+                </button>
+              )}
+            </div>
+
+            <div className="max-h-60 overflow-y-auto scrollbar-thin mt-1">
               {favoriteCoins.length > 0 && (
                 <div className="px-2 py-1 text-[10px] font-black text-amber-500 tracking-wider">
                   ★ ИЗБРАННОЕ
@@ -254,7 +283,10 @@ export default function MarketTicker({
                 return (
                   <DropdownMenuItem
                     key={asset.coin}
-                    onClick={() => onCoinChange?.(asset.coin)}
+                    onClick={() => {
+                      onCoinChange?.(asset.coin);
+                      setTickerSearch("");
+                    }}
                     className={cn(
                       "flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs",
                       isSel ? "text-amber-500 font-bold" : "text-foreground",
@@ -309,7 +341,10 @@ export default function MarketTicker({
                     return (
                       <DropdownMenuItem
                         key={asset.coin}
-                        onClick={() => onCoinChange?.(asset.coin)}
+                        onClick={() => {
+                          onCoinChange?.(asset.coin);
+                          setTickerSearch("");
+                        }}
                         className={cn(
                           "flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs",
                           isSel
@@ -359,6 +394,11 @@ export default function MarketTicker({
                   })}
                 </React.Fragment>
               ))}
+              {filteredActiveCoinsList.length === 0 && (
+                <div className="text-center p-3 text-[11px] text-muted-foreground">
+                  Ничего не найдено
+                </div>
+              )}
             </div>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -423,7 +463,7 @@ export default function MarketTicker({
         <div className="flex items-center justify-end md:justify-start gap-1 whitespace-nowrap">
           <span className="text-[8px] opacity-60 uppercase">Funding:</span>
           <span className="text-[9px] font-bold text-amber-500">
-            {(data.fundingRate * 100).toFixed(4)}%
+            {((data.fundingRate || 0) * 100).toFixed(4)}%
           </span>
         </div>
       </div>
