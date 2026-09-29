@@ -13,7 +13,6 @@ import {
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
-import { Input } from "@/components/ui/input";
 import { Star, Check, Search, X } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { cn } from "cn";
@@ -48,8 +47,8 @@ export default function CoinSelector({
   tickerRegistry = {},
 }: CoinSelectorProps) {
   const [isStarToggling, setIsStarToggling] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [menuSearch, setMenuSearch] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const currentCoinData = availableCoinsList.find(
     (c) => c.coin === selectedCoin,
@@ -94,45 +93,12 @@ export default function CoinSelector({
   ) => {
     e.preventDefault();
     e.stopPropagation();
-    const itemData = availableCoinsList.find((c) => c.coin === coinName);
-    const wasFav = itemData ? itemData.is_favorite : false;
-
     try {
       const response = await fetch("/api/coins", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "TOGGLE_FAVORITE",
-          coin: coinName,
-        }),
-      });
-      if (response.ok) {
-        window.dispatchEvent(new Event("refresh-calculator-coins"));
-        toast.add({
-          title: wasFav ? "Удалено" : "Добавлено",
-          description: wasFav
-            ? `Пара ${coinName} удалена из избранного.`
-            : `Пара ${coinName} добавлена в избранное.`,
-          type: "with-icon",
-        });
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleSetActiveStatus = async (
-    coinName: string,
-    targetStatus: boolean,
-    currentStatus: boolean,
-  ) => {
-    if (targetStatus === currentStatus) return;
-    try {
-      const response = await fetch("/api/coins", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "TOGGLE_ACTIVE",
           coin: coinName,
         }),
       });
@@ -162,20 +128,51 @@ export default function CoinSelector({
 
   const sortedLetters = Object.keys(groupedCoins).sort();
   return (
-    <div className="space-y-1.5 w-full">
-      <div className="grid grid-cols-2 gap-2.5 w-full items-center">
-        <div className="space-y-1 w-full min-w-0">
-          <Label
-            htmlFor="coin-select"
+    <div className="space-y-3.5 w-full">
+      {/* РЯД 1 — Тип ордера на самом верху */}
+      <div className="space-y-1 w-full">
+        <Label className="text-[10px] sm:text-xs text-muted-foreground font-bold uppercase tracking-wider block">
+          Тип ордера
+        </Label>
+        <ButtonGroup className="w-full flex h-9.5 sm:h-9">
+          <Button
+            type="button"
+            variant={orderType === "MARKET" ? "default" : "outline"}
             className={cn(
-              "text-[10px] sm:text-xs text-muted-foreground",
-              "truncate block font-bold uppercase tracking-wider",
+              "flex-1 h-full text-[11px] sm:text-xs px-1",
+              "font-semibold shadow-none border border-input",
+              orderType === "MARKET" ? "font-bold" : "",
             )}
+            onClick={() => setOrderType("MARKET")}
           >
-            Торговая пара
-          </Label>
+            Market
+          </Button>
+          <Button
+            type="button"
+            variant={orderType === "LIMIT" ? "default" : "outline"}
+            className={cn(
+              "flex-1 h-full text-[11px] sm:text-xs px-1",
+              "font-semibold shadow-none border border-input",
+              orderType === "LIMIT" ? "font-bold" : "",
+            )}
+            onClick={() => setOrderType("LIMIT")}
+          >
+            Limit
+          </Button>
+        </ButtonGroup>
+      </div>
 
-          <div className="relative flex items-center w-full group/select">
+      {/* РЯД 2 — Выбор торговой пары */}
+      <div className="space-y-1 w-full min-w-0">
+        <Label
+          htmlFor="coin-select"
+          className="text-[10px] sm:text-xs text-muted-foreground truncate block font-bold uppercase tracking-wider"
+        >
+          Торговая пара
+        </Label>
+
+        <div className="flex items-center gap-1.5 w-full">
+          <div className="flex-1 min-w-0">
             <Select
               value={selectedCoin}
               onValueChange={(value) => {
@@ -189,8 +186,7 @@ export default function CoinSelector({
                 id="coin-select"
                 className={cn(
                   "w-full bg-background border border-input",
-                  "shadow-none text-[11px] sm:text-sm pl-2",
-                  "pr-14 h-9! md:h-8!",
+                  "shadow-none text-[11px] sm:text-sm pl-2 pr-3 h-9.5! sm:h-9!", // ФИКС: правый отступ pr-3 убрал пустое место после шеврона
                 )}
               >
                 <SelectValue placeholder="Монета" />
@@ -305,70 +301,33 @@ export default function CoinSelector({
                 </div>
               </SelectContent>
             </Select>
-
-            <div className="absolute right-7 flex items-center h-full z-20">
-              <ListingManagerModal
-                availableCoinsList={availableCoinsList}
-                tickerRegistry={tickerRegistry}
-                isModalOpen={isModalOpen}
-                setIsModalOpen={setIsModalOpen}
-                handleToggleActive={() => {}}
-                handleSetActiveStatus={handleSetActiveStatus}
-              />
-            </div>
-
-            <button
-              type="button"
-              disabled={isStarToggling}
-              onClick={handleToggleFavoriteClick}
-              className={cn(
-                "absolute right-1.5 p-1 rounded-md border-none",
-                "bg-transparent flex items-center justify-center",
-                "cursor-pointer transition-colors z-25",
-                isCurrentFavorite
-                  ? "text-amber-500 hover:text-amber-600"
-                  : "text-muted-foreground/40 hover:text-foreground",
-              )}
-              title={isCurrentFavorite ? "Из избранного" : "В избранное"}
-            >
-              <Star
-                className="size-3.5 shrink-0"
-                fill={isCurrentFavorite ? "currentColor" : "none"}
-              />
-            </button>
           </div>
-        </div>
 
-        <div className="space-y-1 w-full min-w-0">
-          <Label className="text-[10px] sm:text-xs text-muted-foreground truncate block font-bold uppercase tracking-wider">
-            Тип ордера
-          </Label>
-          <ButtonGroup className="w-full flex h-9 md:h-8 mb-1">
-            <Button
-              type="button"
-              variant={orderType === "MARKET" ? "default" : "outline"}
-              className={cn(
-                "flex-1 h-full text-[11px] sm:text-xs px-1",
-                "font-semibold shadow-none border border-input",
-                orderType === "MARKET" ? "font-bold" : "",
-              )}
-              onClick={() => setOrderType("MARKET")}
-            >
-              Market
-            </Button>
-            <Button
-              type="button"
-              variant={orderType === "LIMIT" ? "default" : "outline"}
-              className={cn(
-                "flex-1 h-full text-[11px] sm:text-xs px-1",
-                "font-semibold shadow-none border border-input",
-                orderType === "LIMIT" ? "font-bold" : "",
-              )}
-              onClick={() => setOrderType("LIMIT")}
-            >
-              Limit
-            </Button>
-          </ButtonGroup>
+          <button
+            type="button"
+            disabled={isStarToggling}
+            onClick={handleToggleFavoriteClick}
+            className={cn(
+              "p-0 text-muted-foreground/40 hover:text-foreground bg-transparent border border-input rounded-xl",
+              "flex items-center justify-center shrink-0 h-9.5 w-9.5 sm:h-9 sm:w-9 transition-colors hover:bg-muted/40 outline-none cursor-pointer",
+              isCurrentFavorite ? "text-amber-500! hover:text-amber-600!" : "",
+            )}
+            title={isCurrentFavorite ? "Из избранного" : "В избранное"}
+          >
+            <Star
+              className="size-4 shrink-0"
+              fill={isCurrentFavorite ? "currentColor" : "none"}
+            />
+          </button>
+
+          <ListingManagerModal
+            availableCoinsList={availableCoinsList}
+            tickerRegistry={tickerRegistry}
+            isModalOpen={isModalOpen}
+            setIsModalOpen={setIsModalOpen}
+            handleToggleActive={() => {}}
+            handleSetActiveStatus={async () => {}}
+          />
         </div>
       </div>
     </div>

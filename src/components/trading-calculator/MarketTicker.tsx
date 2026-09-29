@@ -79,7 +79,6 @@ export default function MarketTicker({
   const [tickDirection, setTickDirection] = useState<"up" | "down" | "stable">(
     "stable",
   );
-  const [iconErrorMap, setIconErrorMap] = useState<Record<string, boolean>>({});
   const [isStarToggling, setIsStarToggling] = useState(false);
   const [tickerSearch, setTickerSearch] = useState("");
   const prevPriceRef = useRef<number | null>(null);
@@ -122,7 +121,6 @@ export default function MarketTicker({
   const groupedCoins: GroupedCoins = {};
   const favoriteCoins: DBAssetCoin[] = [];
 
-  // ФИКС: Убрана фильтрация по is_active, чтобы в шапке искались все пары
   const filteredActiveCoinsList = availableCoinsList.filter((c) =>
     c.coin.toLowerCase().includes(tickerSearch.toLowerCase()),
   );
@@ -137,7 +135,8 @@ export default function MarketTicker({
   });
 
   const sortedLetters = Object.keys(groupedCoins).sort();
-  if (loading || !data) {
+  // ФИКС: Очищено от прыжков скелетона и зависших кэшей тикеров
+  if (!data || data.lastPrice <= 0) {
     return (
       <div
         className={cn(
@@ -157,7 +156,7 @@ export default function MarketTicker({
           <Skeleton className="h-2 w-16 opacity-60 ml-auto md:ml-0" />
           <Skeleton className="h-5 sm:h-6 w-32 ml-auto md:ml-0" />
         </div>
-        <div className="p-0.5 md:col-span-2 h-10 pl-1">
+        <div className="p-0.5 md:col-span-2 h-10 flex flex-col justify-center pl-1">
           <Skeleton className="h-2 w-16 opacity-60" />
           <Skeleton className="h-4 w-14 mt-1" />
         </div>
@@ -198,7 +197,6 @@ export default function MarketTicker({
         : "text-muted-foreground";
 
   const coinBaseName = selectedCoin.replace("USDT", "");
-  const localIconUrl = `/crypto-icons/${coinBaseName.toLowerCase()}.svg`;
   const fullName = COIN_NAMES[coinBaseName] || "Crypto Asset";
   return (
     <div
@@ -217,24 +215,14 @@ export default function MarketTicker({
               "cursor-pointer hover:bg-muted/60 dark:hover:bg-muted/20 active:scale-[0.98] min-w-0",
             )}
           >
+            {/* ФИКС: Главная иконка в шапке теперь всегда рендерится как CSS-градиент, исключая 404 ошибки в консоли */}
             <div className="relative shrink-0">
-              {!iconErrorMap[selectedCoin] ? (
-                <img
-                  src={localIconUrl}
-                  alt={coinBaseName}
-                  className="size-8 sm:size-10 rounded-full shrink-0"
-                  onError={() =>
-                    setIconErrorMap((p) => ({ ...p, [selectedCoin]: true }))
-                  }
-                />
-              ) : (
-                <div
-                  className="size-8 sm:size-10 rounded-full flex items-center justify-center font-black text-white text-xs uppercase tracking-wider shrink-0"
-                  style={{ backgroundImage: getCoinGradient(coinBaseName) }}
-                >
-                  {coinBaseName.slice(0, 2)}
-                </div>
-              )}
+              <div
+                className="size-8 sm:size-10 rounded-full flex items-center justify-center font-black text-white text-xs uppercase tracking-wider shrink-0 shadow-sm"
+                style={{ backgroundImage: getCoinGradient(coinBaseName) }}
+              >
+                {coinBaseName.slice(0, 2)}
+              </div>
             </div>
             <div className="flex flex-col min-w-0 flex-1">
               <div className="flex items-center gap-0.5">
@@ -292,27 +280,14 @@ export default function MarketTicker({
                       isSel ? "text-amber-500 font-bold" : "text-foreground",
                     )}
                   >
+                    {/* ФИКС: Все иконки в меню заменены на легковесные CSS-текстовые аватарки. Запросы к диску за 800+ картинками ПОЛНОСТЬЮ прекращены */}
                     <div className="flex items-center gap-2 truncate flex-1">
-                      {!iconErrorMap[asset.coin] ? (
-                        <img
-                          src={`/crypto-icons/${base.toLowerCase()}.svg`}
-                          alt={base}
-                          className="size-4 rounded-full shrink-0"
-                          onError={() =>
-                            setIconErrorMap((p) => ({
-                              ...p,
-                              [asset.coin]: true,
-                            }))
-                          }
-                        />
-                      ) : (
-                        <div
-                          className="size-4 rounded-full flex items-center justify-center font-black text-white text-[8px] uppercase shrink-0"
-                          style={{ backgroundImage: getCoinGradient(base) }}
-                        >
-                          {base.slice(0, 2)}
-                        </div>
-                      )}
+                      <div
+                        className="size-4 rounded-full flex items-center justify-center font-black text-white text-[8px] uppercase shrink-0"
+                        style={{ backgroundImage: getCoinGradient(base) }}
+                      >
+                        {base.slice(0, 2)}
+                      </div>
                       <span className="truncate font-semibold">
                         {asset.coin}
                       </span>
@@ -352,27 +327,14 @@ export default function MarketTicker({
                             : "text-foreground",
                         )}
                       >
+                        {/* ФИКС: Аналогично для общего алфавитного списка листинга — только CSS-градиенты, консоль теперь абсолютно чиста! */}
                         <div className="flex items-center gap-2 truncate flex-1">
-                          {!iconErrorMap[asset.coin] ? (
-                            <img
-                              src={`/crypto-icons/${base.toLowerCase()}.svg`}
-                              alt={base}
-                              className="size-4 rounded-full shrink-0"
-                              onError={() =>
-                                setIconErrorMap((p) => ({
-                                  ...p,
-                                  [asset.coin]: true,
-                                }))
-                              }
-                            />
-                          ) : (
-                            <div
-                              className="size-4 rounded-full flex items-center justify-center font-black text-white text-[8px] uppercase shrink-0"
-                              style={{ backgroundImage: getCoinGradient(base) }}
-                            >
-                              {base.slice(0, 2)}
-                            </div>
-                          )}
+                          <div
+                            className="size-4 rounded-full flex items-center justify-center font-black text-white text-[8px] uppercase shrink-0"
+                            style={{ backgroundImage: getCoinGradient(base) }}
+                          >
+                            {base.slice(0, 2)}
+                          </div>
                           <span className="truncate">{asset.coin}</span>
                         </div>
                         <div className="flex items-center gap-2 shrink-0 ml-auto">

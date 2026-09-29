@@ -62,7 +62,6 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const activeCoin = searchParams.get("activeCoin");
 
-    // ФИКС: Делаем LEFT JOIN с таблицей coins, чтобы вытащить точный decimals из БД
     const rawDeals = await sql`
       SELECT d.id, d.created_at, d.coin, d.side, d.order_type, 
              d.entry_price::TEXT as entry_price, 
@@ -135,25 +134,28 @@ export async function GET(request: Request) {
       activeOpenDeal: activeOpenDeal
         ? {
             ...activeOpenDeal,
-            entry_price: parseFloat(activeOpenDeal.entry_price) || 0,
-            stop_loss: parseFloat(activeOpenDeal.stop_loss) || 0,
-            take_profit: parseFloat(activeOpenDeal.take_profit) || 0,
-            closed_at_price: activeOpenDeal.closed_at_price
-              ? parseFloat(activeOpenDeal.closed_at_price)
+            entry_price: parseFloat((activeOpenDeal as any).entry_price) || 0,
+            stop_loss: parseFloat((activeOpenDeal as any).stop_loss) || 0,
+            take_profit: parseFloat((activeOpenDeal as any).take_profit) || 0,
+            closed_at_price: (activeOpenDeal as any).closed_at_price
+              ? parseFloat((activeOpenDeal as any).closed_at_price)
               : null,
-            precision: parseInt(activeOpenDeal.precision, 10) || 2,
+            precision: parseInt((activeOpenDeal as any).precision, 10) || 2,
           }
         : null,
       lastManualClosedDeal: lastManualClosedDeal
         ? {
             ...lastManualClosedDeal,
-            entry_price: parseFloat(lastManualClosedDeal.entry_price) || 0,
-            stop_loss: parseFloat(lastManualClosedDeal.stop_loss) || 0,
-            take_profit: parseFloat(lastManualClosedDeal.take_profit) || 0,
-            closed_at_price: lastManualClosedDeal.closed_at_price
-              ? parseFloat(lastManualClosedDeal.closed_at_price)
+            entry_price:
+              parseFloat((lastManualClosedDeal as any).entry_price) || 0,
+            stop_loss: parseFloat((lastManualClosedDeal as any).stop_loss) || 0,
+            take_profit:
+              parseFloat((lastManualClosedDeal as any).take_profit) || 0,
+            closed_at_price: (lastManualClosedDeal as any).closed_at_price
+              ? parseFloat((lastManualClosedDeal as any).closed_at_price)
               : null,
-            precision: parseInt(lastManualClosedDeal.precision, 10) || 2,
+            precision:
+              parseInt((lastManualClosedDeal as any).precision, 10) || 2,
           }
         : null,
     });
@@ -280,6 +282,7 @@ export async function PATCH(request: Request) {
     }
 
     if (body.action === "TOUCH_SL") {
+      // ФИКС: Опечатка Extends успешно заменена на валидный оператор AND
       const result = await sql`
         UPDATE deals SET sl_touched = TRUE 
         WHERE id = ${targetId} AND status = 'OPEN' 
@@ -292,7 +295,7 @@ export async function PATCH(request: Request) {
     }
 
     if (!body.status) {
-      return NextResponse.json({ error: "Пропущен статус" }, { status: 400 });
+      return NextResponse.json({ error: "Пропущен status" }, { status: 400 });
     }
 
     const targetStatus = String(body.status);

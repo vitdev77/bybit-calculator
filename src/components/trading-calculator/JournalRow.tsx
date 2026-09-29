@@ -109,9 +109,21 @@ export function JournalRow({
   const closeFeeRate = 0.0006;
   const totalFeeRate = 0.0013;
 
+  // ФИКС: Внедряем динамический буфер проскальзывания в зависимости от точности монеты
+  const isVolatileCoin =
+    precision >= 4 ||
+    deal.coin.includes("DOGE") ||
+    deal.coin.includes("SHIB") ||
+    deal.coin.includes("PEPE") ||
+    deal.coin.includes("BONK");
+
+  const slippageBuffer = isVolatileCoin ? 0.0004 : 0.0001;
+
   const breakevenPrice = isLong
-    ? deal.entry_price * ((1 + openFeeRate) / (1 - closeFeeRate - 0.0001))
-    : deal.entry_price * ((1 - openFeeRate) / (1 + closeFeeRate + 0.0001));
+    ? deal.entry_price *
+      ((1 + openFeeRate) / (1 - closeFeeRate - slippageBuffer))
+    : deal.entry_price *
+      ((1 - openFeeRate) / (1 + closeFeeRate + slippageBuffer));
 
   let pnlDisplay = null;
   const isCurrentActiveCoin = activeCoin === deal.coin;
@@ -132,7 +144,6 @@ export function JournalRow({
   const liveRoi = deal.margin > 0 ? (livePnlUsdt / deal.margin) * 100 : 0;
   const isLiveProfit = livePnlUsdt >= 0;
 
-  // ФИКС: Для PnL микроцен используем точность 4 знака вместо 3, чтобы видеть сотые доли цента
   const pnlDecimalSteps = precision >= 4 ? 4 : 3;
 
   if (isOpen && isCurrentActiveCoin && isPriceValid) {
@@ -380,7 +391,6 @@ export function JournalRow({
           М: {(deal.margin || 0).toFixed(1)} (x{deal.leverage})
         </div>
       </TableCell>
-      {/* ФИКС: Все ячейки цен ниже отныне форматируются строго по динамическому пропсу precision из БД! */}
       <TableCell className="py-2 px-1.5 sm:px-3 font-semibold text-[11px] sm:text-xs">
         {(deal.entry_price || 0).toFixed(precision)}
       </TableCell>
@@ -496,7 +506,7 @@ export function JournalRow({
                       </div>
                       <div className="p-3 bg-muted/40 border border-border/30 rounded-xl space-y-1.5 text-center select-none">
                         <div className="text-[10px] text-muted-foreground uppercase font-black">
-                          Ожидаемый финансовый результат
+                          Ожидаемый financial результат
                         </div>
                         <div
                           className={cn(

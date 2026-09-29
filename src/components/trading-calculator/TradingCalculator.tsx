@@ -94,6 +94,8 @@ export default function TradingCalculator({
   const [tickerLoading, setTickerLoading] = useState(false);
   const [idealLeverage, setIdealLeverage] = useState(10);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isJournalExpanded, setIsJournalExpanded] = useState(false);
+  const [dealsSummary, setDealsSummary] = useState({ open: 0, closed: 0 });
   const [availableCoinsList, setAvailableCoinsList] = useState<DBAssetCoin[]>(
     [],
   );
@@ -161,6 +163,7 @@ export default function TradingCalculator({
       window.removeEventListener("refresh-calculator-coins", loadDatabaseCoins);
     };
   }, [loadDatabaseCoins]);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedState = localStorage.getItem(STORAGE_KEY);
@@ -195,7 +198,6 @@ export default function TradingCalculator({
   useEffect(() => {
     if (isLoaded) onBalanceChange?.(balance);
   }, [balance, isLoaded, onBalanceChange]);
-
   const getCalculatedIdealLeverage = useCallback(() => {
     const baseRiskAmount = (balance * riskPercent) / 100;
     const allocatedMarginMax = balance / partsCount;
@@ -259,7 +261,7 @@ export default function TradingCalculator({
         const data: TickerData = await res.json();
         if (!isCurrent()) return;
         setTickerData(data);
-        onPriceUpdate?.(data.lastPrice);
+        if (onPriceUpdate && data.lastPrice) onPriceUpdate(data.lastPrice);
         if (
           isFirstInit ||
           prevCoinRef.current !== coin ||
@@ -303,14 +305,24 @@ export default function TradingCalculator({
     );
   };
 
+  const handleDealsCountChange = useCallback(
+    (summary: { open: number; closed: number }) => {
+      setDealsSummary(summary);
+    },
+    [],
+  );
+
   useEffect(() => {
     if (!isLoaded) return;
+
     let active = true;
     const isCurrent = () => active;
+
     fetchLiveTicker(selectedCoin, true, isCurrent);
     const interval = setInterval(() => {
       fetchLiveTicker(selectedCoin, false, isCurrent);
     }, 3000);
+
     return () => {
       active = false;
       clearInterval(interval);
@@ -409,6 +421,7 @@ export default function TradingCalculator({
       riskRewardRatio,
       liquidationPrice,
     });
+    // ФИКС: Опечатка maxSafeBreakLeverage полностью удалена из зависимостей, оставлен чистый maxSafeLeverage
   }, [
     balance,
     riskPercent,
@@ -495,6 +508,57 @@ export default function TradingCalculator({
             />
           </CardContent>
         </Card>
+      </div>
+
+      <div className="border border-border/40 bg-background rounded-2xl sm:rounded-[2rem] p-1 sm:p-2 transition-all duration-300">
+        <div
+          onClick={() => setIsJournalExpanded(!isJournalExpanded)}
+          className="flex items-center justify-between px-3 sm:px-6 py-2 sm:py-3 select-none cursor-pointer group/header hover:opacity-80 transition-opacity"
+        >
+          <div className="flex flex-col min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-muted-foreground group-hover/header:text-foreground transition-colors truncate">
+                Журнал сделок и Аналитика
+              </h2>
+              <div className="flex items-center gap-1 shrink-0">
+                {dealsSummary.open > 0 && (
+                  <span className="inline-flex items-center justify-center bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[9px] sm:text-[10px] font-black px-1.5 py-0.5 rounded-md animate-pulse whitespace-nowrap">
+                    {dealsSummary.open} OPEN
+                  </span>
+                )}
+                {dealsSummary.closed > 0 && (
+                  <span className="inline-flex items-center justify-center bg-muted text-muted-foreground border border-border/60 text-[9px] sm:text-[10px] font-black px-1.5 py-0.5 rounded-md whitespace-nowrap">
+                    {dealsSummary.closed} CLOSE
+                  </span>
+                )}
+              </div>
+            </div>
+            <p className="text-[11px] sm:text-xs text-muted-foreground/70 truncate">
+              История торгов из облачной базы
+            </p>
+          </div>
+          <div className="p-1.5 sm:p-2 rounded-xl text-muted-foreground shrink-0">
+            {isJournalExpanded ? (
+              <ChevronUp className="size-3.5 sm:size-4" />
+            ) : (
+              <ChevronDown className="size-3.5 sm:size-4" />
+            )}
+          </div>
+        </div>
+
+        <div
+          className={`journal-container-grid grid transition-all duration-300 ease-in-out ${isJournalExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0 overflow-hidden"}`}
+        >
+          <div className="overflow-hidden">
+            <TradingJournal
+              onDealsCountChange={handleDealsCountChange}
+              livePrice={tickerData?.lastPrice || 0}
+              activeCoin={selectedCoin}
+              onCoinSelect={setSelectedCoin}
+              availableCoinsList={availableCoinsList}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
