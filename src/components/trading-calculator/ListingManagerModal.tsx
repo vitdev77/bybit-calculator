@@ -11,7 +11,7 @@ import {
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { X, AlertTriangle, ShieldCheck, Search, Loader2 } from "lucide-react";
+import { X, Search, Loader2 } from "lucide-react";
 import { cn } from "cn";
 import { DBAssetCoin } from "./TradingCalculator";
 
@@ -39,7 +39,9 @@ export default function ListingManagerModal({
   setIsModalOpen,
 }: ListingManagerModalProps) {
   const [modalSearch, setModalSearch] = useState("");
-  const [filterType, setFilterType] = useState<"ALL" | "LIQ" | "RISK">("ALL");
+  const [filterType, setFilterType] = useState<
+    "ALL" | "LIQ" | "RISK" | "DELIS"
+  >("ALL");
   const [fullCoinsList, setFullCoinsList] = useState<DBAssetCoin[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [localRegistry, setLocalRegistry] = useState<
@@ -120,8 +122,11 @@ export default function ListingManagerModal({
 
     const isHighLiq = !asset.is_delisted && liveStats.turnover24h >= 100000000;
 
+    const isDelisted = asset.is_delisted;
+
     if (filterType === "LIQ") return isHighLiq;
     if (filterType === "RISK") return isHighRisk;
+    if (filterType === "DELIS") return isDelisted;
     return true;
   });
 
@@ -152,31 +157,10 @@ export default function ListingManagerModal({
             "backdrop-blur-md bg-background/90",
           )}
         >
-          <AlertDialogHeader
-            className={cn(
-              "flex flex-col sm:flex-row sm:items-center",
-              "justify-between border-b pb-2 select-none gap-2",
-            )}
-          >
-            <div className="flex flex-col gap-1">
-              <AlertDialogTitle className="text-sm font-black uppercase tracking-wider">
-                Справочник листинга пар Bybit
-              </AlertDialogTitle>
-              <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-md bg-muted text-muted-foreground border border-border/40">
-                  Всего: {totalCoinsCount || "--"}
-                </span>
-                <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-md bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                  Ликвидные: {totalLiqCount}
-                </span>
-                <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-md bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                  Волатильные: {totalRiskCount}
-                </span>
-                <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-md bg-rose-500/10 text-rose-500 border border-rose-500/20">
-                  Делистинг: {totalDelistedCount}
-                </span>
-              </div>
-            </div>
+          <AlertDialogHeader className="flex flex-row items-center justify-between border-b pb-2 select-none gap-2">
+            <AlertDialogTitle className="text-sm font-black uppercase tracking-wider">
+              Листинг пар Bybit
+            </AlertDialogTitle>
             <AlertDialogCancel
               className={cn(
                 "p-1 h-auto w-auto bg-transparent border-none sm:self-start",
@@ -193,7 +177,7 @@ export default function ListingManagerModal({
               <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground/60 pointer-events-none" />
               <Input
                 type="text"
-                placeholder="Быстрый поиск пары по тикеру..."
+                placeholder="Поиск пары..."
                 value={modalSearch}
                 onChange={(e) => setModalSearch(e.target.value)}
                 className="pl-8 pr-8 h-8 text-xs bg-muted/20 border-border/40 rounded-lg w-full"
@@ -215,23 +199,31 @@ export default function ListingManagerModal({
                 className="h-full px-2.5 text-[10px] font-bold uppercase tracking-wider rounded-md"
                 onClick={() => setFilterType("ALL")}
               >
-                Все
+                Все ({totalCoinsCount || "0"})
               </Button>
               <Button
                 type="button"
                 variant={filterType === "LIQ" ? "default" : "ghost"}
-                className="h-full px-2.5 text-[10px] font-bold uppercase tracking-wider rounded-md text-emerald-500"
+                className="h-full px-2.5 text-[10px] font-bold uppercase tracking-wider rounded-md"
                 onClick={() => setFilterType("LIQ")}
               >
-                Ликвидные
+                Ликвидные ({totalLiqCount || "0"})
               </Button>
               <Button
                 type="button"
                 variant={filterType === "RISK" ? "default" : "ghost"}
-                className="h-full px-2.5 text-[10px] font-bold uppercase tracking-wider rounded-md text-amber-500"
+                className="h-full px-2.5 text-[10px] font-bold uppercase tracking-wider rounded-md"
                 onClick={() => setFilterType("RISK")}
               >
-                Волатильные
+                Волатильные ({totalRiskCount || "0"})
+              </Button>
+              <Button
+                type="button"
+                variant={filterType === "DELIS" ? "default" : "ghost"}
+                className="h-full px-2.5 text-[10px] font-bold uppercase tracking-wider rounded-md text-rose-500 hover:text-rose-600"
+                onClick={() => setFilterType("DELIS")}
+              >
+                Делистинг ({totalDelistedCount || "0"})
               </Button>
             </ButtonGroup>
           </div>
@@ -283,20 +275,21 @@ export default function ListingManagerModal({
                           {item.coin}
                         </span>
                         {isHighRisk && (
-                          <span className="inline-flex items-center gap-0.5 px-1 py-0.5 text-[8px] font-black tracking-wider bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded text-center shrink-0">
-                            <AlertTriangle className="size-2" />
+                          <span className="flex items-center px-1 py-0.5 font-black tracking-wider bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded text-center shrink-0">
                             RISK
                           </span>
                         )}
                         {isHighLiq && (
-                          <span className="inline-flex items-center gap-0.5 px-1 py-0.5 text-[8px] font-black tracking-wider bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded text-center shrink-0">
-                            <ShieldCheck className="size-2" />
+                          <span className="flex items-center px-1 py-0.5 font-black tracking-wider bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded text-center shrink-0">
                             LIQ
                           </span>
                         )}
                       </div>
-                      <span className="text-[9px] text-muted-foreground/40 mt-1 pl-6 truncate">
-                        Точность: {item.decimals} знаков
+                      <span className="text-[9px] text-muted-foreground/40 mt-1 pl-7 truncate">
+                        Знаков после запятой:{" "}
+                        <span className="font-bold text-muted-foreground/80">
+                          {item.decimals}
+                        </span>
                       </span>
                     </div>
                     <div className="col-span-4 flex flex-col items-end justify-center text-right min-w-0">
@@ -304,7 +297,7 @@ export default function ListingManagerModal({
                         <div className="flex flex-col items-end min-w-0">
                           <span
                             className={cn(
-                              "font-bold text-[11px] leading-none",
+                              "font-bold leading-none",
                               isUp
                                 ? "text-emerald-500"
                                 : isDown
@@ -322,7 +315,7 @@ export default function ListingManagerModal({
                           </span>
                         </div>
                       ) : (
-                        <span className="px-2 py-0.5 text-[8px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded">
+                        <span className="px-2 py-0.5 font-black uppercase tracking-wider bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded">
                           DELISTED
                         </span>
                       )}

@@ -25,7 +25,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { cn } from "cn";
 
@@ -380,7 +380,7 @@ export function JournalRow({
               : "bg-blue-500/10 text-blue-500 border-blue-500/15",
           )}
         >
-          {deal.order_type}
+          {deal.order_type === "LIMIT" ? "Лимит" : "Рынок"}
         </span>
       </TableCell>
       <TableCell className="py-2 px-1.5 sm:px-3 text-muted-foreground text-[11px] sm:text-xs">

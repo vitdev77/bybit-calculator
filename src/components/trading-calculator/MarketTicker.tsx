@@ -157,17 +157,17 @@ export default function MarketTicker({
     >
       <div className="p-0.5 md:col-span-3 border-b h-12 md:border-b-0 md:border-r flex border-border/30 pb-2 md:pb-0 items-center px-1 sm:pr-3 shrink-0 min-w-0 gap-1.5 sm:gap-3">
         {/* ИСПРАВЛЕНО: Бесшовная гибридная подгрузка родных SVG из public/crypto-icons/ */}
-        <div className="relative size-8 sm:size-10 rounded-full overflow-hidden shrink-0 flex items-center justify-center">
+        <div className="relative size-8 sm:size-10 overflow-hidden shrink-0 flex items-center justify-center">
           {!iconImgError ? (
             <img
               src={`/crypto-icons/${coinBaseName.toLowerCase()}.svg`}
               alt={coinBaseName}
-              className="w-full h-full object-cover"
+              className="w-full h-full"
               onError={() => setIconImgError(true)} // Если файла нет — врубаем заглушку
             />
           ) : (
             <div
-              className="w-full h-full flex items-center justify-center font-black text-white text-xs uppercase tracking-wider shadow-sm"
+              className="w-full h-full flex items-center justify-center rounded-full font-black text-white text-xs uppercase tracking-wider shadow-sm"
               style={{ backgroundImage: getCoinGradient(coinBaseName) }}
             >
               {coinBaseName.slice(0, 2)}

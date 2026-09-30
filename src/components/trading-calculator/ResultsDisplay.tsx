@@ -204,7 +204,7 @@ export default function ResultsDisplay({
               style={{ padding: "1px 5px" }}
               className={`rounded text-[9px] font-black border ${orderType === "LIMIT" ? "bg-violet-500/10 text-violet-500 border-violet-500/15" : "bg-blue-500/10 text-blue-500 border-blue-500/15"}`}
             >
-              {orderType}
+              {orderType === "LIMIT" ? "Лимитный" : "Рыночный"}
             </span>
           </div>
           <div className="flex justify-between items-center py-0.5">

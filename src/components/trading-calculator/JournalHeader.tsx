@@ -1,6 +1,3 @@
-"use client";
-
-import React from "react";
 import { TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export function JournalHeader() {
@@ -28,7 +25,7 @@ export function JournalHeader() {
         <TableHead className="sticky top-0 z-20 h-8 font-black uppercase text-[10px] tracking-wider text-muted-foreground/80 py-1 bg-muted/90 dark:bg-zinc-900/90 backdrop-blur-xs">
           TP / SL
         </TableHead>
-        <TableHead className="sticky top-0 z-20 h-8 font-black uppercase text-[10px] tracking-wider text-muted-foreground/80 py-1 bg-muted/90 dark:bg-zinc-900/90 backdrop-blur-xs text-right pr-6">
+        <TableHead className="sticky top-0 z-20 h-8 font-black text-[10px] tracking-wider text-muted-foreground/80 py-1 bg-muted/90 dark:bg-zinc-900/90 backdrop-blur-xs text-right pr-6">
           PnL
         </TableHead>
         <TableHead className="sticky top-0 z-20 h-8 font-black uppercase text-[10px] tracking-wider text-muted-foreground/80 py-1 bg-muted/90 dark:bg-zinc-900/90 backdrop-blur-xs text-right pr-4">

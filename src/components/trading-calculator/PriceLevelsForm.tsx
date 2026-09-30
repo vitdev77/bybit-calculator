@@ -60,7 +60,7 @@ export default function PriceLevelsForm({
             htmlFor="entryPrice"
             className="text-[11px] sm:text-sm px-0.5 font-bold uppercase tracking-wider text-muted-foreground/90"
           >
-            Цена входа (USDT)
+            Цена (USDT)
           </Label>
           <Input
             id="entryPrice"

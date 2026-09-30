@@ -58,7 +58,7 @@ function CoinIcon({ symbol }: { symbol: string }) {
       <img
         src={`/crypto-icons/${base.toLowerCase()}.svg`}
         alt={base}
-        className="size-4 rounded-full object-cover shrink-0"
+        className="size-4 shrink-0"
         onError={() => setError(true)}
       />
     );
@@ -244,7 +244,7 @@ export default function CoinSelector({
             )}
             onClick={() => setOrderType("MARKET")}
           >
-            Market
+            Рыночный
           </Button>
           <Button
             type="button"
@@ -255,7 +255,7 @@ export default function CoinSelector({
             )}
             onClick={() => setOrderType("LIMIT")}
           >
-            Limit
+            Лимитный
           </Button>
         </ButtonGroup>
       </div>
