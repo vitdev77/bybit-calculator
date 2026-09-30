@@ -35,6 +35,7 @@ function useTabTicker(
   decimals: number,
 ) {
   const prevPriceRef = useRef<number | null>(null);
+
   useEffect(() => {
     if (!price) {
       if (document.title !== "Bybit Futures Calculator") {
@@ -50,7 +51,7 @@ function useTabTicker(
       else return;
     }
     prevPriceRef.current = price;
-    const nextTitle = `${triangle} ${formattedPrice} | ${coin} | Bybit Futures Calculator`;
+    const nextTitle = `${triangle} ${formattedPrice} | ${coin} | Bybit Calculator`;
     if (document.title !== nextTitle) document.title = nextTitle;
   }, [price, coin, decimals]);
 
@@ -102,7 +103,24 @@ export default function TradingCalculator({
   const currentCoinMeta = availableCoinsList.find(
     (c) => c.coin === selectedCoin,
   );
-  const currentDecimals = currentCoinMeta ? currentCoinMeta.decimals : 2;
+
+  // Автоматическое вычисление точности по цене, если в метаданных стоит дефолтная 2
+  const getAutoDecimals = () => {
+    if (currentCoinMeta && currentCoinMeta.decimals !== 2) {
+      return currentCoinMeta.decimals;
+    }
+    if (tickerData && tickerData.lastPrice > 0 && tickerData.lastPrice < 1) {
+      const priceStr = tickerData.lastPrice.toString();
+      if (priceStr.includes(".")) {
+        const afterDot = priceStr.split(".")[1];
+        return Math.max(4, Math.min(7, afterDot.length));
+      }
+      return 5;
+    }
+    return currentCoinMeta ? currentCoinMeta.decimals : 2;
+  };
+
+  const currentDecimals = getAutoDecimals();
   const maxSafeLeverage =
     selectedCoin === "BTCUSDT" || selectedCoin === "ETHUSDT" ? 100 : 50;
 
@@ -238,10 +256,12 @@ export default function TradingCalculator({
     isLoaded,
     getCalculatedIdealLeverage,
   ]);
+
   const handleAutoLeverageCalculate = useCallback(() => {
     const ideal = getCalculatedIdealLeverage();
     setLeverage(ideal);
   }, [getCalculatedIdealLeverage]);
+
   useEffect(() => {
     if (!isLoaded) return;
     if (isInitialLoad) {
@@ -251,6 +271,7 @@ export default function TradingCalculator({
     const ideal = getCalculatedIdealLeverage();
     setLeverage(ideal);
   }, [partsCount]);
+
   const fetchLiveTicker = useCallback(
     async (coin: string, isFirstInit: boolean, isCurrent: () => boolean) => {
       try {
@@ -346,7 +367,6 @@ export default function TradingCalculator({
     partsCount,
     isLoaded,
   ]);
-
   useEffect(() => {
     if (entryPrice <= 0 || stopLossPercent <= 0 || balance <= 0) return;
     const isLong = side === "BUY";
@@ -382,6 +402,7 @@ export default function TradingCalculator({
       ? entryPrice * (1 - 1 / leverage + MMR + closeFeeRate)
       : entryPrice * (1 + 1 / leverage - MMR - closeFeeRate);
     if (liquidationPrice < 0) liquidationPrice = 0;
+
     setResults({
       riskAmount: actualRiskAmount,
       positionSizeCrypto,
@@ -465,6 +486,9 @@ export default function TradingCalculator({
               riskRewardRatio={riskRewardRatio}
               setRiskRewardRatio={setRiskRewardRatio}
               onReset={handleReset}
+              livePrice={tickerData?.lastPrice || 0}
+              decimals={currentDecimals}
+              side={side}
             />
           </CardContent>
         </Card>
