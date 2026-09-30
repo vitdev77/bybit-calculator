@@ -13,11 +13,12 @@ import {
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
-import { Star, Check, Search, X, Loader2, Settings } from "lucide-react";
+import { Star, Check, Search, X, Settings } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { cn } from "cn";
 import { OrderType, DBAssetCoin } from "./TradingCalculator";
 import ListingManagerModal from "./ListingManagerModal";
+import { Spinner } from "@/components/ui/spinner";
 
 interface CoinSelectorProps {
   selectedCoin: string;
@@ -290,7 +291,7 @@ export default function CoinSelector({
               <SelectContent className="w-64! min-w-64! max-w-64! overflow-x-hidden p-1">
                 <div className="p-1 border-b border-border/40 sticky top-0 bg-popover z-30 flex items-center gap-1.5">
                   {isSearching ? (
-                    <Loader2 className="size-3 text-amber-500 animate-spin shrink-0 ml-1" />
+                    <Spinner className="text-amber-500 shrink-0 ml-1" />
                   ) : (
                     <Search className="size-3 text-muted-foreground/60 shrink-0 ml-1" />
                   )}

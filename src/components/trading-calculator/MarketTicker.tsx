@@ -202,7 +202,7 @@ export default function MarketTicker({
               : tickDirection === "down"
                 ? "▼ "
                 : "• "}
-            {data.lastPrice.toFixed(decimals)}
+            {data.lastPrice}
           </span>
         </div>
       </div>

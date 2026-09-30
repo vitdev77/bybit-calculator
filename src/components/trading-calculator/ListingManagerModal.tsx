@@ -11,9 +11,10 @@ import {
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { X, Search, Loader2 } from "lucide-react";
+import { X, Search } from "lucide-react";
 import { cn } from "cn";
 import { DBAssetCoin } from "./TradingCalculator";
+import { Spinner } from "@/components/ui/spinner";
 
 interface ListingManagerModalProps {
   availableCoinsList: DBAssetCoin[];
@@ -231,7 +232,7 @@ export default function ListingManagerModal({
           <div className="max-h-64 overflow-y-auto pr-1 space-y-1.5 scrollbar-thin">
             {isLoading ? (
               <div className="flex items-center justify-center p-8 gap-2 text-muted-foreground">
-                <Loader2 className="size-4 animate-spin text-amber-500" />
+                <Spinner className="text-amber-500" />
                 <span>Загрузка листинга...</span>
               </div>
             ) : (

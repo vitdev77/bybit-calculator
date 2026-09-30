@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { Copy, Check, PlusCircle, Loader } from "lucide-react";
+import { Copy, Check, PlusCircle } from "lucide-react";
 import { toast } from "@/components/ui/toast";
+import { Spinner } from "@/components/ui/spinner";
 
 interface ResultsDisplayProps {
   results: {
@@ -370,7 +371,7 @@ export default function ResultsDisplay({
           className={`w-full h-11 sm:h-12 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 shadow-sm border border-transparent transition-all tracking-wide select-none ${isSaving || entryPrice <= 0 || results.positionSizeUsdt <= 0 ? "bg-muted/30 text-muted-foreground/30 cursor-not-allowed" : "bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-500/10 cursor-pointer active:scale-[0.98]"}`}
         >
           {isSaving ? (
-            <Loader className="size-4 shrink-0 animate-spin" />
+            <Spinner className="shrink-0" />
           ) : (
             <PlusCircle className="size-4 shrink-0" />
           )}
