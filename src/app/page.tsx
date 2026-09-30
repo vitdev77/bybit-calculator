@@ -13,6 +13,7 @@ interface DealsCount {
   open: number;
   closed: number;
 }
+
 export default function Home() {
   const [selectedCoin, setSelectedCoin] = useState("BTCUSDT");
   const [currentBalance, setCurrentBalance] = useState(100);
@@ -48,7 +49,6 @@ export default function Home() {
       setIsMounted(true);
     }
   }, []);
-
   useEffect(() => {
     if (!isMounted) return;
     const layoutState = {
@@ -74,10 +74,12 @@ export default function Home() {
     setOpenCount(summary.open || 0);
     setClosedCount(summary.closed || 0);
   };
+
   return (
-    <main className="min-h-screen py-4 sm:py-8 space-y-4 sm:space-y-6 max-w-[2000px] mx-auto px-2 sm:px-6 xl:px-8">
-      {/* ГЛОБАЛЬНАЯ ШАПКА ПРИЛОЖЕНИЯ */}
-      <div className="grid grid-cols-[1fr_auto] items-start gap-x-4 border-b border-border/20 pb-4 select-none">
+    // Изменен верхний отступ главного контейнера, так как шапка стала липкой
+    <main className="min-h-screen pt-0 pb-4 sm:pb-8 space-y-4 sm:space-y-6 max-w-[2000px] mx-auto px-2 sm:px-6 xl:px-8">
+      {/* ИСПРАВЛЕНО: Липкая шапка намертво пристилена к верху с размытием в стиле shadcn/ui */}
+      <div className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-md border-b border-border/40 py-4 mb-2 select-none grid grid-cols-[1fr_auto] items-start gap-x-4">
         <div className="space-y-1 min-w-0">
           <h1 className="text-base sm:text-xl font-bold tracking-tight text-foreground truncate">
             Bybit Futures{" "}
@@ -98,10 +100,10 @@ export default function Home() {
         </div>
       </div>
 
-      {/* СЕТКА GRID */}
+      {/* ОСНОВНАЯ СЕТКА GRID КОНТЕНТА */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start w-full">
         {/* БЛОК 1: КАЛЬКУЛЯТОР ПОЗИЦИЙ */}
-        <div className="xl:col-span-5 xl:sticky xl:top-4 order-first xl:order-last">
+        <div className="xl:col-span-5 xl:sticky xl:top-24 order-first xl:order-last">
           <div className="border border-border/40 bg-background rounded-2xl sm:rounded-[2rem] p-1 sm:p-2 transition-all duration-300">
             <div
               onClick={() => setIsCalcExpanded(!isCalcExpanded)}
@@ -140,7 +142,6 @@ export default function Home() {
             </div>
           </div>
         </div>
-
         {/* БЛОК 2 И 3: ГРАФИК И ЖУРНАЛ СДЕЛКОК */}
         <div className="xl:col-span-7 space-y-4 sm:space-y-6 min-w-0">
           {/* БЛОК ГРАФИКА */}
