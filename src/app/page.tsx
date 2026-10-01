@@ -86,7 +86,7 @@ export default function Home() {
   const badgeClass = cn(
     "inline-flex items-center gap-1.5",
     "bg-neutral-500/10 border px-2 py-0.5",
-    "border-border/40 rounded-md font-mono",
+    "border-border/40 rounded-md",
     "text-[10px] sm:text-xs text-foreground/90",
   );
 

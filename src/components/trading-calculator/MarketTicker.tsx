@@ -194,10 +194,11 @@ export default function MarketTicker({
         className={cn(
           "p-4 border w-full rounded-xl",
           "bg-muted/30 border-border/40 h-20",
-          "flex items-center justify-center",
+          "flex items-center justify-center gap-2",
         )}
       >
-        <Spinner className="text-amber-500" />
+        <Spinner className="text-amber-500" />{" "}
+        <span className="text-muted-foreground text-xs">Загрузка...</span>
       </div>
     );
   }
@@ -288,7 +289,7 @@ export default function MarketTicker({
 
         {/* Фикс: На мобилке цена увеличена до text-3xl */}
         <div
-          className="cursor-pointer w-auto md:w-full text-right md:text-left mt-0 md:mt-2"
+          className="cursor-copy w-auto md:w-full text-right md:text-left mt-0 md:mt-2"
           onClick={() => onPriceClick?.(data.lastPrice)}
         >
           <span
@@ -338,9 +339,8 @@ export default function MarketTicker({
           </div>
         </div>
 
-        {/* Фикс: На мобилке ровно 50% на 50% (grid-cols-2), а Margin Load занимает всю ширину под ними */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 w-full">
-          <div className="bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border border-border/10 flex flex-col justify-center min-w-0 relative col-span-1">
+        <div className="grid grid-cols-3 sm:grid-cols-3 gap-2 w-full">
+          <div className="bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border border-border/10 flex flex-col justify-center min-w-0 relative">
             <span className="text-[8px] opacity-50 uppercase font-bold">
               Fear & Greed
             </span>
@@ -367,7 +367,7 @@ export default function MarketTicker({
             )}
           </div>
 
-          <div className="bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border border-border/10 flex items-center justify-between min-w-0 gap-1 col-span-1">
+          <div className="bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border border-border/10 flex items-center justify-between min-w-0 gap-1">
             <div className="flex flex-col min-w-0">
               <span className="text-[8px] opacity-50 uppercase font-bold">
                 Countdown
@@ -410,7 +410,7 @@ export default function MarketTicker({
             </svg>
           </div>
 
-          <div className="bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border border-border/10 flex flex-col justify-center min-w-0 col-span-2 sm:col-span-1">
+          <div className="bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border border-border/10 flex flex-col justify-center min-w-0">
             <div className="flex justify-between items-center w-full">
               <span className="text-[8px] opacity-50 uppercase font-bold">
                 Margin Load

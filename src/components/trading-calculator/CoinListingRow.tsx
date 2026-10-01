@@ -55,7 +55,7 @@ export function CoinListingRow({
     return num.toFixed(0);
   }
 
-  const renderBadge = (type: "RISK" | "LIQ") => {
+  const renderBadge = (type: "LIQ" | "RISK") => {
     const isR = type === "RISK";
     return (
       <span
@@ -105,7 +105,7 @@ export function CoinListingRow({
 
         <div className="flex flex-col min-w-0 flex-1">
           {/* ЯРУС 1: Название пары */}
-          <div className={cn("flex gap-1.5 items-center min-w-0 flex-nowrap")}>
+          <div className={cn("flex gap-1 items-center min-w-0 flex-nowrap")}>
             <span
               className={cn(
                 "text-[10px] font-bold min-w-6",
@@ -123,25 +123,24 @@ export function CoinListingRow({
               {item.coin}
             </span>
             {/* На десктопе бейджи остаются в основном ряду */}
-            <div className="hidden sm:flex gap-1.5 items-center">
-              {isHighRisk && renderBadge("RISK")}
+            <div className="hidden sm:flex gap-1 items-center">
               {isHighLiq && renderBadge("LIQ")}
+              {isHighRisk && renderBadge("RISK")}
             </div>
           </div>
 
           {/* ЯРУС 2 (Мобильный): Бейджи переносятся под название пары на смартфонах */}
-          <div className="flex sm:hidden gap-1.5 items-center mt-1 pl-7">
-            {isHighRisk && renderBadge("RISK")}
+          <div className="flex sm:hidden gap-1 items-center mt-1 pl-7">
             {isHighLiq && renderBadge("LIQ")}
+            {isHighRisk && renderBadge("RISK")}
           </div>
 
-          {/* ЯРУС 3: Слово Дробь: со значением опускается строго под LIQ RISK */}
           <span
             className={cn(
               "text-[9px] mt-1 pl-7 truncate text-muted-foreground/40 block",
             )}
           >
-            Дробь:{" "}
+            Разрядность:{" "}
             <span className="font-bold text-muted-foreground/80">
               {item.decimals}
             </span>

@@ -249,7 +249,7 @@ export default function ListingModal({
               className="h-full px-2.5 rounded-md flex-1 sm:flex-none flex items-center justify-center gap-1"
               onClick={() => setFilterType("ALL")}
             >
-              <Coins className="inline sm:hidden size-4 text-foreground" />
+              <Coins className="inline sm:hidden size-4" />
               <span className="hidden sm:inline text-[10px] font-bold uppercase">
                 Все
               </span>
@@ -263,8 +263,8 @@ export default function ListingModal({
               className="h-full px-2.5 rounded-md flex-1 sm:flex-none flex items-center justify-center gap-1"
               onClick={() => setFilterType("LIQ")}
             >
-              <Zap className="inline sm:hidden size-4 text-amber-500" />
-              <span className="hidden sm:inline text-[10px] font-bold uppercase">
+              <Zap className="inline sm:hidden size-4 text-emerald-500" />
+              <span className="hidden sm:inline text-[10px] font-bold uppercase text-emerald-500">
                 Ликвид.
               </span>
               <span className="text-[9px] font-semibold opacity-70">
@@ -277,8 +277,8 @@ export default function ListingModal({
               className="h-full px-2.5 rounded-md flex-1 sm:flex-none flex items-center justify-center gap-1"
               onClick={() => setFilterType("RISK")}
             >
-              <Flame className="inline sm:hidden size-4 text-orange-500" />
-              <span className="hidden sm:inline text-[10px] font-bold uppercase">
+              <Flame className="inline sm:hidden size-4 text-amber-500" />
+              <span className="hidden sm:inline text-[10px] font-bold uppercase text-amber-500">
                 Волат.
               </span>
               <span className="text-[9px] font-semibold opacity-70">
