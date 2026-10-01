@@ -8,6 +8,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
+import { toast } from "@/components/ui/toast";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -15,9 +16,10 @@ import {
   AlertDialogTitle,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
-
-interface ListingManagerModalProps {
+import { CoinListingRow } from "./CoinListingRow";
+interface ListingModalProps {
   availableCoinsList: DBAssetCoin[];
+  setAvailableCoinsList?: React.Dispatch<React.SetStateAction<DBAssetCoin[]>>;
   tickerRegistry: Record<
     string,
     {
@@ -33,12 +35,15 @@ interface ListingManagerModalProps {
     targetStatus: boolean,
     currentStatus: boolean,
   ) => Promise<void>;
+  onCoinSelect?: (coin: string) => void;
 }
 
-export default function ListingManagerModal({
+export default function ListingModal({
   isModalOpen,
   setIsModalOpen,
-}: ListingManagerModalProps) {
+  setAvailableCoinsList,
+  onCoinSelect,
+}: ListingModalProps) {
   const [modalSearch, setModalSearch] = useState("");
   const [filterType, setFilterType] = useState<
     "ALL" | "LIQ" | "RISK" | "DELIS"
@@ -46,21 +51,35 @@ export default function ListingManagerModal({
   const [fullCoinsList, setFullCoinsList] = useState<DBAssetCoin[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [localRegistry, setLocalRegistry] = useState<
-    Record<string, { price24hPcnt: number; turnover24h: number }>
+    Record<
+      string,
+      {
+        price24hPcnt: number;
+        turnover24h: number;
+      }
+    >
   >({});
-
+  const [favLoadingMap, setFavLoadingMap] = useState<Record<string, boolean>>(
+    {},
+  );
   useEffect(() => {
     if (isModalOpen) {
       setIsLoading(true);
       fetch("/api/coins?all=true")
         .then((res) => {
-          if (!res.ok) throw new Error("API Error");
+          if (!res.ok) {
+            throw new Error("API Err");
+          }
           return res.json();
         })
         .then((data) => {
           if (data) {
-            if (Array.isArray(data.coins)) setFullCoinsList(data.coins);
-            if (data.tickerRegistry) setLocalRegistry(data.tickerRegistry);
+            if (Array.isArray(data.coins)) {
+              setFullCoinsList(data.coins);
+            }
+            if (data.tickerRegistry) {
+              setLocalRegistry(data.tickerRegistry);
+            }
           }
         })
         .catch((err) => console.error("Ошибка листинга:", err))
@@ -68,13 +87,90 @@ export default function ListingManagerModal({
     }
   }, [isModalOpen]);
 
-  function formatModalCompact(num: number): string {
-    if (!num) return "--";
-    if (num >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(1)}B`;
-    if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
-    if (num >= 1_000) return `${(num / 1_000).toFixed(0)}K`;
-    return num.toFixed(0);
-  }
+  const handleSelectCoinRow = (coinName: string, isDelisted: boolean) => {
+    if (isDelisted) return;
+    if (onCoinSelect) {
+      onCoinSelect(coinName);
+      setIsModalOpen(false);
+      toast.add({
+        title: "Пара переключена",
+        description: "Выбрана пара " + coinName,
+        type: "success",
+      });
+    }
+  };
+
+  const handleToggleFav = async (
+    e: React.MouseEvent,
+    coinName: string,
+    currentFav: boolean,
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (favLoadingMap[coinName]) {
+      return;
+    }
+
+    setFavLoadingMap((prev) => ({
+      ...prev,
+      [coinName]: true,
+    }));
+    const nextState = !currentFav;
+
+    setFullCoinsList((prev) =>
+      prev.map((c) =>
+        c.coin === coinName
+          ? {
+              ...c,
+              is_favorite: nextState,
+            }
+          : c,
+      ),
+    );
+
+    try {
+      const response = await fetch("/api/coins", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "TOGGLE_FAVORITE",
+          coin: coinName,
+        }),
+      });
+
+      if (response.ok) {
+        window.dispatchEvent(
+          new CustomEvent("refresh-calculator-coins", {
+            detail: {
+              coin: coinName,
+              is_favorite: nextState,
+            },
+          }),
+        );
+        if (setAvailableCoinsList) {
+          setAvailableCoinsList((prev) =>
+            prev.map((c) =>
+              c.coin === coinName
+                ? {
+                    ...c,
+                    is_favorite: nextState,
+                  }
+                : c,
+            ),
+          );
+        }
+      }
+    } catch (err) {
+      console.error("Ошибка избранного:", err);
+    } finally {
+      setFavLoadingMap((prev) => ({
+        ...prev,
+        [coinName]: false,
+      }));
+    }
+  };
   let totalLiqCount = 0;
   let totalRiskCount = 0;
   let totalDelistedCount = 0;
@@ -85,254 +181,229 @@ export default function ListingManagerModal({
       return;
     }
     const liveStats = localRegistry[asset.coin] || { turnover24h: 0 };
-    const isMemCoin =
+    const isMem =
       asset.coin.includes("DOGE") ||
       asset.coin.includes("SHIB") ||
       asset.coin.includes("PEPE") ||
       asset.coin.includes("BONK");
 
-    const isHighRisk =
-      isMemCoin ||
+    const isRisk =
+      isMem ||
       asset.decimals >= 4 ||
       (liveStats.turnover24h > 0 && liveStats.turnover24h < 10000000);
 
-    const isHighLiq = liveStats.turnover24h >= 100000000;
-
-    if (isHighLiq) totalLiqCount++;
-    if (isHighRisk) totalRiskCount++;
+    if (liveStats.turnover24h >= 100000000) {
+      totalLiqCount++;
+    }
+    if (isRisk) {
+      totalRiskCount++;
+    }
   });
 
   const sortedAndFilteredCoins = fullCoinsList.filter((asset) => {
-    const matchesSearch = asset.coin
-      .toLowerCase()
-      .includes(modalSearch.toLowerCase());
-    if (!matchesSearch) return false;
+    const match = asset.coin.toLowerCase().includes(modalSearch.toLowerCase());
+    if (!match) return false;
 
-    const liveStats = localRegistry[asset.coin] || { turnover24h: 0 };
-    const isMemCoin =
+    const live = localRegistry[asset.coin] || { turnover24h: 0 };
+    const isMem =
       asset.coin.includes("DOGE") ||
       asset.coin.includes("SHIB") ||
       asset.coin.includes("PEPE") ||
       asset.coin.includes("BONK");
 
-    const isHighRisk =
+    const isRisk =
       !asset.is_delisted &&
-      (isMemCoin ||
+      (isMem ||
         asset.decimals >= 4 ||
-        (liveStats.turnover24h > 0 && liveStats.turnover24h < 10000000));
+        (live.turnover24h > 0 && live.turnover24h < 10000000));
 
-    const isHighLiq = !asset.is_delisted && liveStats.turnover24h >= 100000000;
+    const isLiq = !asset.is_delisted && live.turnover24h >= 100000000;
 
-    const isDelisted = asset.is_delisted;
-
-    if (filterType === "LIQ") return isHighLiq;
-    if (filterType === "RISK") return isHighRisk;
-    if (filterType === "DELIS") return isDelisted;
+    if (filterType === "LIQ") {
+      return isLiq;
+    }
+    if (filterType === "RISK") {
+      return isRisk;
+    }
+    if (filterType === "DELIS") {
+      return asset.is_delisted;
+    }
     return true;
   });
 
-  const totalCoinsCount = fullCoinsList.length;
   return (
-    <>
-      {isModalOpen && (
-        <style
-          dangerouslySetInnerHTML={{
-            __html: `
-              [data-slot="alert-dialog-overlay"], 
-              .fixed.inset-0.bg-black\\/10 {
-                z-index: 40 !important;
-              }
-              [data-slot="alert-dialog-content"] {
-                z-index: 45 !important;
-              }
-            `,
-          }}
-        />
-      )}
-
-      <AlertDialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <AlertDialogContent
+    <AlertDialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+      <AlertDialogContent
+        className={cn(
+          "max-w-2xl! w-full p-4",
+          "rounded-2xl text-xs",
+          "border border-border/40",
+          "bg-background/90",
+          "backdrop-blur-md shadow-2xl",
+        )}
+      >
+        <AlertDialogHeader
           className={cn(
-            "max-w-2xl! w-full rounded-2xl p-4 bg-popover/80",
-            "border border-border/40 text-xs shadow-2xl",
-            "backdrop-blur-md bg-background/90",
+            "flex flex-row gap-2",
+            "items-center border-b",
+            "justify-between pb-2",
           )}
         >
-          <AlertDialogHeader className="flex flex-row items-center justify-between border-b pb-2 select-none gap-2">
-            <AlertDialogTitle className="text-sm font-black uppercase tracking-wider">
-              Листинг пар Bybit
-            </AlertDialogTitle>
-            <AlertDialogCancel
+          <AlertDialogTitle
+            className={cn("text-sm font-black", "uppercase tracking-wider")}
+          >
+            Листинг пар Bybit
+          </AlertDialogTitle>
+          <AlertDialogCancel
+            className={cn(
+              "p-1 h-auto w-auto",
+              "bg-transparent border-none",
+              "text-muted-foreground",
+              "hover:text-foreground",
+              "shadow-none rounded-md",
+              "flex items-center",
+              "justify-end cursor-pointer",
+              "sm:self-start",
+            )}
+          >
+            <X className="size-4" />
+          </AlertDialogCancel>
+        </AlertDialogHeader>
+
+        <div
+          className={cn(
+            "my-3 flex flex-col",
+            "sm:flex-row gap-2.5",
+            "items-stretch",
+            "sm:items-center",
+          )}
+        >
+          <div className={cn("relative flex-1 flex", "items-center")}>
+            <Search
               className={cn(
-                "p-1 h-auto w-auto bg-transparent border-none sm:self-start",
-                "text-muted-foreground hover:text-foreground rounded-md shadow-none",
-                "cursor-pointer flex items-center justify-end",
+                "absolute left-2.5",
+                "h-3.5 w-3.5",
+                "text-muted-",
+                "foreground/60",
+              )}
+            />
+            <Input
+              type="text"
+              placeholder="Поиск..."
+              value={modalSearch}
+              onChange={(e) => setModalSearch(e.target.value)}
+              className={cn(
+                "pl-8 pr-8 h-8 text-xs",
+                "bg-muted/20 w-full",
+                "border-border/40 rounded-lg",
+              )}
+            />
+          </div>
+          <ButtonGroup
+            className={cn(
+              "h-8 border p-0.5",
+              "border-border/40",
+              "rounded-lg bg-muted/20",
+              "shrink-0 overflow-hidden",
+            )}
+          >
+            <Button
+              type="button"
+              variant={filterType === "ALL" ? "default" : "ghost"}
+              className={cn(
+                "h-full px-2 text-[10px]",
+                "font-bold uppercase",
+                "rounded-md",
+              )}
+              onClick={() => setFilterType("ALL")}
+            >
+              Все ({fullCoinsList.length})
+            </Button>
+            <Button
+              type="button"
+              variant={filterType === "LIQ" ? "default" : "ghost"}
+              className={cn(
+                "h-full px-2 text-[10px]",
+                "font-bold uppercase",
+                "rounded-md",
+              )}
+              onClick={() => setFilterType("LIQ")}
+            >
+              Ликвид. ({totalLiqCount})
+            </Button>
+            <Button
+              type="button"
+              variant={filterType === "RISK" ? "default" : "ghost"}
+              className={cn(
+                "h-full px-2 text-[10px]",
+                "font-bold uppercase",
+                "rounded-md",
+              )}
+              onClick={() => setFilterType("RISK")}
+            >
+              Волат. ({totalRiskCount})
+            </Button>
+            <Button
+              type="button"
+              variant={filterType === "DELIS" ? "default" : "ghost"}
+              className={cn(
+                "h-full px-2 text-[10px]",
+                "font-bold uppercase",
+                "text-rose-500 rounded-md",
+                "hover:text-rose-600",
+              )}
+              onClick={() => setFilterType("DELIS")}
+            >
+              Делист ({totalDelistedCount})
+            </Button>
+          </ButtonGroup>
+        </div>
+
+        <div
+          className={cn(
+            "max-h-64 pr-1",
+            "overflow-y-auto",
+            "space-y-1.5 scrollbar-thin",
+          )}
+        >
+          {isLoading ? (
+            <div
+              className={cn(
+                "flex p-8 gap-2",
+                "items-center",
+                "justify-center",
+                "text-muted-",
+                "foreground",
               )}
             >
-              <X className="size-4" />
-            </AlertDialogCancel>
-          </AlertDialogHeader>
-
-          <div className="my-3 flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center">
-            <div className="relative flex-1 flex items-center group/input">
-              <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground/60 pointer-events-none" />
-              <Input
-                type="text"
-                placeholder="Поиск пары..."
-                value={modalSearch}
-                onChange={(e) => setModalSearch(e.target.value)}
-                className="pl-8 pr-8 h-8 text-xs bg-muted/20 border-border/40 rounded-lg w-full"
-              />
-              {modalSearch.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setModalSearch("")}
-                  className="absolute right-2.5 text-muted-foreground/60 hover:text-foreground bg-transparent border-none p-0 cursor-pointer flex items-center justify-center"
-                >
-                  <X className="size-3.5" />
-                </button>
-              )}
+              <Spinner className="text-amber-500" />
+              <span>Загрузка...</span>
             </div>
-            <ButtonGroup className="h-8 border border-border/40 rounded-lg overflow-hidden p-0.5 bg-muted/20 shrink-0">
-              <Button
-                type="button"
-                variant={filterType === "ALL" ? "default" : "ghost"}
-                className="h-full px-2.5 text-[10px] font-bold uppercase tracking-wider rounded-md"
-                onClick={() => setFilterType("ALL")}
-              >
-                Все ({totalCoinsCount || "0"})
-              </Button>
-              <Button
-                type="button"
-                variant={filterType === "LIQ" ? "default" : "ghost"}
-                className="h-full px-2.5 text-[10px] font-bold uppercase tracking-wider rounded-md"
-                onClick={() => setFilterType("LIQ")}
-              >
-                Ликвидные ({totalLiqCount || "0"})
-              </Button>
-              <Button
-                type="button"
-                variant={filterType === "RISK" ? "default" : "ghost"}
-                className="h-full px-2.5 text-[10px] font-bold uppercase tracking-wider rounded-md"
-                onClick={() => setFilterType("RISK")}
-              >
-                Волатильные ({totalRiskCount || "0"})
-              </Button>
-              <Button
-                type="button"
-                variant={filterType === "DELIS" ? "default" : "ghost"}
-                className="h-full px-2.5 text-[10px] font-bold uppercase tracking-wider rounded-md text-rose-500 hover:text-rose-600"
-                onClick={() => setFilterType("DELIS")}
-              >
-                Делистинг ({totalDelistedCount || "0"})
-              </Button>
-            </ButtonGroup>
-          </div>
-
-          <div className="max-h-64 overflow-y-auto pr-1 space-y-1.5 scrollbar-thin">
-            {isLoading ? (
-              <div className="flex items-center justify-center p-8 gap-2 text-muted-foreground">
-                <Spinner className="text-amber-500" />
-                <span>Загрузка листинга...</span>
-              </div>
-            ) : (
-              sortedAndFilteredCoins.map((item, idx) => {
-                const liveStats = localRegistry[item.coin] || {
-                  price24hPcnt: 0,
-                  turnover24h: 0,
-                };
-                const isUp = liveStats.price24hPcnt > 0;
-                const isDown = liveStats.price24hPcnt < 0;
-                const isMemCoin =
-                  item.coin.includes("DOGE") ||
-                  item.coin.includes("SHIB") ||
-                  item.coin.includes("PEPE") ||
-                  item.coin.includes("BONK");
-                const isHighRisk =
-                  !item.is_delisted &&
-                  (isMemCoin ||
-                    item.decimals >= 4 ||
-                    (liveStats.turnover24h > 0 &&
-                      liveStats.turnover24h < 10000000));
-                const isHighLiq =
-                  !item.is_delisted && liveStats.turnover24h >= 100000000;
-
-                return (
-                  <div
-                    key={`manage-${item.coin}`}
-                    className={cn(
-                      "grid grid-cols-12 items-center p-2 rounded-xl border bg-background/50 gap-2",
-                      item.is_delisted
-                        ? "border-rose-500/10 opacity-56 bg-rose-500/2"
-                        : "border-border/30",
-                    )}
-                  >
-                    <div className="col-span-8 flex flex-col min-w-0">
-                      <div className="flex items-center gap-1.5 min-w-0 flex-wrap sm:flex-nowrap">
-                        <span className="text-[10px] font-bold text-muted-foreground/40 min-w-6">
-                          {idx + 1}.
-                        </span>
-                        <span className="font-bold text-foreground text-xs leading-none truncate">
-                          {item.coin}
-                        </span>
-                        {isHighRisk && (
-                          <span className="flex items-center px-1 py-0.5 font-black tracking-wider bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded text-center shrink-0">
-                            RISK
-                          </span>
-                        )}
-                        {isHighLiq && (
-                          <span className="flex items-center px-1 py-0.5 font-black tracking-wider bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded text-center shrink-0">
-                            LIQ
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-[9px] text-muted-foreground/40 mt-1 pl-7 truncate">
-                        Знаков после запятой:{" "}
-                        <span className="font-bold text-muted-foreground/80">
-                          {item.decimals}
-                        </span>
-                      </span>
-                    </div>
-                    <div className="col-span-4 flex flex-col items-end justify-center text-right min-w-0">
-                      {!item.is_delisted ? (
-                        <div className="flex flex-col items-end min-w-0">
-                          <span
-                            className={cn(
-                              "font-bold leading-none",
-                              isUp
-                                ? "text-emerald-500"
-                                : isDown
-                                  ? "text-rose-500"
-                                  : "text-muted-foreground/60",
-                            )}
-                          >
-                            {isUp ? "+" : ""}
-                            {liveStats.price24hPcnt !== 0
-                              ? `${liveStats.price24hPcnt.toFixed(2)}%`
-                              : "0.00%"}
-                          </span>
-                          <span className="text-[9px] font-semibold text-muted-foreground/50 mt-1 truncate">
-                            {formatModalCompact(liveStats.turnover24h)}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="px-2 py-0.5 font-black uppercase tracking-wider bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded">
-                          DELISTED
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
-            )}
-            {!isLoading && sortedAndFilteredCoins.length === 0 && (
-              <div className="text-center p-4 text-muted-foreground font-medium">
-                Ничего не найдено
-              </div>
-            )}
-          </div>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+          ) : (
+            sortedAndFilteredCoins.map((item, idx) => (
+              <CoinListingRow
+                key={item.coin}
+                item={item}
+                idx={idx}
+                liveStats={
+                  localRegistry[item.coin] || {
+                    price24hPcnt: 0,
+                    turnover24h: 0,
+                  }
+                }
+                favLoading={!!favLoadingMap[item.coin]}
+                onSelect={handleSelectCoinRow}
+                onToggleFav={handleToggleFav}
+              />
+            ))
+          )}
+          {!isLoading && sortedAndFilteredCoins.length === 0 && (
+            <div className={cn("text-center p-4", "text-muted-foreground")}>
+              Ничего не найдено
+            </div>
+          )}
+        </div>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

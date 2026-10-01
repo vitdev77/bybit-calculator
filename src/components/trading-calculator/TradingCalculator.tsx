@@ -7,6 +7,8 @@ import BalanceRiskForm from "./BalanceRiskForm";
 import PriceLevelsForm from "./PriceLevelsForm";
 import ResultsDisplay from "./ResultsDisplay";
 import MarketTicker from "./MarketTicker";
+import ListingManagerModal from "./ListingManagerModal";
+import { cn } from "@/lib/utils";
 
 export type OrderType = "MARKET" | "LIMIT";
 export type PositionSide = "BUY" | "SELL";
@@ -28,7 +30,6 @@ interface TickerData {
   fundingRate: number;
   turnover24h: number;
 }
-
 function useTabTicker(
   price: number | undefined,
   coin: string,
@@ -46,13 +47,18 @@ function useTabTicker(
     const formattedPrice = price.toFixed(decimals);
     let triangle = "•";
     if (prevPriceRef.current !== null) {
-      if (price > prevPriceRef.current) triangle = "▲";
-      else if (price < prevPriceRef.current) triangle = "▼";
-      else return;
+      if (price > prevPriceRef.current) {
+        triangle = "▲";
+      } else if (price < prevPriceRef.current) {
+        triangle = "▼";
+      } else return;
     }
     prevPriceRef.current = price;
-    const nextTitle = `${triangle} ${formattedPrice} | ${coin} | Bybit Calculator`;
-    if (document.title !== nextTitle) document.title = nextTitle;
+    const nextTitle =
+      triangle + " " + formattedPrice + " | " + coin + " | Bybit Calculator";
+    if (document.title !== nextTitle) {
+      document.title = nextTitle;
+    }
   }, [price, coin, decimals]);
 
   useEffect(() => {
@@ -60,11 +66,11 @@ function useTabTicker(
     document.title = "Bybit Futures Calculator";
   }, [coin]);
 }
-interface TradingCalculatorProps {
+interface CalculatorProps {
   selectedCoin: string;
-  setSelectedCoin: (coin: string) => void;
-  onBalanceChange?: (balance: number) => void;
-  onPriceUpdate?: (price: number) => void;
+  setSelectedCoin: (c: string) => void;
+  onBalanceChange?: (b: number) => void;
+  onPriceUpdate?: (p: number) => void;
   externalPartsCount: number;
   setExternalPartsCount: (v: number) => void;
 }
@@ -76,7 +82,7 @@ export default function TradingCalculator({
   onPriceUpdate,
   externalPartsCount,
   setExternalPartsCount,
-}: TradingCalculatorProps) {
+}: CalculatorProps) {
   const [balance, setBalance] = useState(100);
   const [riskPercent, setRiskPercent] = useState(2);
   const [riskRewardRatio, setRiskRewardRatio] = useState(3);
@@ -94,17 +100,22 @@ export default function TradingCalculator({
     [],
   );
   const [tickerRegistry, setTickerRegistry] = useState<
-    Record<string, { price24hPcnt: number; turnover24h: number }>
+    Record<
+      string,
+      {
+        price24hPcnt: number;
+        turnover24h: number;
+      }
+    >
   >({});
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const partsCount = externalPartsCount;
   const setPartsCount = setExternalPartsCount;
-
   const currentCoinMeta = availableCoinsList.find(
     (c) => c.coin === selectedCoin,
   );
 
-  // Автоматическое вычисление точности по цене, если в метаданных стоит дефолтная 2
   const getAutoDecimals = () => {
     if (currentCoinMeta && currentCoinMeta.decimals !== 2) {
       return currentCoinMeta.decimals;
@@ -151,7 +162,9 @@ export default function TradingCalculator({
   const loadDatabaseCoins = useCallback(async (event?: Event) => {
     try {
       const res = await fetch("/api/coins");
-      if (!res.ok) throw new Error("Load coins error");
+      if (!res.ok) {
+        throw new Error("Coins err");
+      }
       const data = await res.json();
       let fetchedCoins: DBAssetCoin[] = data.coins || [];
 
@@ -173,7 +186,9 @@ export default function TradingCalculator({
         }
       }
       setAvailableCoinsList(fetchedCoins);
-      if (data.tickerRegistry) setTickerRegistry(data.tickerRegistry);
+      if (data.tickerRegistry) {
+        setTickerRegistry(data.tickerRegistry);
+      }
     } catch (e) {
       console.error("Ошибка загрузки монет:", e);
     }
@@ -189,7 +204,6 @@ export default function TradingCalculator({
       window.removeEventListener("refresh-calculator-coins", handleRefresh);
     };
   }, [loadDatabaseCoins]);
-
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedState = localStorage.getItem(STORAGE_KEY);
@@ -200,17 +214,33 @@ export default function TradingCalculator({
             setBalance(parsed.balance);
             onBalanceChange?.(parsed.balance);
           }
-          if (parsed.riskPercent) setRiskPercent(parsed.riskPercent);
-          if (parsed.riskRewardRatio)
+          if (parsed.riskPercent) {
+            setRiskPercent(parsed.riskPercent);
+          }
+          if (parsed.riskRewardRatio) {
             setRiskRewardRatio(parsed.riskRewardRatio);
-          if (parsed.selectedCoin) setSelectedCoin(parsed.selectedCoin);
-          if (parsed.orderType) setOrderType(parsed.orderType);
-          if (parsed.entryPrice) setEntryPrice(parsed.entryPrice);
-          if (parsed.stopLossPercent)
+          }
+          if (parsed.selectedCoin) {
+            setSelectedCoin(parsed.selectedCoin);
+          }
+          if (parsed.orderType) {
+            setOrderType(parsed.orderType);
+          }
+          if (parsed.entryPrice) {
+            setEntryPrice(parsed.entryPrice);
+          }
+          if (parsed.stopLossPercent) {
             setStopLossPercent(parsed.stopLossPercent);
-          if (parsed.leverage) setLeverage(Number(parsed.leverage));
-          if (parsed.side) setSide(parsed.side);
-          if (parsed.partsCount) setPartsCount(Number(parsed.partsCount));
+          }
+          if (parsed.leverage) {
+            setLeverage(Number(parsed.leverage));
+          }
+          if (parsed.side) {
+            setSide(parsed.side);
+          }
+          if (parsed.partsCount) {
+            setPartsCount(Number(parsed.partsCount));
+          }
         } catch (e) {
           console.error("Storage error", e);
         }
@@ -220,9 +250,10 @@ export default function TradingCalculator({
   }, [setSelectedCoin, onBalanceChange, setPartsCount]);
 
   useEffect(() => {
-    if (isLoaded) onBalanceChange?.(balance);
+    if (isLoaded) {
+      onBalanceChange?.(balance);
+    }
   }, [balance, isLoaded, onBalanceChange]);
-
   const getCalculatedIdealLeverage = useCallback(() => {
     const baseRiskAmount = (balance * riskPercent) / 100;
     const allocatedMarginMax = balance / partsCount;
@@ -241,7 +272,9 @@ export default function TradingCalculator({
         break;
       }
     }
-    if (finalRecLeverage > maxSafeLeverage) finalRecLeverage = maxSafeLeverage;
+    if (finalRecLeverage > maxSafeLeverage) {
+      finalRecLeverage = maxSafeLeverage;
+    }
     return finalRecLeverage;
   }, [balance, riskPercent, partsCount, stopLossPercent, maxSafeLeverage]);
 
@@ -270,18 +303,24 @@ export default function TradingCalculator({
     }
     const ideal = getCalculatedIdealLeverage();
     setLeverage(ideal);
-  }, [partsCount]);
+  }, [partsCount, isInitialLoad, getCalculatedIdealLeverage]);
 
   const fetchLiveTicker = useCallback(
     async (coin: string, isFirstInit: boolean, isCurrent: () => boolean) => {
       try {
-        if (isFirstInit) setTickerLoading(true);
-        const res = await fetch(`/api/bybit?symbol=${coin}`);
-        if (!res.ok) throw new Error("API error");
+        if (isFirstInit) {
+          setTickerLoading(true);
+        }
+        const res = await fetch("/api/bybit?symbol=" + coin);
+        if (!res.ok) {
+          throw new Error("API err");
+        }
         const data = await res.json();
         if (!isCurrent()) return;
         setTickerData(data);
-        if (onPriceUpdate && data.lastPrice) onPriceUpdate(data.lastPrice);
+        if (onPriceUpdate && data.lastPrice) {
+          onPriceUpdate(data.lastPrice);
+        }
         if (
           isFirstInit ||
           prevCoinRef.current !== coin ||
@@ -293,7 +332,9 @@ export default function TradingCalculator({
       } catch (err) {
         console.error("Bybit error", err);
       } finally {
-        if (isCurrent()) setTickerLoading(false);
+        if (isCurrent()) {
+          setTickerLoading(false);
+        }
       }
     },
     [onPriceUpdate],
@@ -305,9 +346,10 @@ export default function TradingCalculator({
   const handleCoinChange = (newCoin: string) => {
     setSelectedCoin(newCoin);
   };
-
   const handleReset = () => {
-    if (typeof window !== "undefined") localStorage.removeItem(STORAGE_KEY);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(STORAGE_KEY);
+    }
     setBalance(100);
     setRiskPercent(2);
     setRiskRewardRatio(3);
@@ -367,8 +409,11 @@ export default function TradingCalculator({
     partsCount,
     isLoaded,
   ]);
+
   useEffect(() => {
-    if (entryPrice <= 0 || stopLossPercent <= 0 || balance <= 0) return;
+    if (entryPrice <= 0 || stopLossPercent <= 0 || balance <= 0) {
+      return;
+    }
     const isLong = side === "BUY";
     const baseRiskAmount = (balance * riskPercent) / 100;
     const allocatedMarginMax = balance / partsCount;
@@ -401,7 +446,9 @@ export default function TradingCalculator({
     let liquidationPrice = isLong
       ? entryPrice * (1 - 1 / leverage + MMR + closeFeeRate)
       : entryPrice * (1 + 1 / leverage - MMR - closeFeeRate);
-    if (liquidationPrice < 0) liquidationPrice = 0;
+    if (liquidationPrice < 0) {
+      liquidationPrice = 0;
+    }
 
     setResults({
       riskAmount: actualRiskAmount,
@@ -435,8 +482,31 @@ export default function TradingCalculator({
     partsCount,
   ]);
 
+  const cardCls = cn(
+    "shadow-sm border flex flex-col",
+    "border-border/40 bg-background",
+    "rounded-xl sm:rounded-2xl",
+  );
+
+  const headCls = cn(
+    "py-2 px-2.5 border-b",
+    "border-border/40 sm:py-2.5",
+    "sm:px-4",
+  );
+
+  const titCls = cn(
+    "text-[11px] sm:text-xs",
+    "font-semibold uppercase",
+    "tracking-wider",
+    "text-muted-foreground",
+  );
+
+  const contCls = cn("space-y-3.5 p-2.5 flex-1", "sm:space-y-4 sm:p-4");
+
+  const repCls = cn("p-2.5 flex-1 flex flex-col", "justify-between sm:p-4");
+
   return (
-    <div className="w-full p-1.5 sm:p-4 space-y-3 sm:space-y-4">
+    <div className={cn("w-full p-1.5 space-y-3", "sm:p-4")}>
       <MarketTicker
         data={tickerData}
         loading={tickerLoading}
@@ -446,14 +516,18 @@ export default function TradingCalculator({
         onCoinChange={handleCoinChange}
         availableCoinsList={availableCoinsList}
       />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 items-stretch">
-        <Card className="shadow-sm border border-border/40 bg-background flex flex-col rounded-xl sm:rounded-2xl">
-          <CardHeader className="py-2 px-2.5 sm:py-2.5 sm:px-4 border-b border-border/40">
-            <CardTitle className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Панель параметров
-            </CardTitle>
+      <div
+        className={cn(
+          "grid grid-cols-1 gap-3",
+          "md:grid-cols-2 sm:gap-4",
+          "items-stretch",
+        )}
+      >
+        <Card className={cardCls}>
+          <CardHeader className={headCls}>
+            <CardTitle className={titCls}>Панель параметров</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3.5 sm:space-y-4 p-2.5 sm:p-4 flex-1">
+          <CardContent className={contCls}>
             <CoinSelector
               selectedCoin={selectedCoin}
               onCoinChange={handleCoinChange}
@@ -461,6 +535,7 @@ export default function TradingCalculator({
               setOrderType={setOrderType}
               availableCoinsList={availableCoinsList}
               tickerRegistry={tickerRegistry}
+              setIsModalOpen={setIsModalOpen}
             />
             <BalanceRiskForm
               balance={balance}
@@ -492,13 +567,11 @@ export default function TradingCalculator({
             />
           </CardContent>
         </Card>
-        <Card className="shadow-sm border border-border/40 bg-background flex flex-col rounded-xl sm:rounded-2xl">
-          <CardHeader className="py-2 px-2.5 sm:py-2.5 sm:px-4 border-b border-border/40">
-            <CardTitle className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Торговый отчет
-            </CardTitle>
+        <Card className={cardCls}>
+          <CardHeader className={headCls}>
+            <CardTitle className={titCls}>Торговый отчет</CardTitle>
           </CardHeader>
-          <CardContent className="p-2.5 sm:p-4 flex-1 flex flex-col justify-between">
+          <CardContent className={repCls}>
             <ResultsDisplay
               results={results}
               coin={selectedCoin}
@@ -509,6 +582,16 @@ export default function TradingCalculator({
           </CardContent>
         </Card>
       </div>
+      <ListingManagerModal
+        availableCoinsList={availableCoinsList}
+        setAvailableCoinsList={setAvailableCoinsList}
+        tickerRegistry={tickerRegistry}
+        isModalOpen={isModalOpen}
+        setIsModalOpen={setIsModalOpen}
+        handleToggleActive={() => {}}
+        handleSetActiveStatus={async () => {}}
+        onCoinSelect={setSelectedCoin}
+      />
     </div>
   );
 }

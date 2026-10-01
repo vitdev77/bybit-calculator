@@ -1,38 +1,27 @@
 "use client";
-
 import React, { useState, useEffect, useRef } from "react";
-import { Star, Check, Search, X, Settings } from "lucide-react";
+import { Star, Settings } from "lucide-react";
 import { toast } from "@/components/ui/toast";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 import { OrderType, DBAssetCoin } from "./TradingCalculator";
-import ListingManagerModal from "./ListingManagerModal";
-import { Spinner } from "@/components/ui/spinner";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
+import { CoinSelectorItem } from "./CoinSelectorItem";
+import { CoinSelectorDrop } from "./CoinSelectorDrop";
 
 interface CoinSelectorProps {
   selectedCoin: string;
-  onCoinChange: (value: string) => void;
+  onCoinChange: (v: string) => void;
   orderType: OrderType;
-  setOrderType: (value: OrderType) => void;
+  setOrderType: (v: OrderType) => void;
   availableCoinsList: DBAssetCoin[];
   tickerRegistry?: Record<
     string,
-    {
-      price24hPcnt: number;
-      turnover24h: number;
-    }
+    { price24hPcnt: number; turnover24h: number }
   >;
+  setIsModalOpen?: (v: boolean) => void;
 }
 
 interface GroupedCoins {
@@ -50,22 +39,23 @@ function getCoinGradient(name: string): string {
 }
 
 function CoinIcon({ symbol }: { symbol: string }) {
-  const [error, setError] = useState(false);
+  const [err, setErr] = useState(false);
   const base = symbol.replace("USDT", "");
-
-  if (!error) {
+  if (!err) {
     return (
       <img
-        src={`/crypto-icons/${base.toLowerCase()}.svg`}
+        src={"/crypto-icons/" + base.toLowerCase() + ".svg"}
         alt={base}
         className="size-4 shrink-0"
-        onError={() => setError(true)}
+        onError={() => setErr(true)}
       />
     );
   }
   return (
     <div
-      className="size-4 rounded-full flex items-center justify-center font-black text-white text-[8px] uppercase shrink-0"
+      className={cn(
+        "size-4 rounded-full flex items-center text-white justify-center font-black text-[8px] uppercase shrink-0",
+      )}
       style={{ backgroundImage: getCoinGradient(base) }}
     >
       {base.slice(0, 2)}
@@ -78,12 +68,10 @@ export default function CoinSelector({
   orderType,
   setOrderType,
   availableCoinsList = [],
-  tickerRegistry = {},
+  setIsModalOpen,
 }: CoinSelectorProps) {
   const [isStarToggling, setIsStarToggling] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  const [inputValue, setInputValue] = useState("");
+  const [inpValue, setInpValue] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [searchResults, setSearchResults] = useState<DBAssetCoin[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -92,7 +80,6 @@ export default function CoinSelector({
   const currentCoinData =
     availableCoinsList.find((c) => c.coin === selectedCoin) ||
     searchResults.find((c) => c.coin === selectedCoin);
-
   const isCurrentFavorite = currentCoinData
     ? currentCoinData.is_favorite
     : false;
@@ -100,12 +87,12 @@ export default function CoinSelector({
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      setDebouncedSearch(inputValue);
+      setDebouncedSearch(inpValue);
     }, 300);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [inputValue]);
+  }, [inpValue]);
 
   useEffect(() => {
     const query = debouncedSearch.trim();
@@ -114,49 +101,36 @@ export default function CoinSelector({
       setIsSearching(false);
       return;
     }
-
     setIsSearching(true);
-    const executeSearch = async () => {
-      try {
-        const u = `/api/coins?search=${encodeURIComponent(query)}`;
-        const res = await fetch(u);
-        if (res.ok) {
-          const data = await res.json();
-          if (data && Array.isArray(data.coins)) {
-            setSearchResults(data.coins);
-          }
-        }
-      } catch (err) {
-        console.error("Ошибка поиска:", err);
-      } finally {
-        setIsSearching(false);
-      }
-    };
-    executeSearch();
+    fetch("/api/coins?search=" + encodeURIComponent(query))
+      .then((res) => {
+        if (res.ok) return res.json();
+      })
+      .then((data) => {
+        if (data && Array.isArray(data.coins)) setSearchResults(data.coins);
+      })
+      .catch((err) => console.error(err))
+      .finally(() => setIsSearching(false));
   }, [debouncedSearch]);
-  const handleToggleFavoriteClick = async (e: React.MouseEvent) => {
+
+  const handleToggleFavClick = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (isStarToggling || !selectedCoin) return;
     setIsStarToggling(true);
-
     const nextState = !isCurrentFavorite;
     setSearchResults((prev) =>
       prev.map((c) =>
         c.coin === selectedCoin ? { ...c, is_favorite: nextState } : c,
       ),
     );
-
     try {
-      const response = await fetch("/api/coins", {
+      const res = await fetch("/api/coins", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "TOGGLE_FAVORITE",
-          coin: selectedCoin,
-        }),
+        body: JSON.stringify({ action: "TOGGLE_FAVORITE", coin: selectedCoin }),
       });
-      if (response.ok) {
+      if (res.ok) {
         window.dispatchEvent(
           new CustomEvent("refresh-calculator-coins", {
             detail: { coin: selectedCoin, is_favorite: nextState },
@@ -164,9 +138,7 @@ export default function CoinSelector({
         );
         toast.add({
           title: isCurrentFavorite ? "Удалено" : "Добавлено",
-          description: isCurrentFavorite
-            ? `Пара ${selectedCoin} удалена из избранного.`
-            : `Пара ${selectedCoin} добавлена в избранное.`,
+          description: isCurrentFavorite ? "Из избранного." : "В избранное.",
           type: "with-icon",
         });
       }
@@ -183,26 +155,20 @@ export default function CoinSelector({
   ) => {
     e.preventDefault();
     e.stopPropagation();
-
     const targetCoin =
       availableCoinsList.find((c) => c.coin === coinName) ||
       searchResults.find((c) => c.coin === coinName);
     const nextState = targetCoin ? !targetCoin.is_favorite : true;
-
     setSearchResults((prev) =>
       prev.map((c) =>
         c.coin === coinName ? { ...c, is_favorite: nextState } : c,
       ),
     );
-
     try {
       await fetch("/api/coins", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "TOGGLE_FAVORITE",
-          coin: coinName,
-        }),
+        body: JSON.stringify({ action: "TOGGLE_FAVORITE", coin: coinName }),
       });
       window.dispatchEvent(
         new CustomEvent("refresh-calculator-coins", {
@@ -224,24 +190,44 @@ export default function CoinSelector({
     if (!debouncedSearch.trim() && asset.is_favorite) return;
     const firstLetter = asset.coin.charAt(0).toUpperCase();
     if (!groupedCoins[firstLetter]) groupedCoins[firstLetter] = [];
-    if (!groupedCoins[firstLetter].some((c) => c.coin === asset.coin)) {
+    if (!groupedCoins[firstLetter].some((c) => c.coin === asset.coin))
       groupedCoins[firstLetter].push(asset);
-    }
   });
 
   const sortedLetters = Object.keys(groupedCoins).sort();
+  const lblCls = cn(
+    "text-[10px] font-bold sm:text-xs uppercase text-muted-foreground tracking-wider block",
+  );
+  const containerCls = cn("space-y-1 w-full min-w-0");
+  const triggerCls = cn(
+    "w-full bg-background pr-3 border border-input pl-2 shadow-none text-[11px] sm:text-sm h-9.5!",
+  );
+  const popupCls = cn("w-64! min-w-64! max-w-64! overflow-x-hidden p-1");
+  const searchBoxCls = cn(
+    "p-1 border-b sticky z-30 border-border/40 gap-1.5 top-0 bg-popover flex items-center",
+  );
+  const inpCls = cn(
+    "w-full text-xs p-0 bg-transparent h-6 outline-none text-foreground",
+  );
+  const scrollCls = cn("max-h-56 mt-1 overflow-y-auto scrollbar-thin");
+  const btnFavClass = cn(
+    "p-0 border flex bg-transparent items-center shrink-0 justify-center h-9.5 w-9.5 border-input rounded-xl outline-none transition-colors hover:bg-muted/40 cursor-pointer text-muted-foreground/40 hover:text-foreground",
+    isCurrentFavorite ? "text-amber-500! hover:text-amber-600!" : "",
+  );
+  const btnSetClass = cn(
+    "p-0 border flex bg-transparent items-center shrink-0 justify-center h-9.5 w-9.5 border-input rounded-xl outline-none transition-colors hover:bg-muted/40 cursor-pointer text-muted-foreground hover:text-foreground",
+  );
+
   return (
     <div className="space-y-3.5 w-full">
       <div className="space-y-1 w-full">
-        <Label className="text-[10px] sm:text-xs text-muted-foreground font-bold uppercase tracking-wider block">
-          Тип ордера
-        </Label>
-        <ButtonGroup className="w-full flex h-9.5 sm:h-9">
+        <Label className={lblCls}>Тип ордера</Label>
+        <ButtonGroup className="w-full flex h-9.5">
           <Button
             type="button"
             variant={orderType === "MARKET" ? "default" : "outline"}
             className={cn(
-              "flex-1 h-full text-[11px] sm:text-xs px-1 font-semibold shadow-none border border-input",
+              "flex-1 h-full px-1 font-semibold text-[11px] sm:text-xs shadow-none border border-input",
               orderType === "MARKET" ? "font-bold" : "",
             )}
             onClick={() => setOrderType("MARKET")}
@@ -252,7 +238,7 @@ export default function CoinSelector({
             type="button"
             variant={orderType === "LIMIT" ? "default" : "outline"}
             className={cn(
-              "flex-1 h-full text-[11px] sm:text-xs px-1 font-semibold shadow-none border border-input",
+              "flex-1 h-full px-1 font-semibold text-[11px] sm:text-xs shadow-none border border-input",
               orderType === "LIMIT" ? "font-bold" : "",
             )}
             onClick={() => setOrderType("LIMIT")}
@@ -261,11 +247,12 @@ export default function CoinSelector({
           </Button>
         </ButtonGroup>
       </div>
-
-      <div className="space-y-1 w-full min-w-0">
+      <div className={containerCls}>
         <Label
           htmlFor="coin-select"
-          className="text-[10px] sm:text-xs text-muted-foreground truncate block font-bold uppercase tracking-wider"
+          className={cn(
+            "text-[10px] sm:text-xs font-bold truncate text-muted-foreground block uppercase tracking-wider",
+          )}
         >
           Торговая пара
         </Label>
@@ -276,156 +263,37 @@ export default function CoinSelector({
               onValueChange={(value) => {
                 if (value) {
                   onCoinChange(value);
-                  setInputValue("");
+                  setInpValue("");
                   setDebouncedSearch("");
                 }
               }}
             >
-              <SelectTrigger
-                id="coin-select"
-                className="w-full bg-background border border-input shadow-none text-[11px] sm:text-sm pl-2 pr-3 h-9.5! sm:h-9!"
-              >
+              <SelectTrigger id="coin-select" className={triggerCls}>
                 <SelectValue placeholder="Монета" />
               </SelectTrigger>
-              <SelectContent className="w-64! min-w-64! max-w-64! overflow-x-hidden p-1">
-                <div className="p-1 border-b border-border/40 sticky top-0 bg-popover z-30 flex items-center gap-1.5">
-                  {isSearching ? (
-                    <Spinner className="text-amber-500 shrink-0 ml-1" />
-                  ) : (
-                    <Search className="size-3 text-muted-foreground/60 shrink-0 ml-1" />
-                  )}
-                  <input
-                    type="text"
-                    placeholder="Поиск по всей базе..."
-                    value={inputValue}
-                    onClick={(e) => e.stopPropagation()}
-                    onKeyDown={(e) => e.stopPropagation()}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    className="w-full text-xs bg-transparent outline-none h-6 p-0 text-foreground"
-                  />
-                  {inputValue && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setInputValue("");
-                        setDebouncedSearch("");
-                      }}
-                      className="p-0.5 bg-transparent border-none text-muted-foreground hover:text-foreground cursor-pointer"
-                    >
-                      <X className="size-3" />
-                    </button>
-                  )}
-                </div>
-                <div className="max-h-56 overflow-y-auto scrollbar-thin mt-1">
-                  {favoriteCoins.length > 0 && !debouncedSearch.trim() && (
-                    <SelectGroup>
-                      <SelectLabel className="text-amber-500 font-black text-[10px] tracking-wide">
-                        ★ ИЗБРАННОЕ ({favoriteCoins.length})
-                      </SelectLabel>
-                      {favoriteCoins.map((asset) => (
-                        <SelectItem
-                          key={asset.coin}
-                          value={asset.coin}
-                          className="text-xs sm:text-sm pr-2! flex items-center w-full justify-between [&>span:last-child]:hidden"
-                        >
-                          <div className="flex items-center justify-between w-full">
-                            <div className="flex items-center gap-2 truncate flex-1">
-                              <CoinIcon symbol={asset.coin} />
-                              <span className="truncate font-semibold">
-                                {asset.coin}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0 ml-auto">
-                              {selectedCoin === asset.coin && (
-                                <Check className="size-3 text-amber-500" />
-                              )}
-                              <button
-                                type="button"
-                                onClick={(e) =>
-                                  handleToggleFavInMenu(e, asset.coin)
-                                }
-                                className="p-0.5 text-amber-500 bg-transparent border-none cursor-pointer"
-                              >
-                                <Star className="size-3" fill="currentColor" />
-                              </button>
-                            </div>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  )}
-                  {sortedLetters.map((letter) => (
-                    <SelectGroup key={letter}>
-                      <SelectLabel className="text-muted-foreground font-bold text-[10px] border-b border-border/10 pb-0.5 mt-1">
-                        {debouncedSearch.trim()
-                          ? `РЕЗУЛЬТАТЫ (${letter})`
-                          : letter}
-                      </SelectLabel>
-                      {groupedCoins[letter].map((asset) => (
-                        <SelectItem
-                          key={asset.coin}
-                          value={asset.coin}
-                          className="text-xs sm:text-sm pr-2! flex items-center w-full justify-between [&>span:last-child]:hidden"
-                        >
-                          <div className="flex items-center justify-between w-full">
-                            <div className="flex items-center gap-2 truncate flex-1">
-                              <CoinIcon symbol={asset.coin} />
-                              <span
-                                className={cn(
-                                  "truncate",
-                                  asset.is_favorite
-                                    ? "font-semibold text-amber-500"
-                                    : "",
-                                )}
-                              >
-                                {asset.coin}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0 ml-auto">
-                              {selectedCoin === asset.coin && (
-                                <Check
-                                  className={cn(
-                                    "size-3",
-                                    asset.is_favorite
-                                      ? "text-amber-500"
-                                      : "text-muted-foreground/60",
-                                  )}
-                                />
-                              )}
-                              <button
-                                type="button"
-                                onClick={(e) =>
-                                  handleToggleFavInMenu(e, asset.coin)
-                                }
-                                className="p-0.5 bg-transparent border-none cursor-pointer text-muted-foreground/20 hover:text-amber-500"
-                                data-fav={asset.is_favorite}
-                              >
-                                <Star
-                                  className="size-3"
-                                  fill={
-                                    asset.is_favorite ? "currentColor" : "none"
-                                  }
-                                />
-                              </button>
-                            </div>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  ))}
-                </div>
-              </SelectContent>
+              <CoinSelectorDrop
+                isSearching={isSearching}
+                inpValue={inpValue}
+                setInpValue={setInpValue}
+                setDebouncedSearch={setDebouncedSearch}
+                favoriteCoins={favoriteCoins}
+                sortedLetters={sortedLetters}
+                groupedCoins={groupedCoins}
+                selectedCoin={selectedCoin}
+                handleToggleFavInMenu={handleToggleFavInMenu}
+                CoinIcon={CoinIcon}
+                popupCls={popupCls}
+                searchBoxCls={searchBoxCls}
+                inpCls={inpCls}
+                scrollCls={scrollCls}
+              />
             </Select>
           </div>
           <button
             type="button"
             disabled={isStarToggling}
-            onClick={handleToggleFavoriteClick}
-            className={cn(
-              "p-0 text-muted-foreground/40 hover:text-foreground bg-transparent border border-input rounded-xl flex items-center justify-center shrink-0 h-9.5 w-9.5 sm:h-9 sm:w-9 transition-colors hover:bg-muted/40 outline-none cursor-pointer",
-              isCurrentFavorite ? "text-amber-500! hover:text-amber-600!" : "",
-            )}
+            onClick={handleToggleFavClick}
+            className={btnFavClass}
             title={isCurrentFavorite ? "Из избранного" : "В избранное"}
           >
             <Star
@@ -435,22 +303,12 @@ export default function CoinSelector({
           </button>
           <button
             type="button"
-            onClick={() => setIsModalOpen(true)}
-            className="p-0 text-muted-foreground hover:text-foreground bg-transparent border border-input rounded-xl flex items-center justify-center shrink-0 h-9.5 w-9.5 sm:h-9 sm:w-9 transition-colors hover:bg-muted/40 outline-none cursor-pointer"
-            title="Просмотр статистики листинга"
+            onClick={() => setIsModalOpen?.(true)}
+            className={btnSetClass}
+            title="Просмотр статистики"
           >
             <Settings className="size-4" />
           </button>
-
-          {/* ИСПРАВЛЕНО: Полное возвращение к оригинальному вызову модалки без лишних пропсов */}
-          <ListingManagerModal
-            availableCoinsList={availableCoinsList}
-            tickerRegistry={tickerRegistry}
-            isModalOpen={isModalOpen}
-            setIsModalOpen={setIsModalOpen}
-            handleToggleActive={() => {}}
-            handleSetActiveStatus={async () => {}}
-          />
         </div>
       </div>
     </div>
