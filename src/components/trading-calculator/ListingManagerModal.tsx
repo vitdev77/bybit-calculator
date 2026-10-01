@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { X, Search, Coins, Zap, Flame, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DBAssetCoin } from "./TradingCalculator";
@@ -42,6 +42,8 @@ export default function ListingModal({
   setIsModalOpen,
   setAvailableCoinsList,
   onCoinSelect,
+  tickerRegistry,
+  availableCoinsList,
 }: ListingModalProps) {
   const [modalSearch, setModalSearch] = useState("");
   const [filterType, setFilterType] = useState<
@@ -50,13 +52,7 @@ export default function ListingModal({
   const [fullCoinsList, setFullCoinsList] = useState<DBAssetCoin[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [localRegistry, setLocalRegistry] = useState<
-    Record<
-      string,
-      {
-        price24hPcnt: number;
-        turnover24h: number;
-      }
-    >
+    Record<string, { price24hPcnt: number; turnover24h: number }>
   >({});
   const [favLoadingMap, setFavLoadingMap] = useState<Record<string, boolean>>(
     {},
@@ -72,15 +68,11 @@ export default function ListingModal({
         })
         .then((data) => {
           if (data) {
-            if (Array.isArray(data.coins)) {
-              setFullCoinsList(data.coins);
-            }
-            if (data.tickerRegistry) {
-              setLocalRegistry(data.tickerRegistry);
-            }
+            if (Array.isArray(data.coins)) setFullCoinsList(data.coins);
+            if (data.tickerRegistry) setLocalRegistry(data.tickerRegistry);
           }
         })
-        .catch((e) => console.error(e))
+        .catch((err) => console.error("Ошибка листинга:", err))
         .finally(() => setIsLoading(false));
     }
   }, [isModalOpen]);
@@ -97,7 +89,6 @@ export default function ListingModal({
       });
     }
   };
-
   const handleToggleFav = async (
     e: React.MouseEvent,
     coinName: string,
@@ -107,10 +98,7 @@ export default function ListingModal({
     e.stopPropagation();
     if (favLoadingMap[coinName]) return;
 
-    setFavLoadingMap((prev) => ({
-      ...prev,
-      [coinName]: true,
-    }));
+    setFavLoadingMap((prev) => ({ ...prev, [coinName]: true }));
     const nextState = !currentFav;
 
     setFullCoinsList((prev) =>
@@ -122,32 +110,20 @@ export default function ListingModal({
     try {
       const response = await fetch("/api/coins", {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          action: "TOGGLE_FAVORITE",
-          coin: coinName,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "TOGGLE_FAVORITE", coin: coinName }),
       });
+
       if (response.ok) {
         window.dispatchEvent(
           new CustomEvent("refresh-calculator-coins", {
-            detail: {
-              coin: coinName,
-              is_favorite: nextState,
-            },
+            detail: { coin: coinName, is_favorite: nextState },
           }),
         );
         if (setAvailableCoinsList) {
           setAvailableCoinsList((prev) =>
             prev.map((c) =>
-              c.coin === coinName
-                ? {
-                    ...c,
-                    is_favorite: nextState,
-                  }
-                : c,
+              c.coin === coinName ? { ...c, is_favorite: nextState } : c,
             ),
           );
         }
@@ -155,12 +131,10 @@ export default function ListingModal({
     } catch (err) {
       console.error(err);
     } finally {
-      setFavLoadingMap((prev) => ({
-        ...prev,
-        [coinName]: false,
-      }));
+      setFavLoadingMap((prev) => ({ ...prev, [coinName]: false }));
     }
   };
+
   let totalLiqCount = 0;
   let totalRiskCount = 0;
   let totalDelistedCount = 0;
@@ -170,9 +144,7 @@ export default function ListingModal({
       totalDelistedCount++;
       return;
     }
-    const liveStats = localRegistry[asset.coin] || {
-      turnover24h: 0,
-    };
+    const liveStats = localRegistry[asset.coin] || { turnover24h: 0 };
     const isMem =
       asset.coin.includes("DOGE") ||
       asset.coin.includes("SHIB") ||
@@ -184,21 +156,14 @@ export default function ListingModal({
       asset.decimals >= 4 ||
       (liveStats.turnover24h > 0 && liveStats.turnover24h < 10000000);
 
-    if (liveStats.turnover24h >= 100000000) {
-      totalLiqCount++;
-    }
-    if (isRisk) {
-      totalRiskCount++;
-    }
+    if (liveStats.turnover24h >= 100000000) totalLiqCount++;
+    if (isRisk) totalRiskCount++;
   });
-
   const sortedAndFilteredCoins = fullCoinsList.filter((asset) => {
     const match = asset.coin.toLowerCase().includes(modalSearch.toLowerCase());
     if (!match) return false;
 
-    const live = localRegistry[asset.coin] || {
-      turnover24h: 0,
-    };
+    const live = localRegistry[asset.coin] || { turnover24h: 0 };
     const isMem =
       asset.coin.includes("DOGE") ||
       asset.coin.includes("SHIB") ||
@@ -214,22 +179,18 @@ export default function ListingModal({
     const isLiq = !asset.is_delisted && live.turnover24h >= 100000000;
 
     if (filterType === "LIQ") return isLiq;
-    if (filterType === "RISK") {
-      return isRisk;
-    }
-    if (filterType === "DELIS") {
-      return asset.is_delisted;
-    }
+    if (filterType === "RISK") return isRisk;
+    if (filterType === "DELIS") return asset.is_delisted;
     return true;
   });
+
   return (
     <AlertDialog open={isModalOpen} onOpenChange={setIsModalOpen}>
       <AlertDialogContent
         className={cn(
-          "w-[calc(100%-1rem)] md:max-w-2xl! p-4",
-          "rounded-2xl text-xs border",
-          "border-border/40 bg-background/90",
-          "backdrop-blur-md shadow-2xl",
+          "w-[calc(100%-0.5rem)] md:max-w-2xl! p-4",
+          "rounded-2xl text-xs border border-border/40",
+          "bg-background/90 backdrop-blur-md shadow-2xl",
         )}
       >
         <AlertDialogHeader
@@ -239,17 +200,14 @@ export default function ListingModal({
           )}
         >
           <AlertDialogTitle
-            className={cn("text-sm font-black uppercase", "tracking-wider")}
+            className={cn("text-sm font-black", "uppercase tracking-wider")}
           >
             Листинг пар Bybit
           </AlertDialogTitle>
           <AlertDialogCancel
             className={cn(
-              "p-1 h-auto w-auto shadow-none",
-              "bg-transparent border-none",
-              "text-muted-foreground",
-              "hover:text-foreground rounded-md",
-              "flex items-center justify-end",
+              "p-1 h-auto w-auto bg-transparent border-none text-muted-foreground",
+              "hover:text-foreground shadow-none rounded-md flex items-center justify-end",
               "cursor-pointer sm:self-start",
             )}
           >
@@ -260,15 +218,13 @@ export default function ListingModal({
         <div
           className={cn(
             "my-3 flex flex-col sm:flex-row",
-            "gap-2.5 items-stretch",
-            "sm:items-center",
+            "gap-2.5 items-stretch sm:items-center",
           )}
         >
           <div className={cn("relative flex-1 flex items-center")}>
             <Search
               className={cn(
-                "absolute left-2.5 h-3.5 w-3.5",
-                "text-muted-foreground/60",
+                "absolute left-2.5 h-3.5 w-3.5 text-muted-foreground/60",
               )}
             />
             <Input
@@ -277,26 +233,22 @@ export default function ListingModal({
               value={modalSearch}
               onChange={(e) => setModalSearch(e.target.value)}
               className={cn(
-                "pl-8 pr-8 h-8 text-xs",
-                "bg-muted/20 w-full rounded-lg",
-                "border-border/40",
+                "pl-8 pr-8 h-8 text-xs bg-muted/20 w-full border-border/40 rounded-lg",
               )}
             />
           </div>
           <ButtonGroup
             className={cn(
-              "h-8 border p-0.5 border-border/40",
-              "rounded-lg bg-muted/20 w-full sm:w-auto",
-              "overflow-hidden flex items-center",
+              "h-8 border p-0.5 border-border/40 rounded-lg bg-muted/20",
+              "w-full sm:w-auto overflow-hidden flex items-center",
             )}
           >
             <Button
               type="button"
               variant={filterType === "ALL" ? "default" : "ghost"}
-              className="h-full px-2 rounded-md flex-1 sm:flex-none flex items-center justify-center gap-1"
+              className="h-full px-2.5 rounded-md flex-1 sm:flex-none flex items-center justify-center gap-1"
               onClick={() => setFilterType("ALL")}
             >
-              {/* Иконки увеличены до size-4 на мобилках */}
               <Coins className="inline sm:hidden size-4 text-foreground" />
               <span className="hidden sm:inline text-[10px] font-bold uppercase">
                 Все
@@ -308,7 +260,7 @@ export default function ListingModal({
             <Button
               type="button"
               variant={filterType === "LIQ" ? "default" : "ghost"}
-              className="h-full px-2 rounded-md flex-1 sm:flex-none flex items-center justify-center gap-1"
+              className="h-full px-2.5 rounded-md flex-1 sm:flex-none flex items-center justify-center gap-1"
               onClick={() => setFilterType("LIQ")}
             >
               <Zap className="inline sm:hidden size-4 text-amber-500" />
@@ -322,7 +274,7 @@ export default function ListingModal({
             <Button
               type="button"
               variant={filterType === "RISK" ? "default" : "ghost"}
-              className="h-full px-2 rounded-md flex-1 sm:flex-none flex items-center justify-center gap-1"
+              className="h-full px-2.5 rounded-md flex-1 sm:flex-none flex items-center justify-center gap-1"
               onClick={() => setFilterType("RISK")}
             >
               <Flame className="inline sm:hidden size-4 text-orange-500" />
@@ -336,7 +288,7 @@ export default function ListingModal({
             <Button
               type="button"
               variant={filterType === "DELIS" ? "default" : "ghost"}
-              className="h-full px-2 rounded-md flex-1 sm:flex-none flex items-center justify-center gap-1"
+              className="h-full px-2.5 rounded-md flex-1 sm:flex-none flex items-center justify-center gap-1"
               onClick={() => setFilterType("DELIS")}
             >
               <AlertTriangle className="inline sm:hidden size-4 text-rose-500" />
@@ -352,15 +304,13 @@ export default function ListingModal({
 
         <div
           className={cn(
-            "max-h-64 pr-1 overflow-y-auto",
-            "space-y-1.5 scrollbar-thin",
+            "max-h-64 pr-1 overflow-y-auto space-y-1.5 scrollbar-thin",
           )}
         >
           {isLoading ? (
             <div
               className={cn(
-                "flex p-8 gap-2 items-center",
-                "justify-center text-muted-foreground",
+                "flex p-8 gap-2 items-center justify-center text-muted-foreground",
               )}
             >
               <Spinner className="text-amber-500" />

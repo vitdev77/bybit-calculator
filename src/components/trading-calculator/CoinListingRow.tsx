@@ -15,6 +15,7 @@ interface RowProps {
   onSelect: (coin: string, del: boolean) => void;
   onToggleFav: (e: React.MouseEvent, coin: string, fav: boolean) => void;
 }
+
 export function CoinListingRow({
   item,
   idx,
@@ -53,20 +54,32 @@ export function CoinListingRow({
     }
     return num.toFixed(0);
   }
+
+  const renderBadge = (type: "RISK" | "LIQ") => {
+    const isR = type === "RISK";
+    return (
+      <span
+        className={cn(
+          "flex px-1 text-center py-0.5 shrink-0",
+          "font-black tracking-wider rounded border text-[9px] font-sans",
+          isR
+            ? "bg-amber-500/10 border-amber-500/20 text-amber-500"
+            : "bg-emerald-500/10 border-emerald-500/20 text-emerald-500",
+        )}
+      >
+        {type}
+      </span>
+    );
+  };
+
   return (
     <div
       onClick={() => onSelect(item.coin, item.is_delisted)}
       className={cn(
-        "grid grid-cols-12 p-2 gap-2",
-        "items-center rounded-xl border",
-        "bg-background/50 transition-all",
+        "grid grid-cols-12 p-2 gap-2 items-center rounded-xl border bg-background/50 transition-all",
         item.is_delisted
-          ? "border-rose-500/10 opacity-56" +
-              " bg-rose-500/2" +
-              " cursor-not-allowed"
-          : "border-border/30 cursor-pointer" +
-              " hover:bg-muted/30" +
-              " hover:border-amber-500/30",
+          ? "border-rose-500/10 opacity-56 bg-rose-500/2 cursor-not-allowed"
+          : "border-border/30 cursor-pointer hover:bg-muted/30 hover:border-amber-500/30",
       )}
     >
       <div
@@ -77,12 +90,10 @@ export function CoinListingRow({
           disabled={favLoading || item.is_delisted}
           onClick={(e) => onToggleFav(e, item.coin, item.is_favorite)}
           className={cn(
-            "p-1 bg-transparent border-none",
-            "outline-none transition-colors shrink-0",
+            "p-1 bg-transparent border-none outline-none transition-colors shrink-0",
             item.is_delisted
               ? "hidden"
-              : "cursor-pointer text-muted-" +
-                  "foreground/30 hover:text-amber-500",
+              : "cursor-pointer text-muted-foreground/30 hover:text-amber-500",
             item.is_favorite ? "text-amber-500!" : "",
           )}
         >
@@ -93,10 +104,8 @@ export function CoinListingRow({
         </button>
 
         <div className="flex flex-col min-w-0 flex-1">
-          {/* ФИКС: flex-nowrap запрещает перенос бейджей на вторую строку */}
-          <div
-            className={cn("flex gap-1.5 items-center", "min-w-0 flex-nowrap")}
-          >
+          {/* ЯРУС 1: Название пары */}
+          <div className={cn("flex gap-1.5 items-center min-w-0 flex-nowrap")}>
             <span
               className={cn(
                 "text-[10px] font-bold min-w-6",
@@ -113,38 +122,23 @@ export function CoinListingRow({
             >
               {item.coin}
             </span>
-            {/* ФИКС: shrink-0 гарантирует, что буквы R и L сохранят круглую/квадратную геометрию и не сожмутся */}
-            {isHighRisk && (
-              <span
-                className={cn(
-                  "flex px-1 text-center py-0.5 shrink-0",
-                  "font-black tracking-wider rounded border",
-                  "bg-amber-500/10 border-amber-500/20",
-                  "text-amber-500 font-sans text-[9px]",
-                )}
-              >
-                <span className="inline sm:hidden">R</span>
-                <span className="hidden sm:inline">RISK</span>
-              </span>
-            )}
-            {isHighLiq && (
-              <span
-                className={cn(
-                  "flex px-1 text-center py-0.5 shrink-0",
-                  "font-black tracking-wider border rounded",
-                  "bg-emerald-500/10 border-emerald-500/20",
-                  "text-emerald-500 font-sans text-[9px]",
-                )}
-              >
-                <span className="inline sm:hidden">L</span>
-                <span className="hidden sm:inline">LIQ</span>
-              </span>
-            )}
+            {/* На десктопе бейджи остаются в основном ряду */}
+            <div className="hidden sm:flex gap-1.5 items-center">
+              {isHighRisk && renderBadge("RISK")}
+              {isHighLiq && renderBadge("LIQ")}
+            </div>
           </div>
+
+          {/* ЯРУС 2 (Мобильный): Бейджи переносятся под название пары на смартфонах */}
+          <div className="flex sm:hidden gap-1.5 items-center mt-1 pl-7">
+            {isHighRisk && renderBadge("RISK")}
+            {isHighLiq && renderBadge("LIQ")}
+          </div>
+
+          {/* ЯРУС 3: Слово Дробь: со значением опускается строго под LIQ RISK */}
           <span
             className={cn(
-              "text-[9px] mt-1 pl-7 truncate",
-              "text-muted-foreground/40",
+              "text-[9px] mt-1 pl-7 truncate text-muted-foreground/40 block",
             )}
           >
             Дробь:{" "}
@@ -190,7 +184,7 @@ export function CoinListingRow({
         ) : (
           <span
             className={cn(
-              "px-2 py-0.5 font-black text-[9px] shrink-0",
+              "px-2 py-0.5 font-black text-[9px]",
               "uppercase tracking-wider bg-rose-500/10",
               "text-rose-500 border border-rose-500/20 rounded",
             )}
