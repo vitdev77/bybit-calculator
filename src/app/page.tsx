@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { ChevronUp, ChevronDown } from "lucide-react";
+import Link from "next/link";
+import { ChevronUp, ChevronDown, Terminal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import TradingCalculator from "@/components/trading-calculator/TradingCalculator";
 import TradingViewChart from "@/components/trading-calculator/TradingViewChart";
@@ -77,75 +78,153 @@ export default function Home() {
   };
 
   const headClass = cn(
-    "sticky top-0 z-50 w-full px-4 sm:px-6",
-    "bg-background/60 backdrop-blur-xl",
-    "border-b border-white/5 shadow-xs py-3",
-    "mb-4 select-none flex items-center",
+    "sticky top-0 z-50 w-full",
+    "px-4 sm:px-6 bg-background/60",
+    "backdrop-blur-xl border-b",
+    "border-white/5 shadow-xs py-3",
+    "mb-4 select-none flex",
+    "items-center",
     "justify-between gap-4",
   );
 
   const badgeClass = cn(
-    "inline-flex items-center gap-1.5",
-    "bg-neutral-500/10 border px-2 py-0.5",
-    "border-border/40 rounded-md",
-    "text-[10px] sm:text-xs text-foreground/90",
+    "inline-flex items-center",
+    "gap-1.5 bg-neutral-500/10",
+    "border px-2 py-0.5",
+    "border-border/40",
+    "rounded-md text-[10px]",
+    "sm:text-xs",
+    "text-foreground/90",
   );
-
   return (
-    <main className="min-h-screen pt-0 pb-6 max-w-[2000px] mx-auto px-2 sm:px-6 w-full overflow-hidden">
+    <main
+      className={cn(
+        "min-h-screen pt-0 pb-6",
+        "max-w-[2000px] mx-auto",
+        "px-2 sm:px-6 w-full",
+      )}
+    >
       <div className={headClass}>
-        <div className="flex flex-col min-w-0">
-          <h1 className="text-sm sm:text-base font-black tracking-tight text-foreground truncate">
+        <div className={cn("flex flex-col min-w-0")}>
+          <h1
+            className={cn(
+              "text-sm sm:text-base",
+              "font-black",
+              "tracking-tight",
+              "text-foreground",
+              "truncate",
+            )}
+          >
             Bybit Futures{" "}
-            <span className="text-muted-foreground font-normal">
+            <span className={cn("text-muted-foreground", "font-normal")}>
               / Calculator
             </span>
           </h1>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className="relative flex h-1.5 w-1.5">
+          <div className={cn("flex items-center", "gap-2 mt-0.5")}>
+            <span className={cn("relative flex h-1.5 w-1.5")}>
               <span
                 className={cn(
-                  "animate-ping absolute inline-flex h-full w-full",
-                  "rounded-full bg-emerald-400 opacity-75",
+                  "animate-ping absolute",
+                  "inline-flex h-full",
+                  "w-full rounded-full",
+                  "bg-emerald-400",
+                  "opacity-75",
                 )}
               />
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+              <span
+                className={cn(
+                  "relative inline-flex",
+                  "rounded-full h-1.5",
+                  "w-1.5 bg-emerald-500",
+                )}
+              />
             </span>
             <p className={badgeClass}>
               Изолированная маржа 1/{partsCount} •{" "}
-              <span className="font-bold text-amber-500">
+              <span className={cn("font-bold", "text-amber-500")}>
                 {(currentBalance / partsCount).toFixed(2)}
               </span>{" "}
               USDT
             </p>
           </div>
         </div>
-        <div className="flex items-center shrink-0">
+
+        {/* Группа управления: Новая иконка Terminal + Разделитель + Тема */}
+        <div className={cn("flex items-center", "gap-3 shrink-0 ml-auto")}>
+          <Link
+            href="/admin/db"
+            className={cn(
+              "inline-flex items-center",
+              "justify-center h-9 w-9",
+              "rounded-md text-amber-500",
+              "transition-all cursor-pointer",
+              "hover:bg-amber-500/10",
+            )}
+            title="Открыть проводник СУБД"
+          >
+            <Terminal className="h-[1.2rem] w-[1.2rem]" />
+          </Link>
+
+          <div
+            className={cn(
+              "h-5 w-px shrink-0",
+              "bg-neutral-200",
+              "dark:bg-neutral-800",
+            )}
+          />
+
           <ModeToggle />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start w-full">
-        <div className="xl:col-span-5 order-first xl:order-last w-full">
-          <div className="border border-border/40 bg-background rounded-2xl p-1 transition-all">
+      {/* Переносим overflow-hidden на саму сетку */}
+      <div
+        className={cn(
+          "grid grid-cols-1",
+          "xl:grid-cols-12",
+          "gap-6 items-start",
+          "w-full overflow-hidden",
+        )}
+      >
+        <div
+          className={cn(
+            "xl:col-span-5",
+            "order-first",
+            "xl:order-last",
+            "w-full",
+          )}
+        >
+          <div
+            className={cn(
+              "border border-border/40",
+              "bg-background",
+              "rounded-2xl p-1",
+              "transition-all",
+            )}
+          >
             <div
               onClick={() => setIsCalcExpanded(!isCalcExpanded)}
               className={cn(
-                "flex items-center justify-between",
-                "px-3 py-2 cursor-pointer",
+                "flex items-center",
+                "justify-between",
+                "px-3 py-2",
+                "cursor-pointer",
                 "select-none",
               )}
             >
-              <div className="flex flex-col min-w-0 pr-2">
+              <div className={cn("flex flex-col", "min-w-0 pr-2")}>
                 <h2
                   className={cn(
-                    "text-xs font-bold uppercase tracking-wider text-muted-foreground",
+                    "text-xs font-bold",
+                    "uppercase",
+                    "tracking-wider",
+                    "text-muted-foreground",
                   )}
                 >
                   Калькулятор Позиций
                 </h2>
               </div>
-              <div className="text-muted-foreground">
+              <div className={cn("text-muted-foreground")}>
                 {isCalcExpanded ? (
                   <ChevronUp className="size-4" />
                 ) : (
@@ -155,14 +234,16 @@ export default function Home() {
             </div>
             <div
               className={cn(
-                "calc-container-grid grid transition-all duration-300",
-                "ease-in-out overflow-hidden",
+                "calc-container-grid grid",
+                "transition-all duration-300",
+                "ease-in-out",
+                "overflow-hidden",
                 isCalcExpanded
                   ? "grid-rows-[1fr] opacity-100"
                   : "grid-rows-[0fr] opacity-0",
               )}
             >
-              <div className="min-h-0 w-full">
+              <div className={cn("min-h-0 w-full")}>
                 <TradingCalculator
                   selectedCoin={selectedCoin}
                   setSelectedCoin={setSelectedCoin}
@@ -175,27 +256,45 @@ export default function Home() {
             </div>
           </div>
         </div>
-
-        <div className="xl:col-span-7 grid grid-cols-1 gap-6 w-full min-w-0">
-          <div className="border border-border/40 bg-background rounded-2xl p-1 transition-all">
+        <div
+          className={cn(
+            "xl:col-span-7",
+            "grid grid-cols-1",
+            "gap-6 w-full",
+            "min-w-0",
+          )}
+        >
+          <div
+            className={cn(
+              "border border-border/40",
+              "bg-background",
+              "rounded-2xl p-1",
+              "transition-all",
+            )}
+          >
             <div
               onClick={() => setIsChartExpanded(!isChartExpanded)}
               className={cn(
-                "flex items-center justify-between",
-                "px-3 py-2 cursor-pointer",
+                "flex items-center",
+                "justify-between",
+                "px-3 py-2",
+                "cursor-pointer",
                 "select-none",
               )}
             >
-              <div className="flex flex-col min-w-0 pr-2">
+              <div className={cn("flex flex-col", "min-w-0 pr-2")}>
                 <h2
                   className={cn(
-                    "text-xs font-bold uppercase tracking-wider text-muted-foreground",
+                    "text-xs font-bold",
+                    "uppercase",
+                    "tracking-wider",
+                    "text-muted-foreground",
                   )}
                 >
                   Интерактивный Живой График
                 </h2>
               </div>
-              <div className="text-muted-foreground">
+              <div className={cn("text-muted-foreground")}>
                 {isChartExpanded ? (
                   <ChevronUp className="size-4" />
                 ) : (
@@ -205,38 +304,52 @@ export default function Home() {
             </div>
             <div
               className={cn(
-                "chart-container-grid grid transition-all duration-300",
-                "ease-in-out overflow-hidden",
+                "chart-container-grid grid",
+                "transition-all duration-300",
+                "ease-in-out",
+                "overflow-hidden",
                 isChartExpanded
                   ? "grid-rows-[1fr] opacity-100"
                   : "grid-rows-[0fr] opacity-0",
               )}
             >
-              <div className="min-h-0 w-full">
+              <div className={cn("min-h-0 w-full")}>
                 <TradingViewChart coin={selectedCoin} />
               </div>
             </div>
           </div>
 
-          <div className="border border-border/40 bg-background rounded-2xl p-4 transition-all">
+          <div
+            className={cn(
+              "border border-border/40",
+              "bg-background",
+              "rounded-2xl p-1",
+              "transition-all",
+            )}
+          >
             <div
               onClick={() => setIsJournalExpanded(!isJournalExpanded)}
               className={cn(
-                "flex items-center justify-between",
-                "px-3 py-2 cursor-pointer",
+                "flex items-center",
+                "justify-between",
+                "px-3 py-2",
+                "cursor-pointer",
                 "select-none",
               )}
             >
-              <div className="flex flex-col min-w-0 pr-2 flex-1">
+              <div className={cn("flex flex-col", "min-w-0 pr-2", "flex-1")}>
                 <h2
                   className={cn(
-                    "text-xs font-bold uppercase tracking-wider text-muted-foreground",
+                    "text-xs font-bold",
+                    "uppercase",
+                    "tracking-wider",
+                    "text-muted-foreground",
                   )}
                 >
                   Журнал сделок
                 </h2>
               </div>
-              <div className="text-muted-foreground">
+              <div className={cn("text-muted-foreground")}>
                 {isJournalExpanded ? (
                   <ChevronUp className="size-4" />
                 ) : (
@@ -246,14 +359,16 @@ export default function Home() {
             </div>
             <div
               className={cn(
-                "journal-container-grid grid transition-all duration-300",
-                "ease-in-out overflow-hidden",
+                "journal-container-grid grid p-3",
+                "transition-all duration-300",
+                "ease-in-out",
+                "overflow-hidden",
                 isJournalExpanded
                   ? "grid-rows-[1fr] opacity-100"
                   : "grid-rows-[0fr] opacity-0",
               )}
             >
-              <div className="min-h-0 w-full overflow-hidden">
+              <div className={cn("min-h-0 w-full", "overflow-hidden")}>
                 <TradingJournal
                   onDealsCountChange={handleDealsCountChange}
                   livePrice={currentCoinPrice}
