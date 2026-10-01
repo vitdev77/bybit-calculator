@@ -7,7 +7,6 @@ import PriceLevelsForm from "./PriceLevelsForm";
 import ResultsDisplay from "./ResultsDisplay";
 import MarketTicker from "./MarketTicker";
 import ListingManagerModal from "./ListingManagerModal";
-import { AnalitycsRow } from "./AnalitycsRow";
 import { cn } from "@/lib/utils";
 
 export type OrderType = "MARKET" | "LIMIT";
@@ -451,10 +450,9 @@ export default function TradingCalculator({
   const repCls = cn("p-2.5 flex-1 flex flex-col justify-between sm:p-4");
 
   return (
-    /* Фикс прыжка маргина: У внешнего контейнера убраны паддинги p-1.5 и sm:p-4 */
     <div className="w-full p-0">
-      {/* Отступы изолированы на внутреннем слое для корректного схлопывания сетки */}
       <div className="p-1.5 sm:p-4 space-y-3 w-full">
+        {/* Вызов объединенного супер-виджета */}
         <MarketTicker
           data={tickerData}
           loading={tickerLoading}
@@ -463,12 +461,8 @@ export default function TradingCalculator({
           selectedCoin={selectedCoin}
           onCoinChange={handleCoinChange}
           availableCoinsList={availableCoinsList}
-        />
-
-        <AnalitycsRow
           marginUsed={results.marginUsed}
-          allocatedMax={results.allocatedMarginMax}
-          fundingRate={tickerData?.fundingRate || 0}
+          allocatedMarginMax={results.allocatedMarginMax}
         />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 items-stretch">
