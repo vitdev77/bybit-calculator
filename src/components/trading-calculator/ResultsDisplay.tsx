@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState } from "react";
 import { Copy, Check, PlusCircle } from "lucide-react";
 import { toast } from "@/components/ui/toast";
@@ -27,7 +26,6 @@ interface ResultsDisplayProps {
   orderType: "MARKET" | "LIMIT";
   side: "BUY" | "SELL";
 }
-
 export default function ResultsDisplay({
   results,
   coin,
@@ -105,19 +103,14 @@ export default function ResultsDisplay({
           status: "OPEN",
         }),
       });
-
       const resData = await response.json();
-
-      if (!response.ok) {
-        throw new Error(resData.error || "Ошибка");
-      }
+      if (!response.ok) throw new Error(resData.error || "Ошибка");
 
       toast.add({
         title: "Сделка зафиксирована",
         description: `Ордер по паре ${coin} добавлен.`,
         type: "success",
       });
-
       window.dispatchEvent(new Event("refresh-trading-journal"));
     } catch (err: any) {
       console.warn("Дублирование:", err.message);
@@ -133,6 +126,7 @@ export default function ResultsDisplay({
       setIsSaving(false);
     }
   };
+
   return (
     <div className="space-y-4 flex flex-col h-full justify-between">
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
@@ -154,9 +148,7 @@ export default function ResultsDisplay({
             </span>
           </div>
         </div>
-
         <div className="p-2.5 rounded-xl bg-rose-500/5 border border-rose-500/10 flex flex-col justify-center items-center text-center min-h-21">
-          {/* ФИКС: Оставлено только фиксированное лаконичное название для всех экранов */}
           <span className="text-[10px] font-bold uppercase tracking-wider text-rose-500/70 block mb-1">
             Макс. убыток
           </span>

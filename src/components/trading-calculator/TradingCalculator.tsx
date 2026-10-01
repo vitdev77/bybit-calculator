@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import CoinSelector from "./CoinSelector";
@@ -66,11 +65,11 @@ function useTabTicker(
     document.title = "Bybit Futures Calculator";
   }, [coin]);
 }
-interface CalculatorProps {
+interface TradingCalculatorProps {
   selectedCoin: string;
-  setSelectedCoin: (c: string) => void;
-  onBalanceChange?: (b: number) => void;
-  onPriceUpdate?: (p: number) => void;
+  setSelectedCoin: (coin: string) => void;
+  onBalanceChange?: (balance: number) => void;
+  onPriceUpdate?: (price: number) => void;
   externalPartsCount: number;
   setExternalPartsCount: (v: number) => void;
 }
@@ -82,7 +81,7 @@ export default function TradingCalculator({
   onPriceUpdate,
   externalPartsCount,
   setExternalPartsCount,
-}: CalculatorProps) {
+}: TradingCalculatorProps) {
   const [balance, setBalance] = useState(100);
   const [riskPercent, setRiskPercent] = useState(2);
   const [riskRewardRatio, setRiskRewardRatio] = useState(3);
@@ -100,13 +99,7 @@ export default function TradingCalculator({
     [],
   );
   const [tickerRegistry, setTickerRegistry] = useState<
-    Record<
-      string,
-      {
-        price24hPcnt: number;
-        turnover24h: number;
-      }
-    >
+    Record<string, { price24hPcnt: number; turnover24h: number }>
   >({});
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -162,9 +155,7 @@ export default function TradingCalculator({
   const loadDatabaseCoins = useCallback(async (event?: Event) => {
     try {
       const res = await fetch("/api/coins");
-      if (!res.ok) {
-        throw new Error("Coins err");
-      }
+      if (!res.ok) throw new Error("Load coins error");
       const data = await res.json();
       let fetchedCoins: DBAssetCoin[] = data.coins || [];
 
@@ -186,9 +177,7 @@ export default function TradingCalculator({
         }
       }
       setAvailableCoinsList(fetchedCoins);
-      if (data.tickerRegistry) {
-        setTickerRegistry(data.tickerRegistry);
-      }
+      if (data.tickerRegistry) setTickerRegistry(data.tickerRegistry);
     } catch (e) {
       console.error("Ошибка загрузки монет:", e);
     }
@@ -204,6 +193,7 @@ export default function TradingCalculator({
       window.removeEventListener("refresh-calculator-coins", handleRefresh);
     };
   }, [loadDatabaseCoins]);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedState = localStorage.getItem(STORAGE_KEY);
@@ -214,33 +204,17 @@ export default function TradingCalculator({
             setBalance(parsed.balance);
             onBalanceChange?.(parsed.balance);
           }
-          if (parsed.riskPercent) {
-            setRiskPercent(parsed.riskPercent);
-          }
-          if (parsed.riskRewardRatio) {
+          if (parsed.riskPercent) setRiskPercent(parsed.riskPercent);
+          if (parsed.riskRewardRatio)
             setRiskRewardRatio(parsed.riskRewardRatio);
-          }
-          if (parsed.selectedCoin) {
-            setSelectedCoin(parsed.selectedCoin);
-          }
-          if (parsed.orderType) {
-            setOrderType(parsed.orderType);
-          }
-          if (parsed.entryPrice) {
-            setEntryPrice(parsed.entryPrice);
-          }
-          if (parsed.stopLossPercent) {
+          if (parsed.selectedCoin) setSelectedCoin(parsed.selectedCoin);
+          if (parsed.orderType) setOrderType(parsed.orderType);
+          if (parsed.entryPrice) setEntryPrice(parsed.entryPrice);
+          if (parsed.stopLossPercent)
             setStopLossPercent(parsed.stopLossPercent);
-          }
-          if (parsed.leverage) {
-            setLeverage(Number(parsed.leverage));
-          }
-          if (parsed.side) {
-            setSide(parsed.side);
-          }
-          if (parsed.partsCount) {
-            setPartsCount(Number(parsed.partsCount));
-          }
+          if (parsed.leverage) setLeverage(Number(parsed.leverage));
+          if (parsed.side) setSide(parsed.side);
+          if (parsed.partsCount) setPartsCount(Number(parsed.partsCount));
         } catch (e) {
           console.error("Storage error", e);
         }
@@ -250,9 +224,7 @@ export default function TradingCalculator({
   }, [setSelectedCoin, onBalanceChange, setPartsCount]);
 
   useEffect(() => {
-    if (isLoaded) {
-      onBalanceChange?.(balance);
-    }
+    if (isLoaded) onBalanceChange?.(balance);
   }, [balance, isLoaded, onBalanceChange]);
   const getCalculatedIdealLeverage = useCallback(() => {
     const baseRiskAmount = (balance * riskPercent) / 100;
@@ -272,9 +244,7 @@ export default function TradingCalculator({
         break;
       }
     }
-    if (finalRecLeverage > maxSafeLeverage) {
-      finalRecLeverage = maxSafeLeverage;
-    }
+    if (finalRecLeverage > maxSafeLeverage) finalRecLeverage = maxSafeLeverage;
     return finalRecLeverage;
   }, [balance, riskPercent, partsCount, stopLossPercent, maxSafeLeverage]);
 
@@ -303,24 +273,18 @@ export default function TradingCalculator({
     }
     const ideal = getCalculatedIdealLeverage();
     setLeverage(ideal);
-  }, [partsCount, isInitialLoad, getCalculatedIdealLeverage]);
+  }, [partsCount]);
 
   const fetchLiveTicker = useCallback(
     async (coin: string, isFirstInit: boolean, isCurrent: () => boolean) => {
       try {
-        if (isFirstInit) {
-          setTickerLoading(true);
-        }
-        const res = await fetch("/api/bybit?symbol=" + coin);
-        if (!res.ok) {
-          throw new Error("API err");
-        }
+        if (isFirstInit) setTickerLoading(true);
+        const res = await fetch(`/api/bybit?symbol=${coin}`);
+        if (!res.ok) throw new Error("API error");
         const data = await res.json();
         if (!isCurrent()) return;
         setTickerData(data);
-        if (onPriceUpdate && data.lastPrice) {
-          onPriceUpdate(data.lastPrice);
-        }
+        if (onPriceUpdate && data.lastPrice) onPriceUpdate(data.lastPrice);
         if (
           isFirstInit ||
           prevCoinRef.current !== coin ||
@@ -332,9 +296,7 @@ export default function TradingCalculator({
       } catch (err) {
         console.error("Bybit error", err);
       } finally {
-        if (isCurrent()) {
-          setTickerLoading(false);
-        }
+        if (isCurrent()) setTickerLoading(false);
       }
     },
     [onPriceUpdate],
@@ -346,10 +308,9 @@ export default function TradingCalculator({
   const handleCoinChange = (newCoin: string) => {
     setSelectedCoin(newCoin);
   };
+
   const handleReset = () => {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem(STORAGE_KEY);
-    }
+    if (typeof window !== "undefined") localStorage.removeItem(STORAGE_KEY);
     setBalance(100);
     setRiskPercent(2);
     setRiskRewardRatio(3);
@@ -409,11 +370,8 @@ export default function TradingCalculator({
     partsCount,
     isLoaded,
   ]);
-
   useEffect(() => {
-    if (entryPrice <= 0 || stopLossPercent <= 0 || balance <= 0) {
-      return;
-    }
+    if (entryPrice <= 0 || stopLossPercent <= 0 || balance <= 0) return;
     const isLong = side === "BUY";
     const baseRiskAmount = (balance * riskPercent) / 100;
     const allocatedMarginMax = balance / partsCount;
@@ -428,7 +386,7 @@ export default function TradingCalculator({
     const totalFeeRate = 0.0013;
     const priceLossFactor = stopLossPercent / 100;
     let positionSizeUsdt = baseRiskAmount / (priceLossFactor + totalFeeRate);
-    let marginUsed = positionSizeUsdt / leverage;
+    let marginUsed = positionSizeUsdt / (leverage || 1);
     if (marginUsed > allocatedMarginMax) {
       marginUsed = allocatedMarginMax;
       positionSizeUsdt = marginUsed * leverage;
@@ -441,14 +399,16 @@ export default function TradingCalculator({
     const netProfitUsdt =
       positionSizeCrypto * Math.abs(entryPrice - takeProfitPrice) -
       totalFeeUsdt;
+
+    // Фикс: Официальный математический движок Bybit UTA 2026 для Изолированной маржи
     const MMR = 0.005;
-    const closeFeeRate = 0.0006;
+    const tFee = 0.0006;
+    const Size = positionSizeCrypto;
     let liquidationPrice = isLong
-      ? entryPrice * (1 - 1 / leverage + MMR + closeFeeRate)
-      : entryPrice * (1 + 1 / leverage - MMR - closeFeeRate);
-    if (liquidationPrice < 0) {
-      liquidationPrice = 0;
-    }
+      ? (entryPrice * Size - marginUsed) / (Size - Size * MMR - Size * tFee)
+      : (entryPrice * Size + marginUsed) / (Size + Size * MMR + Size * tFee);
+
+    if (liquidationPrice < 0 || isNaN(liquidationPrice)) liquidationPrice = 0;
 
     setResults({
       riskAmount: actualRiskAmount,
@@ -483,30 +443,17 @@ export default function TradingCalculator({
   ]);
 
   const cardCls = cn(
-    "shadow-sm border flex flex-col",
-    "border-border/40 bg-background",
-    "rounded-xl sm:rounded-2xl",
+    "shadow-sm border flex flex-col border-border/40 bg-background rounded-xl sm:rounded-2xl",
   );
-
-  const headCls = cn(
-    "py-2 px-2.5 border-b",
-    "border-border/40 sm:py-2.5",
-    "sm:px-4",
-  );
-
+  const headCls = cn("py-2 px-2.5 border-b border-border/40 sm:py-2.5 sm:px-4");
   const titCls = cn(
-    "text-[11px] sm:text-xs",
-    "font-semibold uppercase",
-    "tracking-wider",
-    "text-muted-foreground",
+    "text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground",
   );
-
-  const contCls = cn("space-y-3.5 p-2.5 flex-1", "sm:space-y-4 sm:p-4");
-
-  const repCls = cn("p-2.5 flex-1 flex flex-col", "justify-between sm:p-4");
+  const contCls = cn("space-y-3.5 p-2.5 flex-1 sm:space-y-4 sm:p-4");
+  const repCls = cn("p-2.5 flex-1 flex flex-col justify-between sm:p-4");
 
   return (
-    <div className={cn("w-full p-1.5 space-y-3", "sm:p-4")}>
+    <div className="w-full p-1.5 space-y-3 sm:p-4">
       <MarketTicker
         data={tickerData}
         loading={tickerLoading}
@@ -516,13 +463,7 @@ export default function TradingCalculator({
         onCoinChange={handleCoinChange}
         availableCoinsList={availableCoinsList}
       />
-      <div
-        className={cn(
-          "grid grid-cols-1 gap-3",
-          "md:grid-cols-2 sm:gap-4",
-          "items-stretch",
-        )}
-      >
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 items-stretch">
         <Card className={cardCls}>
           <CardHeader className={headCls}>
             <CardTitle className={titCls}>Панель параметров</CardTitle>
