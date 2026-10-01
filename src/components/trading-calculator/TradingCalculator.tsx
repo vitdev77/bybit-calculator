@@ -111,17 +111,17 @@ export default function TradingCalculator({
     (c) => c.coin === selectedCoin,
   );
   const getAutoDecimals = () => {
+    if (entryPrice > 0) {
+      const fixedStr = entryPrice.toFixed(8);
+      const splitArr = fixedStr.split(".");
+      if (splitArr && splitArr[1]) {
+        const cleanStr = splitArr[1].replace(/0+$/, "");
+        const calculated = cleanStr.length;
+        return Math.max(2, Math.min(8, calculated));
+      }
+    }
     if (currentCoinMeta && currentCoinMeta.decimals !== undefined) {
       return currentCoinMeta.decimals;
-    }
-    if (entryPrice > 0) {
-      const priceStr = entryPrice.toString();
-      if (priceStr.includes(".")) {
-        const afterDot = priceStr.split(".");
-        if (afterDot && afterDot[1]) {
-          return Math.max(2, Math.min(8, afterDot[1].length));
-        }
-      }
     }
     return 2;
   };
@@ -172,9 +172,10 @@ export default function TradingCalculator({
               c.coin === coin ? { ...c, is_favorite } : c,
             );
           } else {
+            const prevMeta = availableCoinsList.find((c) => c.coin === coin);
             fetchedCoins.push({
               coin,
-              decimals: 4,
+              decimals: prevMeta?.decimals || 4,
               is_favorite,
               is_active: true,
               is_delisted: false,
@@ -186,9 +187,12 @@ export default function TradingCalculator({
           (c) => c.coin === selectedCoin,
         );
         if (!currentCoinInFetched && selectedCoin) {
+          const prevMeta = availableCoinsList.find(
+            (c) => c.coin === selectedCoin,
+          );
           fetchedCoins.push({
             coin: selectedCoin,
-            decimals: 4,
+            decimals: prevMeta?.decimals || 4,
             is_favorite: false,
             is_active: true,
             is_delisted: false,
@@ -203,7 +207,7 @@ export default function TradingCalculator({
         console.error(e);
       }
     },
-    [selectedCoin],
+    [selectedCoin, availableCoinsList],
   );
 
   useEffect(() => {
