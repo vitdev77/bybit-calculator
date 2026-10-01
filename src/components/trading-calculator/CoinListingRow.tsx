@@ -1,8 +1,7 @@
 "use client";
-
 import React from "react";
 import { Star } from "lucide-react";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 import { DBAssetCoin } from "./TradingCalculator";
 
 interface RowProps {
@@ -16,7 +15,6 @@ interface RowProps {
   onSelect: (coin: string, del: boolean) => void;
   onToggleFav: (e: React.MouseEvent, coin: string, fav: boolean) => void;
 }
-
 export function CoinListingRow({
   item,
   idx,
@@ -41,6 +39,7 @@ export function CoinListingRow({
       (liveStats.turnover24h > 0 && liveStats.turnover24h < 10000000));
 
   const isHighLiq = !item.is_delisted && liveStats.turnover24h >= 100000000;
+
   function formatCompact(num: number): string {
     if (!num) return "--";
     if (num >= 1_000_000_000) {
@@ -54,7 +53,6 @@ export function CoinListingRow({
     }
     return num.toFixed(0);
   }
-
   return (
     <div
       onClick={() => onSelect(item.coin, item.is_delisted)}
@@ -95,11 +93,9 @@ export function CoinListingRow({
         </button>
 
         <div className="flex flex-col min-w-0 flex-1">
+          {/* ФИКС: flex-nowrap запрещает перенос бейджей на вторую строку */}
           <div
-            className={cn(
-              "flex gap-1.5 items-center",
-              "min-w-0 flex-wrap sm:flex-nowrap",
-            )}
+            className={cn("flex gap-1.5 items-center", "min-w-0 flex-nowrap")}
           >
             <span
               className={cn(
@@ -117,28 +113,31 @@ export function CoinListingRow({
             >
               {item.coin}
             </span>
+            {/* ФИКС: shrink-0 гарантирует, что буквы R и L сохранят круглую/квадратную геометрию и не сожмутся */}
             {isHighRisk && (
               <span
                 className={cn(
-                  "flex px-1 text-center py-0.5",
+                  "flex px-1 text-center py-0.5 shrink-0",
                   "font-black tracking-wider rounded border",
                   "bg-amber-500/10 border-amber-500/20",
                   "text-amber-500 font-sans text-[9px]",
                 )}
               >
-                RISK
+                <span className="inline sm:hidden">R</span>
+                <span className="hidden sm:inline">RISK</span>
               </span>
             )}
             {isHighLiq && (
               <span
                 className={cn(
-                  "flex px-1 text-center py-0.5",
+                  "flex px-1 text-center py-0.5 shrink-0",
                   "font-black tracking-wider border rounded",
                   "bg-emerald-500/10 border-emerald-500/20",
                   "text-emerald-500 font-sans text-[9px]",
                 )}
               >
-                LIQ
+                <span className="inline sm:hidden">L</span>
+                <span className="hidden sm:inline">LIQ</span>
               </span>
             )}
           </div>
@@ -191,7 +190,7 @@ export function CoinListingRow({
         ) : (
           <span
             className={cn(
-              "px-2 py-0.5 font-black text-[9px]",
+              "px-2 py-0.5 font-black text-[9px] shrink-0",
               "uppercase tracking-wider bg-rose-500/10",
               "text-rose-500 border border-rose-500/20 rounded",
             )}

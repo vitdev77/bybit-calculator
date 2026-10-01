@@ -1,8 +1,7 @@
 "use client";
-
-import React, { useState, useEffect } from "react";
-import { X, Search } from "lucide-react";
-import { cn } from "cn";
+import React, { useEffect, useState } from "react";
+import { X, Search, Coins, Zap, Flame, AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { DBAssetCoin } from "./TradingCalculator";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
@@ -17,6 +16,7 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { CoinListingRow } from "./CoinListingRow";
+
 interface ListingModalProps {
   availableCoinsList: DBAssetCoin[];
   setAvailableCoinsList?: React.Dispatch<React.SetStateAction<DBAssetCoin[]>>;
@@ -37,7 +37,6 @@ interface ListingModalProps {
   ) => Promise<void>;
   onCoinSelect?: (coin: string) => void;
 }
-
 export default function ListingModal({
   isModalOpen,
   setIsModalOpen,
@@ -62,14 +61,13 @@ export default function ListingModal({
   const [favLoadingMap, setFavLoadingMap] = useState<Record<string, boolean>>(
     {},
   );
+
   useEffect(() => {
     if (isModalOpen) {
       setIsLoading(true);
       fetch("/api/coins?all=true")
         .then((res) => {
-          if (!res.ok) {
-            throw new Error("API Err");
-          }
+          if (!res.ok) throw new Error();
           return res.json();
         })
         .then((data) => {
@@ -82,7 +80,7 @@ export default function ListingModal({
             }
           }
         })
-        .catch((err) => console.error("Ошибка листинга:", err))
+        .catch((e) => console.error(e))
         .finally(() => setIsLoading(false));
     }
   }, [isModalOpen]);
@@ -107,9 +105,7 @@ export default function ListingModal({
   ) => {
     e.preventDefault();
     e.stopPropagation();
-    if (favLoadingMap[coinName]) {
-      return;
-    }
+    if (favLoadingMap[coinName]) return;
 
     setFavLoadingMap((prev) => ({
       ...prev,
@@ -119,12 +115,7 @@ export default function ListingModal({
 
     setFullCoinsList((prev) =>
       prev.map((c) =>
-        c.coin === coinName
-          ? {
-              ...c,
-              is_favorite: nextState,
-            }
-          : c,
+        c.coin === coinName ? { ...c, is_favorite: nextState } : c,
       ),
     );
 
@@ -139,7 +130,6 @@ export default function ListingModal({
           coin: coinName,
         }),
       });
-
       if (response.ok) {
         window.dispatchEvent(
           new CustomEvent("refresh-calculator-coins", {
@@ -163,7 +153,7 @@ export default function ListingModal({
         }
       }
     } catch (err) {
-      console.error("Ошибка избранного:", err);
+      console.error(err);
     } finally {
       setFavLoadingMap((prev) => ({
         ...prev,
@@ -180,7 +170,9 @@ export default function ListingModal({
       totalDelistedCount++;
       return;
     }
-    const liveStats = localRegistry[asset.coin] || { turnover24h: 0 };
+    const liveStats = localRegistry[asset.coin] || {
+      turnover24h: 0,
+    };
     const isMem =
       asset.coin.includes("DOGE") ||
       asset.coin.includes("SHIB") ||
@@ -204,7 +196,9 @@ export default function ListingModal({
     const match = asset.coin.toLowerCase().includes(modalSearch.toLowerCase());
     if (!match) return false;
 
-    const live = localRegistry[asset.coin] || { turnover24h: 0 };
+    const live = localRegistry[asset.coin] || {
+      turnover24h: 0,
+    };
     const isMem =
       asset.coin.includes("DOGE") ||
       asset.coin.includes("SHIB") ||
@@ -219,9 +213,7 @@ export default function ListingModal({
 
     const isLiq = !asset.is_delisted && live.turnover24h >= 100000000;
 
-    if (filterType === "LIQ") {
-      return isLiq;
-    }
+    if (filterType === "LIQ") return isLiq;
     if (filterType === "RISK") {
       return isRisk;
     }
@@ -230,40 +222,35 @@ export default function ListingModal({
     }
     return true;
   });
-
   return (
     <AlertDialog open={isModalOpen} onOpenChange={setIsModalOpen}>
       <AlertDialogContent
         className={cn(
-          "max-w-2xl! w-full p-4",
-          "rounded-2xl text-xs",
-          "border border-border/40",
-          "bg-background/90",
+          "w-[calc(100%-1rem)] md:max-w-2xl! p-4",
+          "rounded-2xl text-xs border",
+          "border-border/40 bg-background/90",
           "backdrop-blur-md shadow-2xl",
         )}
       >
         <AlertDialogHeader
           className={cn(
-            "flex flex-row gap-2",
-            "items-center border-b",
-            "justify-between pb-2",
+            "flex flex-row gap-2 items-center",
+            "border-b justify-between pb-2",
           )}
         >
           <AlertDialogTitle
-            className={cn("text-sm font-black", "uppercase tracking-wider")}
+            className={cn("text-sm font-black uppercase", "tracking-wider")}
           >
             Листинг пар Bybit
           </AlertDialogTitle>
           <AlertDialogCancel
             className={cn(
-              "p-1 h-auto w-auto",
+              "p-1 h-auto w-auto shadow-none",
               "bg-transparent border-none",
               "text-muted-foreground",
-              "hover:text-foreground",
-              "shadow-none rounded-md",
-              "flex items-center",
-              "justify-end cursor-pointer",
-              "sm:self-start",
+              "hover:text-foreground rounded-md",
+              "flex items-center justify-end",
+              "cursor-pointer sm:self-start",
             )}
           >
             <X className="size-4" />
@@ -272,19 +259,16 @@ export default function ListingModal({
 
         <div
           className={cn(
-            "my-3 flex flex-col",
-            "sm:flex-row gap-2.5",
-            "items-stretch",
+            "my-3 flex flex-col sm:flex-row",
+            "gap-2.5 items-stretch",
             "sm:items-center",
           )}
         >
-          <div className={cn("relative flex-1 flex", "items-center")}>
+          <div className={cn("relative flex-1 flex items-center")}>
             <Search
               className={cn(
-                "absolute left-2.5",
-                "h-3.5 w-3.5",
-                "text-muted-",
-                "foreground/60",
+                "absolute left-2.5 h-3.5 w-3.5",
+                "text-muted-foreground/60",
               )}
             />
             <Input
@@ -294,86 +278,89 @@ export default function ListingModal({
               onChange={(e) => setModalSearch(e.target.value)}
               className={cn(
                 "pl-8 pr-8 h-8 text-xs",
-                "bg-muted/20 w-full",
-                "border-border/40 rounded-lg",
+                "bg-muted/20 w-full rounded-lg",
+                "border-border/40",
               )}
             />
           </div>
           <ButtonGroup
             className={cn(
-              "h-8 border p-0.5",
-              "border-border/40",
-              "rounded-lg bg-muted/20",
-              "shrink-0 overflow-hidden",
+              "h-8 border p-0.5 border-border/40",
+              "rounded-lg bg-muted/20 w-full sm:w-auto",
+              "overflow-hidden flex items-center",
             )}
           >
             <Button
               type="button"
               variant={filterType === "ALL" ? "default" : "ghost"}
-              className={cn(
-                "h-full px-2 text-[10px]",
-                "font-bold uppercase",
-                "rounded-md",
-              )}
+              className="h-full px-2 rounded-md flex-1 sm:flex-none flex items-center justify-center gap-1"
               onClick={() => setFilterType("ALL")}
             >
-              Все ({fullCoinsList.length})
+              {/* Иконки увеличены до size-4 на мобилках */}
+              <Coins className="inline sm:hidden size-4 text-foreground" />
+              <span className="hidden sm:inline text-[10px] font-bold uppercase">
+                Все
+              </span>
+              <span className="text-[9px] font-semibold opacity-70">
+                ({fullCoinsList.length})
+              </span>
             </Button>
             <Button
               type="button"
               variant={filterType === "LIQ" ? "default" : "ghost"}
-              className={cn(
-                "h-full px-2 text-[10px]",
-                "font-bold uppercase",
-                "rounded-md",
-              )}
+              className="h-full px-2 rounded-md flex-1 sm:flex-none flex items-center justify-center gap-1"
               onClick={() => setFilterType("LIQ")}
             >
-              Ликвид. ({totalLiqCount})
+              <Zap className="inline sm:hidden size-4 text-amber-500" />
+              <span className="hidden sm:inline text-[10px] font-bold uppercase">
+                Ликвид.
+              </span>
+              <span className="text-[9px] font-semibold opacity-70">
+                ({totalLiqCount})
+              </span>
             </Button>
             <Button
               type="button"
               variant={filterType === "RISK" ? "default" : "ghost"}
-              className={cn(
-                "h-full px-2 text-[10px]",
-                "font-bold uppercase",
-                "rounded-md",
-              )}
+              className="h-full px-2 rounded-md flex-1 sm:flex-none flex items-center justify-center gap-1"
               onClick={() => setFilterType("RISK")}
             >
-              Волат. ({totalRiskCount})
+              <Flame className="inline sm:hidden size-4 text-orange-500" />
+              <span className="hidden sm:inline text-[10px] font-bold uppercase">
+                Волат.
+              </span>
+              <span className="text-[9px] font-semibold opacity-70">
+                ({totalRiskCount})
+              </span>
             </Button>
             <Button
               type="button"
               variant={filterType === "DELIS" ? "default" : "ghost"}
-              className={cn(
-                "h-full px-2 text-[10px]",
-                "font-bold uppercase",
-                "text-rose-500 rounded-md",
-                "hover:text-rose-600",
-              )}
+              className="h-full px-2 rounded-md flex-1 sm:flex-none flex items-center justify-center gap-1"
               onClick={() => setFilterType("DELIS")}
             >
-              Делист ({totalDelistedCount})
+              <AlertTriangle className="inline sm:hidden size-4 text-rose-500" />
+              <span className="hidden sm:inline text-[10px] font-bold uppercase text-rose-500 hover:text-rose-600">
+                Делист
+              </span>
+              <span className="text-[9px] font-semibold text-rose-500/80">
+                ({totalDelistedCount})
+              </span>
             </Button>
           </ButtonGroup>
         </div>
 
         <div
           className={cn(
-            "max-h-64 pr-1",
-            "overflow-y-auto",
+            "max-h-64 pr-1 overflow-y-auto",
             "space-y-1.5 scrollbar-thin",
           )}
         >
           {isLoading ? (
             <div
               className={cn(
-                "flex p-8 gap-2",
-                "items-center",
-                "justify-center",
-                "text-muted-",
-                "foreground",
+                "flex p-8 gap-2 items-center",
+                "justify-center text-muted-foreground",
               )}
             >
               <Spinner className="text-amber-500" />

@@ -244,12 +244,11 @@ export default function MarketTicker({
     >
       <div
         className={cn(
-          "md:col-span-5 flex flex-col justify-between",
-          "min-w-0 md:border-r border-border/30 pr-2 py-0.5",
+          "md:col-span-5 flex flex-row md:flex-col justify-between",
+          "items-center md:items-start min-w-0 md:border-r border-border/30 pr-2 py-0.5",
         )}
       >
-        <div className="flex items-center gap-3 w-full min-w-0">
-          {/* Фикс: Иконка уменьшена до size-9 */}
+        <div className="flex items-center gap-3 min-w-0 max-w-[50%] md:max-w-full">
           <div className="relative size-9 shrink-0 flex items-center justify-center">
             {!iconImgError ? (
               <img
@@ -273,9 +272,9 @@ export default function MarketTicker({
               </div>
             )}
           </div>
+          {/* Фикс: Адаптивный лимит ширины на мобилке для вызова truncate с 3 точками */}
           <div className="flex flex-col min-w-0 flex-1 leading-tight">
-            {/* Фикс: Зафиксирован размер text-lg и добавлен truncate с 3 точками */}
-            <span className="text-lg font-black text-foreground truncate block min-w-0">
+            <span className="text-sm sm:text-base font-black text-foreground truncate block max-w-30 xs:max-w-none">
               {coinBaseName}
             </span>
             <span className="text-[9px] font-bold opacity-30 truncate mt-0.5">
@@ -284,14 +283,17 @@ export default function MarketTicker({
           </div>
         </div>
 
+        {/* Фикс: Сделали разделительную полоску повиднее через bg-border/60 */}
+        <div className="block md:hidden w-px h-8 bg-border/60 mx-1.5 shrink-0" />
+
+        {/* Фикс: На мобилке цена увеличена до text-3xl */}
         <div
-          className="cursor-pointer mt-2 w-full text-left"
+          className="cursor-pointer w-auto md:w-full text-right md:text-left mt-0 md:mt-2"
           onClick={() => onPriceClick?.(data.lastPrice)}
         >
           <span
             className={cn(
-              "text-2xl sm:text-3xl font-black",
-              "tracking-tight whitespace-nowrap inline-block leading-none",
+              "text-3xl font-black tracking-tight whitespace-nowrap inline-block leading-none",
               priceColor,
             )}
           >
@@ -336,8 +338,9 @@ export default function MarketTicker({
           </div>
         </div>
 
+        {/* Фикс: На мобилке ровно 50% на 50% (grid-cols-2), а Margin Load занимает всю ширину под ними */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 w-full">
-          <div className="bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border border-border/10 flex flex-col justify-center min-w-0 relative">
+          <div className="bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border border-border/10 flex flex-col justify-center min-w-0 relative col-span-1">
             <span className="text-[8px] opacity-50 uppercase font-bold">
               Fear & Greed
             </span>
@@ -364,7 +367,7 @@ export default function MarketTicker({
             )}
           </div>
 
-          <div className="bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border border-border/10 flex items-center justify-between min-w-0 gap-1">
+          <div className="bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border border-border/10 flex items-center justify-between min-w-0 gap-1 col-span-1">
             <div className="flex flex-col min-w-0">
               <span className="text-[8px] opacity-50 uppercase font-bold">
                 Countdown
@@ -379,8 +382,8 @@ export default function MarketTicker({
               </span>
             </div>
             <svg
-              width="24"
-              height="24"
+              width="20"
+              height="20"
               viewBox="0 0 24 24"
               className="transform -rotate-90 shrink-0"
             >
