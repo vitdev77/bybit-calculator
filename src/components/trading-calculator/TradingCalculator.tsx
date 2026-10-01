@@ -7,6 +7,7 @@ import PriceLevelsForm from "./PriceLevelsForm";
 import ResultsDisplay from "./ResultsDisplay";
 import MarketTicker from "./MarketTicker";
 import ListingManagerModal from "./ListingManagerModal";
+import { AnalitycsRow } from "./AnalitycsRow";
 import { cn } from "@/lib/utils";
 
 export type OrderType = "MARKET" | "LIMIT";
@@ -116,7 +117,7 @@ export default function TradingCalculator({
     if (tickerData && tickerData.lastPrice > 0 && tickerData.lastPrice < 1) {
       const priceStr = tickerData.lastPrice.toString();
       if (priceStr.includes(".")) {
-        const afterDot = priceStr.split(".")[1];
+        const afterDot = priceStr.split(".");
         return Math.max(4, Math.min(7, afterDot.length));
       }
       return 5;
@@ -273,7 +274,7 @@ export default function TradingCalculator({
     }
     const ideal = getCalculatedIdealLeverage();
     setLeverage(ideal);
-  }, [partsCount]);
+  }, [partsCount, isInitialLoad, getCalculatedIdealLeverage]);
 
   const fetchLiveTicker = useCallback(
     async (coin: string, isFirstInit: boolean, isCurrent: () => boolean) => {
@@ -400,15 +401,12 @@ export default function TradingCalculator({
       positionSizeCrypto * Math.abs(entryPrice - takeProfitPrice) -
       totalFeeUsdt;
 
-    // Фикс: Официальный математический движок Bybit UTA 2026 для Изолированной маржи
     const MMR = 0.005;
-    const tFee = 0.0006;
-    const Size = positionSizeCrypto;
+    const closeFeeRate = 0.0006;
     let liquidationPrice = isLong
-      ? (entryPrice * Size - marginUsed) / (Size - Size * MMR - Size * tFee)
-      : (entryPrice * Size + marginUsed) / (Size + Size * MMR + Size * tFee);
-
-    if (liquidationPrice < 0 || isNaN(liquidationPrice)) liquidationPrice = 0;
+      ? entryPrice * (1 - 1 / leverage + MMR + closeFeeRate)
+      : entryPrice * (1 + 1 / leverage - MMR - closeFeeRate);
+    if (liquidationPrice < 0) liquidationPrice = 0;
 
     setResults({
       riskAmount: actualRiskAmount,
@@ -419,7 +417,7 @@ export default function TradingCalculator({
       marginUsed,
       takeProfitPrice,
       stopLossPrice,
-      allocatedMarginMax,
+      allocatedMarginMax: allocatedMarginMax,
       decimals: currentDecimals,
       totalFeeUsdt,
       netProfitUsdt,
@@ -453,86 +451,97 @@ export default function TradingCalculator({
   const repCls = cn("p-2.5 flex-1 flex flex-col justify-between sm:p-4");
 
   return (
-    <div className="w-full p-1.5 space-y-3 sm:p-4">
-      <MarketTicker
-        data={tickerData}
-        loading={tickerLoading}
-        decimals={currentDecimals}
-        onPriceClick={handlePriceApply}
-        selectedCoin={selectedCoin}
-        onCoinChange={handleCoinChange}
-        availableCoinsList={availableCoinsList}
-      />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 items-stretch">
-        <Card className={cardCls}>
-          <CardHeader className={headCls}>
-            <CardTitle className={titCls}>Панель параметров</CardTitle>
-          </CardHeader>
-          <CardContent className={contCls}>
-            <CoinSelector
-              selectedCoin={selectedCoin}
-              onCoinChange={handleCoinChange}
-              orderType={orderType}
-              setOrderType={setOrderType}
-              availableCoinsList={availableCoinsList}
-              tickerRegistry={tickerRegistry}
-              setIsModalOpen={setIsModalOpen}
-            />
-            <BalanceRiskForm
-              balance={balance}
-              setBalance={setBalance}
-              riskPercent={riskPercent}
-              setRiskPercent={setRiskPercent}
-              leverage={leverage}
-              setLeverage={setLeverage}
-              side={side}
-              setSide={setSide}
-              maxSafeLeverage={maxSafeLeverage}
-              selectedCoin={selectedCoin}
-              partsCount={partsCount}
-              setPartsCount={setPartsCount}
-              onAutoLeverage={handleAutoLeverageCalculate}
-              isLeverageModified={leverage !== idealLeverage}
-            />
-            <PriceLevelsForm
-              entryPrice={entryPrice}
-              setEntryPrice={setEntryPrice}
-              stopLossPercent={stopLossPercent}
-              setStopLossPercent={setStopLossPercent}
-              riskRewardRatio={riskRewardRatio}
-              setRiskRewardRatio={setRiskRewardRatio}
-              onReset={handleReset}
-              livePrice={tickerData?.lastPrice || 0}
-              decimals={currentDecimals}
-              side={side}
-            />
-          </CardContent>
-        </Card>
-        <Card className={cardCls}>
-          <CardHeader className={headCls}>
-            <CardTitle className={titCls}>Торговый отчет</CardTitle>
-          </CardHeader>
-          <CardContent className={repCls}>
-            <ResultsDisplay
-              results={results}
-              coin={selectedCoin}
-              entryPrice={entryPrice}
-              orderType={orderType}
-              side={side}
-            />
-          </CardContent>
-        </Card>
+    /* Фикс прыжка маргина: У внешнего контейнера убраны паддинги p-1.5 и sm:p-4 */
+    <div className="w-full p-0">
+      {/* Отступы изолированы на внутреннем слое для корректного схлопывания сетки */}
+      <div className="p-1.5 sm:p-4 space-y-3 w-full">
+        <MarketTicker
+          data={tickerData}
+          loading={tickerLoading}
+          decimals={currentDecimals}
+          onPriceClick={handlePriceApply}
+          selectedCoin={selectedCoin}
+          onCoinChange={handleCoinChange}
+          availableCoinsList={availableCoinsList}
+        />
+
+        <AnalitycsRow
+          marginUsed={results.marginUsed}
+          allocatedMax={results.allocatedMarginMax}
+          fundingRate={tickerData?.fundingRate || 0}
+        />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 items-stretch">
+          <Card className={cardCls}>
+            <CardHeader className={headCls}>
+              <CardTitle className={titCls}>Панель параметров</CardTitle>
+            </CardHeader>
+            <CardContent className={contCls}>
+              <CoinSelector
+                selectedCoin={selectedCoin}
+                onCoinChange={handleCoinChange}
+                orderType={orderType}
+                setOrderType={setOrderType}
+                availableCoinsList={availableCoinsList}
+                tickerRegistry={tickerRegistry}
+                setIsModalOpen={setIsModalOpen}
+              />
+              <BalanceRiskForm
+                balance={balance}
+                setBalance={setBalance}
+                riskPercent={riskPercent}
+                setRiskPercent={setRiskPercent}
+                leverage={leverage}
+                setLeverage={setLeverage}
+                side={side}
+                setSide={setSide}
+                maxSafeLeverage={maxSafeLeverage}
+                selectedCoin={selectedCoin}
+                partsCount={partsCount}
+                setPartsCount={setPartsCount}
+                onAutoLeverage={handleAutoLeverageCalculate}
+                isLeverageModified={leverage !== idealLeverage}
+              />
+              <PriceLevelsForm
+                entryPrice={entryPrice}
+                setEntryPrice={setEntryPrice}
+                stopLossPercent={stopLossPercent}
+                setStopLossPercent={setStopLossPercent}
+                riskRewardRatio={riskRewardRatio}
+                setRiskRewardRatio={setRiskRewardRatio}
+                onReset={handleReset}
+                livePrice={tickerData?.lastPrice || 0}
+                decimals={currentDecimals}
+                side={side}
+              />
+            </CardContent>
+          </Card>
+          <Card className={cardCls}>
+            <CardHeader className={headCls}>
+              <CardTitle className={titCls}>Торговый отчет</CardTitle>
+            </CardHeader>
+            <CardContent className={repCls}>
+              <ResultsDisplay
+                results={results}
+                coin={selectedCoin}
+                entryPrice={entryPrice}
+                orderType={orderType}
+                side={side}
+              />
+            </CardContent>
+          </Card>
+        </div>
+        <ListingManagerModal
+          availableCoinsList={availableCoinsList}
+          setAvailableCoinsList={setAvailableCoinsList}
+          tickerRegistry={tickerRegistry}
+          isModalOpen={isModalOpen}
+          setIsModalOpen={setIsModalOpen}
+          handleToggleActive={() => {}}
+          handleSetActiveStatus={async () => {}}
+          onCoinSelect={setSelectedCoin}
+        />
       </div>
-      <ListingManagerModal
-        availableCoinsList={availableCoinsList}
-        setAvailableCoinsList={setAvailableCoinsList}
-        tickerRegistry={tickerRegistry}
-        isModalOpen={isModalOpen}
-        setIsModalOpen={setIsModalOpen}
-        handleToggleActive={() => {}}
-        handleSetActiveStatus={async () => {}}
-        onCoinSelect={setSelectedCoin}
-      />
     </div>
   );
 }
