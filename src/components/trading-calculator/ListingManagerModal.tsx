@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { CoinListingRow } from "./CoinListingRow";
 
-interface ListingModalProps {
+interface ListingManagerModalProps {
   availableCoinsList: DBAssetCoin[];
   setAvailableCoinsList?: React.Dispatch<React.SetStateAction<DBAssetCoin[]>>;
   tickerRegistry: Record<
@@ -38,14 +38,14 @@ interface ListingModalProps {
   onCoinSelect?: (coin: string) => void;
 }
 
-export default function ListingModal({
+export default function ListingManagerModal({
   isModalOpen,
   setIsModalOpen,
   setAvailableCoinsList,
   onCoinSelect,
   tickerRegistry,
   availableCoinsList,
-}: ListingModalProps) {
+}: ListingManagerModalProps) {
   const [modalSearch, setModalSearch] = useState("");
   const [filterType, setFilterType] = useState<
     "ALL" | "LIQ" | "RISK" | "DELIS"

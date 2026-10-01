@@ -6,7 +6,7 @@ import BalanceRiskForm from "./BalanceRiskForm";
 import PriceLevelsForm from "./PriceLevelsForm";
 import ResultsDisplay from "./ResultsDisplay";
 import MarketTicker from "./MarketTicker";
-import ListingModal from "./ListingModal";
+import ListingManagerModal from "./ListingManagerModal";
 import { cn } from "@/lib/utils";
 
 export type OrderType = "MARKET" | "LIMIT";
@@ -111,18 +111,19 @@ export default function TradingCalculator({
     (c) => c.coin === selectedCoin,
   );
   const getAutoDecimals = () => {
-    if (currentCoinMeta && currentCoinMeta.decimals !== 2) {
+    if (currentCoinMeta && currentCoinMeta.decimals !== undefined) {
       return currentCoinMeta.decimals;
     }
-    if (tickerData && tickerData.lastPrice > 0 && tickerData.lastPrice < 1) {
-      const priceStr = tickerData.lastPrice.toString();
+    if (entryPrice > 0) {
+      const priceStr = entryPrice.toString();
       if (priceStr.includes(".")) {
         const afterDot = priceStr.split(".");
-        return Math.max(4, Math.min(7, afterDot.length));
+        if (afterDot && afterDot[1]) {
+          return Math.max(2, Math.min(8, afterDot[1].length));
+        }
       }
-      return 5;
     }
-    return currentCoinMeta ? currentCoinMeta.decimals : 2;
+    return 2;
   };
 
   const currentDecimals = getAutoDecimals();
@@ -173,7 +174,7 @@ export default function TradingCalculator({
           } else {
             fetchedCoins.push({
               coin,
-              decimals: currentDecimals || 4,
+              decimals: 4,
               is_favorite,
               is_active: true,
               is_delisted: false,
@@ -187,7 +188,7 @@ export default function TradingCalculator({
         if (!currentCoinInFetched && selectedCoin) {
           fetchedCoins.push({
             coin: selectedCoin,
-            decimals: currentDecimals || 4,
+            decimals: 4,
             is_favorite: false,
             is_active: true,
             is_delisted: false,
@@ -202,7 +203,7 @@ export default function TradingCalculator({
         console.error(e);
       }
     },
-    [selectedCoin, currentDecimals],
+    [selectedCoin],
   );
 
   useEffect(() => {
@@ -595,7 +596,7 @@ export default function TradingCalculator({
             </CardContent>
           </Card>
         </div>
-        <ListingModal
+        <ListingManagerModal
           availableCoinsList={availableCoinsList}
           setAvailableCoinsList={setAvailableCoinsList}
           tickerRegistry={tickerRegistry}
