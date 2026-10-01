@@ -167,7 +167,7 @@ export async function GET(request: Request) {
     let coinsResult;
 
     if (all === "true") {
-      // Для ListingManagerModal запрашиваем всё
+      // Для ListingModal запрашиваем всё
       coinsResult = await sql`
         SELECT coin, decimals, is_favorite, is_active, is_delisted 
         FROM coins 
