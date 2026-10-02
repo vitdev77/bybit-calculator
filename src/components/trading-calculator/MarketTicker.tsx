@@ -210,8 +210,8 @@ export default function MarketTicker({
   const isFundingHigh = Math.abs(data.fundingRate) >= 0.01;
 
   const fngPercent = fng ? fng.value : 50;
-  const radius = 10;
-  const stroke = 2;
+  const radius = 8;
+  const stroke = 4;
   const circum = 2 * Math.PI * radius;
   const strokeDashoffset = circum - (fundProgress / 100) * circum;
 

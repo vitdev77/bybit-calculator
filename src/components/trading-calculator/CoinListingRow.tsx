@@ -188,7 +188,7 @@ export function CoinListingRow({
               "text-rose-500 border border-rose-500/20 rounded",
             )}
           >
-            DELIST
+            DELISTED
           </span>
         )}
       </div>

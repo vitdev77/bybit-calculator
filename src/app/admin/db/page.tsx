@@ -258,7 +258,7 @@ export default function AdminDBExplorer() {
         className={cn(
           "w-full rounded-2xl border",
           "border-border/40 bg-background",
-          "p-1 shadow-2xl min-w-0",
+          "p-4 shadow-2xl min-w-0",
         )}
       >
         <div

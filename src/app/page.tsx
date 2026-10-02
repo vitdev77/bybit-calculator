@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { ChevronUp, ChevronDown, Terminal } from "lucide-react";
+import { ChevronUp, ChevronDown, Database } from "lucide-react";
 import { cn } from "@/lib/utils";
 import TradingCalculator from "@/components/trading-calculator/TradingCalculator";
 import TradingViewChart from "@/components/trading-calculator/TradingViewChart";
@@ -162,7 +162,7 @@ export default function Home() {
             )}
             title="Открыть проводник СУБД"
           >
-            <Terminal className="h-[1.2rem] w-[1.2rem]" />
+            <Database className="h-[1.2rem] w-[1.2rem]" />
           </Link>
 
           <div

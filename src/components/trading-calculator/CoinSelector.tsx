@@ -171,9 +171,11 @@ export default function CoinSelector({
         );
 
         toast.add({
-          title: nextState ? "Добавлено" : "Удалено",
-          description: nextState ? "В избранное." : "Из избранного.",
-          type: "with-icon",
+          title: "Избранное",
+          description: nextState
+            ? "Пара успешно добавлена в избранное."
+            : "Пара удалена из избранного.",
+          type: nextState ? "success" : "error",
         });
       }
     } catch (err) {

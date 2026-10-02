@@ -536,7 +536,7 @@ export default function TradingCalculator({
         <div
           className={cn(
             "grid grid-cols-1",
-            "md:grid-cols-2",
+            "md:grid-cols-2 md:items-stretch",
             "gap-3 sm:gap-4",
             "items-start",
           )}
