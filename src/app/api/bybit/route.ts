@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server";
+import { neon } from "@neondatabase/serverless";
 
-// Принудительно отключаем кэширование роута в Next.js
 export const dynamic = "force-dynamic";
 
-// Локальный ин-мемори кэш для защиты сервера от лимитов Bybit
+const sql = neon(process.env.DATABASE_URL || "");
+
 interface CacheEntry {
   timestamp: number;
   data: any;
 }
 
 const memoryCache = new Map<string, CacheEntry>();
-const CACHE_TTL_MS = 1000; // Кэшируем тикер на 1 секунду
+const CACHE_TTL_MS = 1000;
 
-// Безопасный парсинг чисел с жесткой фильтрацией NaN
 function safeParseFloat(val: any): number {
   const parsed = parseFloat(val);
   return isNaN(parsed) ? 0 : parsed;
@@ -22,13 +22,11 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const symbol = (searchParams.get("symbol") || "BTCUSDT").toUpperCase();
 
-  // 1. Проверяем наличие свежих данных в кэше
   const cached = memoryCache.get(symbol);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
     return NextResponse.json(cached.data);
   }
 
-  // 2. Инициализируем AbortController для прерывания зависших запросов
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 4000);
   try {
@@ -46,8 +44,7 @@ export async function GET(request: Request) {
         cache: "no-store",
         signal: controller.signal,
         headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
           Accept: "application/json",
         },
       },
@@ -86,6 +83,18 @@ export async function GET(request: Request) {
 
     const ticker = data.result.list[0];
 
+    let dbFullName = "Crypto Asset";
+    try {
+      const dbRes = await sql`
+SELECT fullname FROM coins WHERE coin = ${symbol} LIMIT 1;
+`;
+      if (dbRes && dbRes[0]?.fullname) {
+        dbFullName = dbRes[0].fullname;
+      }
+    } catch (dbErr) {
+      console.warn("DB Name fetch err", dbErr);
+    }
+
     const finalResult = {
       lastPrice: safeParseFloat(ticker.lastPrice),
       prevPrice24h: safeParseFloat(ticker.prevPrice24h),
@@ -95,9 +104,9 @@ export async function GET(request: Request) {
       fundingRate: safeParseFloat(ticker.fundingRate),
       volume24h: safeParseFloat(ticker.volume24h),
       turnover24h: safeParseFloat(ticker.turnover24h),
+      fullname: dbFullName,
     };
 
-    // Сохраняем результат в кэш
     memoryCache.set(symbol, {
       timestamp: Date.now(),
       data: finalResult,
@@ -106,16 +115,12 @@ export async function GET(request: Request) {
     return NextResponse.json(finalResult);
   } catch (error: any) {
     clearTimeout(timeoutId);
-
     if (error.name === "AbortError") {
-      console.error(`Bybit API Timeout для пары ${symbol}`);
       return NextResponse.json(
         { error: "Превышено время ожидания Bybit API" },
         { status: 504 },
       );
     }
-
-    console.error("Bybit Route Error:", error);
     return NextResponse.json(
       { error: "Внутренняя ошибка сервера" },
       { status: 500 },

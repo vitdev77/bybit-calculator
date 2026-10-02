@@ -12,6 +12,7 @@ interface TickerData {
   lowPrice24h: number;
   fundingRate: number;
   turnover24h: number;
+  fullname?: string;
 }
 
 interface FGData {
@@ -32,21 +33,6 @@ interface SuperTickerProps {
   marginUsed: number;
   allocatedMarginMax: number;
 }
-const COIN_NAMES: Record<string, string> = {
-  BTCUSDT: "Bitcoin",
-  ETHUSDT: "Ethereum",
-  MNTUSDT: "Mantle",
-  ZECUSDT: "Zcash",
-  XAUTUSDT: "Tether Gold",
-  SOLUSDT: "Solana",
-  GRAMUSDT: "Gram",
-  XRPUSDT: "Ripple",
-  DOGEUSDT: "Dogecoin",
-  SUIUSDT: "Sui",
-  HYPEUSDT: "Hyperliquid",
-  NEARUSDT: "Near Protocol",
-  LINKUSDT: "Chainlink",
-};
 
 function formatCompactNumber(num: number): string {
   if (num >= 1_000_000_000) {
@@ -137,12 +123,7 @@ export default function MarketTicker({
           col = "text-emerald-500";
           rCol = "#10b981";
         }
-        setFng({
-          value: val,
-          sentiment: sent,
-          color: col,
-          rawColor: rCol,
-        });
+        setFng({ value: val, sentiment: sent, color: col, rawColor: rCol });
       })
       .catch((e) => console.error(e))
       .finally(() => setFngLoading(false));
@@ -180,7 +161,6 @@ export default function MarketTicker({
       const mins = Math.floor((diff % 3600000) / 60000);
       const secs = Math.floor((diff % 60000) / 1000);
       const pad = (n: number) => String(n).padStart(2, "0");
-
       setTimeLeft(`${pad(hrs)}:${pad(mins)}:${pad(secs)}`);
       setFundProgress((diff / (8 * 3600000)) * 100);
     };
@@ -188,16 +168,16 @@ export default function MarketTicker({
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
   }, []);
+
   if (!data || data.lastPrice <= 0) {
     return (
       <div
         className={cn(
-          "p-4 border w-full rounded-xl",
-          "bg-muted/30 border-border/40 h-20",
+          "p-4 border w-full rounded-xl bg-muted/30 border-border/40 h-20",
           "flex items-center justify-center gap-2",
         )}
       >
-        <Spinner className="text-amber-500" />{" "}
+        <Spinner className="text-amber-500" />
         <span className="text-muted-foreground text-xs">Загрузка...</span>
       </div>
     );
@@ -205,11 +185,8 @@ export default function MarketTicker({
 
   const ratio =
     allocatedMarginMax > 0 ? Math.min(marginUsed / allocatedMarginMax, 1) : 0;
-  const activeBlocks = Math.round(ratio * 10);
   const isHighMargin = ratio > 0.85;
   const isFundingHigh = Math.abs(data.fundingRate) >= 0.01;
-
-  const fngPercent = fng ? fng.value : 50;
   const radius = 8;
   const stroke = 4;
   const circum = 2 * Math.PI * radius;
@@ -233,20 +210,21 @@ export default function MarketTicker({
 
   const coinBaseName = selectedCoin;
   const coinIconName = selectedCoin.replace("USDT", "");
-  const fullName = COIN_NAMES[selectedCoin] || "Crypto Asset";
+  const fullName = data.fullname || "Crypto Asset";
+
   return (
     <div
       className={cn(
-        "p-3 border border-border/40 w-full",
-        "rounded-xl bg-muted/30 select-none",
-        "dark:bg-black/40 grid grid-cols-1",
-        "md:grid-cols-12 gap-4 items-stretch",
+        "p-3 border border-border/40 w-full rounded-xl bg-muted/30",
+        "select-none dark:bg-black/40 grid grid-cols-1 md:grid-cols-12",
+        "gap-4 items-stretch",
       )}
     >
       <div
         className={cn(
           "md:col-span-5 flex flex-row md:flex-col justify-between",
-          "items-center md:items-start min-w-0 md:border-r border-border/30 pr-2 py-0.5",
+          "items-center md:items-start min-w-0 md:border-r border-border/30",
+          "pr-2 py-0.5",
         )}
       >
         <div className="flex items-center gap-3 min-w-0 max-w-[50%] md:max-w-full">
@@ -260,20 +238,13 @@ export default function MarketTicker({
               />
             ) : (
               <div
-                className={cn(
-                  "w-full h-full flex text-white",
-                  "items-center font-black",
-                  "justify-center text-xs uppercase rounded-full",
-                )}
-                style={{
-                  backgroundImage: getCoinGradient(coinIconName),
-                }}
+                className="w-full h-full flex text-white items-center font-black justify-center text-xs uppercase rounded-full"
+                style={{ backgroundImage: getCoinGradient(coinIconName) }}
               >
                 {coinIconName.slice(0, 2)}
               </div>
             )}
           </div>
-          {/* Фикс: Адаптивный лимит ширины на мобилке для вызова truncate с 3 точками */}
           <div className="flex flex-col min-w-0 flex-1 leading-tight">
             <span className="text-sm sm:text-base font-black text-foreground truncate block max-w-30 xs:max-w-none">
               {coinBaseName}
@@ -283,11 +254,7 @@ export default function MarketTicker({
             </span>
           </div>
         </div>
-
-        {/* Фикс: Сделали разделительную полоску повиднее через bg-border/60 */}
         <div className="block md:hidden w-px h-8 bg-border/60 mx-1.5 shrink-0" />
-
-        {/* Фикс: На мобилке цена увеличена до text-3xl */}
         <div
           className="cursor-copy w-auto md:w-full text-right md:text-left mt-0 md:mt-2"
           onClick={() => onPriceClick?.(data.lastPrice)}
@@ -307,7 +274,6 @@ export default function MarketTicker({
           </span>
         </div>
       </div>
-
       <div className="md:col-span-7 flex flex-col gap-2 justify-center w-full min-w-0">
         <div className="grid grid-cols-3 gap-2 w-full">
           <div className="bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border border-border/10 flex flex-col justify-center min-w-0">
@@ -338,7 +304,6 @@ export default function MarketTicker({
             </span>
           </div>
         </div>
-
         <div className="grid grid-cols-3 sm:grid-cols-3 gap-2 w-full">
           <div className="bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border border-border/10 flex flex-col justify-center min-w-0 relative">
             <span className="text-[8px] opacity-50 uppercase font-bold">
@@ -366,7 +331,6 @@ export default function MarketTicker({
               </span>
             )}
           </div>
-
           <div className="bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border border-border/10 flex items-center justify-between min-w-0 gap-1">
             <div className="flex flex-col min-w-0">
               <span className="text-[8px] opacity-50 uppercase font-bold">
@@ -409,7 +373,6 @@ export default function MarketTicker({
               />
             </svg>
           </div>
-
           <div className="bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border border-border/10 flex flex-col justify-center min-w-0">
             <div className="flex justify-between items-center w-full">
               <span className="text-[8px] opacity-50 uppercase font-bold">
@@ -417,7 +380,7 @@ export default function MarketTicker({
               </span>
               <span
                 className={cn(
-                  "text-[9px] font-black",
+                  "text-shadow-xs text-[9px] font-black",
                   isHighMargin ? "text-rose-500" : "text-amber-500",
                 )}
               >

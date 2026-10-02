@@ -10,7 +10,6 @@ import ListingManagerModal from "./ListingManagerModal";
 import { cn } from "@/lib/utils";
 
 export type OrderType = "MARKET" | "LIMIT";
-
 export type PositionSide = "BUY" | "SELL";
 
 const STORAGE_KEY = "bybit_calculator_state_v14";
@@ -21,6 +20,7 @@ export interface DBAssetCoin {
   is_favorite: boolean;
   is_active: boolean;
   is_delisted: boolean;
+  fullname?: string;
 }
 
 interface TickerData {
@@ -31,6 +31,7 @@ interface TickerData {
   fundingRate: number;
   turnover24h: number;
 }
+
 function useTabTicker(
   price: number | undefined,
   coin: string,
@@ -67,7 +68,6 @@ function useTabTicker(
     document.title = "Bybit Futures Calculator";
   }, [coin]);
 }
-
 interface CalculatorProps {
   selectedCoin: string;
   setSelectedCoin: (coin: string) => void;
@@ -281,7 +281,9 @@ export default function TradingCalculator({
     const calculatedRecLeverage = Math.ceil(
       idealPositionSizeUsdt / allocatedMarginMax,
     );
-    const standardSteps = [1, 2, 5, 10, 15, 20, 25, 30, 50, 75, 100];
+    const standardSteps = [
+      1, 2, 3, 4, 5, 6, 7, 8, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100,
+    ];
     let finalRecLeverage = 10;
     for (const step of standardSteps) {
       if (step >= calculatedRecLeverage) {
@@ -364,7 +366,6 @@ export default function TradingCalculator({
   const handleCoinChange = (newCoin: string) => {
     setSelectedCoin(newCoin);
   };
-
   const handleReset = () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem(STORAGE_KEY);
@@ -428,6 +429,7 @@ export default function TradingCalculator({
     partsCount,
     isLoaded,
   ]);
+
   useEffect(() => {
     if (entryPrice <= 0 || stopLossPercent <= 0 || balance <= 0) return;
     const isLong = side === "BUY";
@@ -500,23 +502,14 @@ export default function TradingCalculator({
   ]);
 
   const cardCls = cn(
-    "shadow-sm border flex flex-col",
-    "border-border/40 bg-background",
-    "rounded-xl sm:rounded-2xl",
+    "shadow-sm border flex flex-col border-border/40 bg-background rounded-xl sm:rounded-2xl",
   );
-  const headCls = cn(
-    "py-2 px-2.5 border-b",
-    "border-border/40",
-    "sm:py-2.5 sm:px-4",
-  );
+  const headCls = cn("py-2 px-2.5 border-b border-border/40 sm:py-2.5 sm:px-4");
   const titCls = cn(
-    "text-[11px] sm:text-xs",
-    "font-semibold uppercase",
-    "tracking-wider",
-    "text-muted-foreground",
+    "text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground",
   );
-  const contCls = cn("space-y-3.5 p-2.5 flex-1", "sm:space-y-4 sm:p-4");
-  const repCls = cn("p-2.5 flex-1 flex flex-col", "justify-between sm:p-4");
+  const contCls = cn("space-y-3.5 p-2.5 flex-1 sm:space-y-4 sm:p-4");
+  const repCls = cn("p-2.5 flex-1 flex flex-col justify-between sm:p-4");
 
   return (
     <div className="w-full p-0">
@@ -535,10 +528,7 @@ export default function TradingCalculator({
 
         <div
           className={cn(
-            "grid grid-cols-1",
-            "md:grid-cols-2 md:items-stretch",
-            "gap-3 sm:gap-4",
-            "items-start",
+            "grid grid-cols-1 md:grid-cols-2 md:items-stretch gap-3 sm:gap-4 items-start",
           )}
         >
           <Card className={cardCls}>

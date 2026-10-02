@@ -7,16 +7,16 @@ const sql = neon(process.env.DATABASE_URL || "");
 let isCoinsVerified = false;
 
 const REAL_STABLE_COINS = [
-  { coin: "BTCUSDT", decimals: 2 },
-  { coin: "ETHUSDT", decimals: 2 },
-  { coin: "SOLUSDT", decimals: 2 },
-  { coin: "SUIUSDT", decimals: 4 },
-  { coin: "XRPUSDT", decimals: 4 },
-  { coin: "DOGEUSDT", decimals: 5 },
-  { coin: "NEARUSDT", decimals: 3 },
-  { coin: "LINKUSDT", decimals: 3 },
-  { coin: "MNTUSDT", decimals: 4 },
-  { coin: "HYPEUSDT", decimals: 2 },
+  { coin: "BTCUSDT", decimals: 2, fullname: "Bitcoin" },
+  { coin: "ETHUSDT", decimals: 2, fullname: "Ethereum" },
+  { coin: "SOLUSDT", decimals: 2, fullname: "Solana" },
+  { coin: "SUIUSDT", decimals: 4, fullname: "Sui" },
+  { coin: "XRPUSDT", decimals: 4, fullname: "Ripple" },
+  { coin: "DOGEUSDT", decimals: 5, fullname: "Dogecoin" },
+  { coin: "NEARUSDT", decimals: 3, fullname: "Near Protocol" },
+  { coin: "LINKUSDT", decimals: 3, fullname: "Chainlink" },
+  { coin: "MNTUSDT", decimals: 4, fullname: "Mantle" },
+  { coin: "HYPEUSDT", decimals: 2, fullname: "Hyperliquid" },
 ];
 
 function getDecimalsFromTick(tickStr: string): number {
@@ -24,7 +24,7 @@ function getDecimalsFromTick(tickStr: string): number {
     return 0;
   }
   const parts = tickStr.split(".");
-  return parts[1] ? parts[1].length : 2;
+  return parts && parts[1] ? parts[1].length : 2;
 }
 
 async function fetchAndSyncBybitPairs() {
@@ -87,6 +87,9 @@ WHERE NOT (coin = ANY(${names}));
       const coinName = item.symbol;
       const tick = item.priceFilter?.tickSize || "0.01";
       const decimals = getDecimalsFromTick(tick);
+
+      const officialName = item.fullName || item.baseCoin || "Crypto Asset";
+
       const defaultFavs = [
         "BTCUSDT",
         "ETHUSDT",
@@ -98,18 +101,19 @@ WHERE NOT (coin = ANY(${names}));
       await sql`
 INSERT INTO coins (
 coin, decimals, is_favorite, 
-is_active, is_delisted
+is_active, is_delisted, fullname
 )
 VALUES (
 ${coinName}, ${decimals}, 
 ${defaultFavs.includes(coinName)}, 
-TRUE, FALSE
+TRUE, FALSE, ${officialName}
 )
 ON CONFLICT (coin) 
 DO UPDATE SET 
 decimals = ${decimals}, 
 is_active = TRUE,
-is_delisted = FALSE;
+is_delisted = FALSE,
+fullname = ${officialName};
 `;
     }
     return true;
@@ -136,19 +140,11 @@ ALTER TABLE coins
 ADD COLUMN IF NOT EXISTS is_delisted BOOLEAN 
 NOT NULL DEFAULT FALSE;
 `;
-
-    try {
-      await sql`
+    await sql`
 ALTER TABLE coins 
-DROP COLUMN IF EXISTS turnover24h;
+ADD COLUMN IF NOT EXISTS fullname VARCHAR(100) 
+NOT NULL DEFAULT 'Crypto Asset';
 `;
-      await sql`
-ALTER TABLE coins 
-DROP COLUMN IF EXISTS price24hPcnt;
-`;
-    } catch (e) {
-      console.log("Колонки уже удалены");
-    }
 
     isCoinsVerified = true;
   } catch (err) {
@@ -172,7 +168,7 @@ export async function GET(request: Request) {
     if (all === "true") {
       coinsResult = await sql`
 SELECT coin, decimals, is_favorite, 
-is_active, is_delisted 
+is_active, is_delisted, fullname 
 FROM coins 
 ORDER BY is_favorite DESC, coin ASC;
 `;
@@ -180,7 +176,7 @@ ORDER BY is_favorite DESC, coin ASC;
       const cleanSearch = `%${search.trim().toUpperCase()}%`;
       coinsResult = await sql`
 SELECT coin, decimals, is_favorite, 
-is_active, is_delisted 
+is_active, is_delisted, fullname 
 FROM coins 
 WHERE coin LIKE ${cleanSearch}
 ORDER BY is_favorite DESC, coin ASC 
@@ -189,7 +185,7 @@ LIMIT 30;
     } else {
       coinsResult = await sql`
 SELECT coin, decimals, is_favorite, 
-is_active, is_delisted 
+is_active, is_delisted, fullname 
 FROM coins 
 WHERE is_favorite = TRUE
 ORDER BY coin ASC;
@@ -208,19 +204,19 @@ ORDER BY coin ASC;
         await sql`
 INSERT INTO coins (
 coin, decimals, is_favorite, 
-is_active, is_delisted
+is_active, is_delisted, fullname
 )
 VALUES (
 ${item.coin}, ${item.decimals}, 
 ${defaultFavs.includes(item.coin)}, 
-TRUE, FALSE
+TRUE, FALSE, ${item.fullname}
 )
 ON CONFLICT (coin) DO NOTHING;
 `;
       }
       coinsResult = await sql`
 SELECT coin, decimals, is_favorite, 
-is_active, is_delisted
+is_active, is_delisted, fullname 
 FROM coins 
 WHERE is_favorite = TRUE
 ORDER BY coin ASC;
