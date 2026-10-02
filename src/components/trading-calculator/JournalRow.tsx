@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useEffect } from "react";
 import {
   CheckCircle2,
@@ -65,6 +64,7 @@ interface JournalRowProps {
   handleDeleteDeal: (id: number) => Promise<void>;
   focusedDeal?: Deal | null;
 }
+
 export function JournalRow({
   deal,
   livePrice,
@@ -109,7 +109,6 @@ export function JournalRow({
   const closeFeeRate = 0.0006;
   const totalFeeRate = 0.0013;
 
-  // ФИКС: Внедряем динамический буфер проскальзывания в зависимости от точности монеты
   const isVolatileCoin =
     precision >= 4 ||
     deal.coin.includes("DOGE") ||
@@ -193,7 +192,7 @@ export function JournalRow({
             isLiveProfit ? "text-emerald-500/80" : "text-rose-500/80",
           )}
         >
-          {isLiveProfit ? "+" : ""}
+          {isLong && isLiveProfit ? "+" : ""}
           {liveRoi.toFixed(2)}%
         </span>
       </div>
@@ -300,7 +299,7 @@ export function JournalRow({
       if (!res.ok) throw new Error();
       toast.add({
         title: "Риск снят",
-        description: `Stop Loss перенесен в БУ.`,
+        description: `Пара ${deal.coin}: Stop Loss перенесен в БУ.`,
         type: "success",
       });
       window.dispatchEvent(new Event("refresh-trading-journal"));
@@ -311,17 +310,40 @@ export function JournalRow({
     }
   };
 
+  const handleActionClick = async (status: "PROFIT" | "LOSS") => {
+    try {
+      await handleUpdateStatus(deal.id, status);
+      toast.add({
+        title:
+          status === "PROFIT" ? "Профит зафиксирован" : "Стоп-лосс сработал",
+        description: `Ордер по паре ${deal.coin} успешно закрыт.`,
+        type: status === "PROFIT" ? "success" : "error",
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleConfirmManualClose = () => {
     setIsManualCloseModalOpen(false);
-    handleUpdateStatus(deal.id, "CLOSED", livePrice).catch((err) => {
-      console.error(err);
-    });
+    handleUpdateStatus(deal.id, "CLOSED", livePrice)
+      .then(() => {
+        toast.add({
+          title: "Позиция закрыта",
+          description: `Пара ${deal.coin} успешно зафиксирована вручную.`,
+          type: "info",
+        });
+      })
+      .catch((err) => {
+        console.error(err);
+      });
   };
 
   const isAlreadyInBreakeven =
     Math.abs(deal.stop_loss - breakevenPrice) < 0.00000001;
   const baseRowStyle = isRowSelected
-    ? "bg-linear-to-r from-amber-500/10 via-amber-500/5 to-transparent border-amber-500/30 dark:from-amber-500/15 opacity-100!"
+    ? "bg-linear-to-r from-amber-500/10 via-amber-500/5 to-transparent " +
+      "border-amber-500/30 dark:from-amber-500/15 opacity-100!"
     : !isOpen
       ? "opacity-55 hover:bg-muted/40 hover:opacity-100"
       : "hover:bg-muted/40";
@@ -468,7 +490,7 @@ export function JournalRow({
               <Button
                 size="icon"
                 variant="ghost"
-                onClick={() => handleUpdateStatus(deal.id, "PROFIT")}
+                onClick={() => handleActionClick("PROFIT")}
                 className="h-7 w-7 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-md"
                 title="Закрыть по тейку"
               >
@@ -477,7 +499,7 @@ export function JournalRow({
               <Button
                 size="icon"
                 variant="ghost"
-                onClick={() => handleUpdateStatus(deal.id, "LOSS")}
+                onClick={() => handleActionClick("LOSS")}
                 className="h-7 w-7 text-rose-600 hover:bg-rose-600 hover:text-white rounded-md"
                 title="Закрыть по стопу"
               >
@@ -506,7 +528,7 @@ export function JournalRow({
                       </div>
                       <div className="p-3 bg-muted/40 border border-border/30 rounded-xl space-y-1.5 text-center select-none">
                         <div className="text-[10px] text-muted-foreground uppercase font-black">
-                          Ожидаемый financial результат
+                          Ожидаемый финансовый результат
                         </div>
                         <div
                           className={cn(

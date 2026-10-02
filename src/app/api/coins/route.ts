@@ -24,7 +24,7 @@ function getDecimalsFromTick(tickStr: string): number {
     return 0;
   }
   const parts = tickStr.split(".");
-  return parts && parts[1] ? parts[1].length : 2;
+  return parts ? parts.length : 2;
 }
 
 async function fetchAndSyncBybitPairs() {
@@ -145,6 +145,23 @@ ALTER TABLE coins
 ADD COLUMN IF NOT EXISTS fullname VARCHAR(100) 
 NOT NULL DEFAULT 'Crypto Asset';
 `;
+
+    try {
+      await sql`
+ALTER TABLE coins 
+DROP COLUMN IF EXISTS turnover24h;
+`;
+      await sql`
+ALTER TABLE coins 
+DROP COLUMN IF EXISTS price24hPcnt;
+`;
+      await sql`
+ALTER TABLE coins 
+DROP COLUMN IF EXISTS icon_path;
+`;
+    } catch (e) {
+      console.log("Удаление старых колонок выполнено");
+    }
 
     isCoinsVerified = true;
   } catch (err) {

@@ -209,7 +209,7 @@ export default function MarketTicker({
         : "text-muted-foreground";
 
   const coinBaseName = selectedCoin;
-  const coinIconName = selectedCoin.replace("USDT", "");
+  const coinIconName = selectedCoin.replace("USDT", "").toLowerCase();
   const fullName = data.fullname || "Crypto Asset";
 
   return (
@@ -231,17 +231,19 @@ export default function MarketTicker({
           <div className="relative size-9 shrink-0 flex items-center justify-center">
             {!iconImgError ? (
               <img
-                src={"/crypto-icons/" + coinIconName.toLowerCase() + ".svg"}
+                src={"/crypto-icons/" + coinIconName + ".svg"}
                 alt={coinBaseName}
-                className="w-full h-full"
+                className="w-full h-full rounded-full"
                 onError={() => setIconImgError(true)}
               />
             ) : (
               <div
                 className="w-full h-full flex text-white items-center font-black justify-center text-xs uppercase rounded-full"
-                style={{ backgroundImage: getCoinGradient(coinIconName) }}
+                style={{
+                  backgroundImage: getCoinGradient(coinIconName.toUpperCase()),
+                }}
               >
-                {coinIconName.slice(0, 2)}
+                {coinIconName.slice(0, 2).toUpperCase()}
               </div>
             )}
           </div>

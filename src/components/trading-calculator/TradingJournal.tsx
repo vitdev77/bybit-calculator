@@ -40,7 +40,6 @@ export default function TradingJournal({
   livePrice = 0,
   activeCoin = "",
   onCoinSelect,
-  availableCoinsList = [],
 }: TJournalProps) {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [activeOpenDeal, setActiveOpenDeal] = useState<Deal | null>(null);
@@ -80,7 +79,6 @@ export default function TradingJournal({
       setIsChangingCoin(false);
     }
   }, [livePrice, activeCoin, activeOpenDeal, isChangingCoin]);
-
   const fetchJournal = useCallback(async () => {
     try {
       const url = activeCoin
@@ -170,14 +168,8 @@ export default function TradingJournal({
         const targetPrice = customPrice !== undefined ? customPrice : livePrice;
         const res = await fetch("/api/journal", {
           method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            id,
-            status,
-            closed_at_price: targetPrice,
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, status, closed_at_price: targetPrice }),
         });
         if (!res.ok) throw new Error();
         fetchJournal();
@@ -213,13 +205,8 @@ export default function TradingJournal({
         processedSignalsRef.current[key] = true;
         fetch("/api/journal", {
           method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            id: activeOpenDeal.id,
-            action: "TOUCH_TP",
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: activeOpenDeal.id, action: "TOUCH_TP" }),
         }).then(() => {
           fetchJournal();
         });
@@ -231,13 +218,8 @@ export default function TradingJournal({
         processedSignalsRef.current[key] = true;
         fetch("/api/journal", {
           method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            id: activeOpenDeal.id,
-            action: "TOUCH_SL",
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: activeOpenDeal.id, action: "TOUCH_SL" }),
         }).then(() => {
           fetchJournal();
         });
@@ -317,6 +299,11 @@ export default function TradingJournal({
       if (!res.ok) throw new Error();
       fetchJournal();
       setActiveDeleteId(null);
+      toast.add({
+        title: "Сделка удалена",
+        description: "Запись успешно стерта из облачной базы данных.",
+        type: "error",
+      });
     } catch (e) {
       console.error(e);
     }
@@ -328,6 +315,11 @@ export default function TradingJournal({
       if (!res.ok) throw new Error();
       fetchJournal();
       setIsClearOpen(false);
+      toast.add({
+        title: "Журнал очищен",
+        description: "Все торговые записи безвозвратно удалены.",
+        type: "success",
+      });
     } catch (e) {
       console.error(e);
     }
@@ -351,33 +343,18 @@ export default function TradingJournal({
   return (
     <div
       className={cn(
-        "w-full",
-        "bg-transparent",
-        "flex",
-        "flex-col",
-        "px-0",
-        "space-y-4",
-        "min-w-0",
+        "w-full bg-transparent flex flex-col px-0 space-y-4 min-w-0",
       )}
     >
       <div
         className={cn(
-          "py-3 sm:py-4",
-          "border-b",
-          "border-border/40",
-          "flex",
-          "items-center",
-          "justify-between",
-          "bg-transparent",
-          "select-none",
-          "w-full",
-          "min-w-0",
+          "py-3 sm:py-4 border-b border-border/40 flex items-center justify-between bg-transparent select-none w-full min-w-0",
         )}
       >
         <JournalStats deals={deals} />
       </div>
       {hasDealsForPosition && (
-        <div className={cn("w-full", "min-w-0")}>
+        <div className={cn("w-full min-w-0")}>
           <OrderRuntimeMap
             focusedDeal={focusedDeal}
             livePrice={livePrice}
@@ -393,7 +370,7 @@ export default function TradingJournal({
           />
         </div>
       )}
-      <div className={cn("w-full", "min-w-0", "overflow-hidden")}>
+      <div className={cn("w-full min-w-0 overflow-hidden")}>
         <JournalTable
           filteredDeals={filteredDeals}
           searchQuery={searchQuery}
@@ -417,6 +394,9 @@ export default function TradingJournal({
                 frozenPnL={frozenPnL}
                 setFrozenPnL={setFrozenPnL}
                 focusedDeal={focusedDeal}
+                activeDeleteId={activeDeleteId}
+                setActiveDeleteId={setActiveDeleteId}
+                handleDeleteDeal={handleDeleteDeal}
                 onCoinSelect={(coin) => {
                   isUserInteractedRef.current = true;
                   setIsChangingCoin(true);
@@ -434,9 +414,6 @@ export default function TradingJournal({
                     await handleUpdateStatus(id, status);
                   }
                 }}
-                handleDeleteDeal={handleDeleteDeal}
-                activeDeleteId={activeDeleteId}
-                setActiveDeleteId={setActiveDeleteId}
               />
             );
           }}
