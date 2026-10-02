@@ -33,13 +33,15 @@ export function CoinListingRow({
     item.coin.includes("PEPE") ||
     item.coin.includes("BONK");
 
-  const isHighRisk =
+  const isHighLiq = !item.is_delisted && liveStats.turnover24h >= 50000000;
+
+  const isRisk =
     !item.is_delisted &&
     (isMem ||
       item.decimals >= 4 ||
       (liveStats.turnover24h > 0 && liveStats.turnover24h < 10000000));
 
-  const isHighLiq = !item.is_delisted && liveStats.turnover24h >= 100000000;
+  const isMid = !item.is_delisted && !isHighLiq && !isRisk;
 
   function formatCompact(num: number): string {
     if (!num) return "--";
@@ -55,16 +57,23 @@ export function CoinListingRow({
     return num.toFixed(0);
   }
 
-  const renderBadge = (type: "LIQ" | "RISK") => {
-    const isR = type === "RISK";
+  const renderBadge = (type: "LIQ" | "MID" | "RISK") => {
+    let colorCls = "";
+    if (type === "LIQ") {
+      colorCls = "bg-emerald-500/10 border-emerald-500/20 text-emerald-500";
+    } else if (type === "MID") {
+      colorCls = "bg-blue-500/10 border-blue-500/20 text-blue-500";
+    } else {
+      colorCls = "bg-amber-500/10 border-amber-500/20 text-amber-500";
+    }
+
     return (
       <span
         className={cn(
           "flex px-1 text-center py-0.5 shrink-0",
-          "font-black tracking-wider rounded border text-[9px] font-sans",
-          isR
-            ? "bg-amber-500/10 border-amber-500/20 text-amber-500"
-            : "bg-emerald-500/10 border-emerald-500/20 text-emerald-500",
+          "font-black tracking-wider rounded border",
+          "text-[9px] font-sans",
+          colorCls,
         )}
       >
         {type}
@@ -76,10 +85,12 @@ export function CoinListingRow({
     <div
       onClick={() => onSelect(item.coin, item.is_delisted)}
       className={cn(
-        "grid grid-cols-12 p-2 gap-2 items-center rounded-xl border bg-background/50 transition-all",
+        "grid grid-cols-12 p-2 gap-2 items-center",
+        "rounded-xl border transition-all",
         item.is_delisted
           ? "border-rose-500/10 opacity-56 bg-rose-500/2 cursor-not-allowed"
-          : "border-border/30 cursor-pointer hover:bg-muted/30 hover:border-amber-500/30",
+          : "border-border/30 cursor-pointer " +
+              "hover:bg-muted/30 hover:border-amber-500/30",
       )}
     >
       <div
@@ -90,10 +101,12 @@ export function CoinListingRow({
           disabled={favLoading || item.is_delisted}
           onClick={(e) => onToggleFav(e, item.coin, item.is_favorite)}
           className={cn(
-            "p-1 bg-transparent border-none outline-none transition-colors shrink-0",
+            "p-1 bg-transparent border-none outline-none",
+            "transition-colors shrink-0",
             item.is_delisted
               ? "hidden"
-              : "cursor-pointer text-muted-foreground/30 hover:text-amber-500",
+              : "cursor-pointer text-muted-foreground/30 " +
+                  "hover:text-amber-500",
             item.is_favorite ? "text-amber-500!" : "",
           )}
         >
@@ -104,7 +117,6 @@ export function CoinListingRow({
         </button>
 
         <div className="flex flex-col min-w-0 flex-1">
-          {/* ЯРУС 1: Название пары */}
           <div className={cn("flex gap-1 items-center min-w-0 flex-nowrap")}>
             <span
               className={cn(
@@ -122,17 +134,17 @@ export function CoinListingRow({
             >
               {item.coin}
             </span>
-            {/* На десктопе бейджи остаются в основном ряду */}
             <div className="hidden sm:flex gap-1 items-center">
               {isHighLiq && renderBadge("LIQ")}
-              {isHighRisk && renderBadge("RISK")}
+              {isMid && renderBadge("MID")}
+              {isRisk && renderBadge("RISK")}
             </div>
           </div>
 
-          {/* ЯРУС 2 (Мобильный): Бейджи переносятся под название пары на смартфонах */}
           <div className="flex sm:hidden gap-1 items-center mt-1 pl-7">
             {isHighLiq && renderBadge("LIQ")}
-            {isHighRisk && renderBadge("RISK")}
+            {isMid && renderBadge("MID")}
+            {isRisk && renderBadge("RISK")}
           </div>
 
           <span

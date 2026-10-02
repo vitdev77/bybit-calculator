@@ -8,6 +8,7 @@ import {
   Coins,
   Trash2,
   ArrowLeft,
+  CloudDownload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/spinner";
@@ -40,6 +41,7 @@ export default function AdminDBExplorer() {
   const [stats, setStats] = useState<any>({});
   const [loading, setLoading] = useState(true);
   const [isTruncating, setIsTruncating] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
 
   const loadTableData = useCallback(async () => {
@@ -88,6 +90,41 @@ export default function AdminDBExplorer() {
     }
   };
 
+  const handleSyncBybit = async () => {
+    setIsSyncing(true);
+    try {
+      const res = await fetch("/api/coins", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "SYNC_BYBIT",
+        }),
+      });
+      if (res.ok) {
+        toast.add({
+          title: "Листинг обновлен",
+          description: "Данные Bybit синхронизированы",
+          type: "success",
+        });
+        if (currentTable === "coins") {
+          loadTableData();
+        }
+      } else {
+        throw new Error();
+      }
+    } catch (e) {
+      toast.add({
+        title: "Ошибка синхронизации",
+        description: "Не удалось связаться с Bybit",
+        type: "error",
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const headClass = cn(
     "sticky top-0 z-50 w-full",
     "bg-background/60 backdrop-blur-xl",
@@ -95,7 +132,6 @@ export default function AdminDBExplorer() {
     "mb-6 flex items-center",
     "justify-between gap-4",
   );
-
   return (
     <main
       className={cn(
@@ -192,8 +228,22 @@ export default function AdminDBExplorer() {
           <Button
             variant="outline"
             size="sm"
+            onClick={handleSyncBybit}
+            disabled={isSyncing || loading}
+            className="gap-1 text-amber-500 border-amber-500/20 hover:bg-amber-500/10 font-bold"
+            title="Стянуть свежий листинг с Bybit"
+          >
+            <CloudDownload
+              className={cn("size-3.5", isSyncing ? "animate-bounce" : "")}
+            />
+            <span className="hidden xs:inline">Синхронизировать</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
             onClick={loadTableData}
-            disabled={loading}
+            disabled={loading || isSyncing}
           >
             <RefreshCw
               className={cn("size-3.5", loading ? "animate-spin" : "")}
@@ -207,7 +257,9 @@ export default function AdminDBExplorer() {
                 size: "sm",
                 className: cn("gap-1.5 font-black", "cursor-pointer"),
               })}
-              disabled={loading || isTruncating || dbData.length === 0}
+              disabled={
+                loading || isTruncating || dbData.length === 0 || isSyncing
+              }
             >
               <Trash2 className="size-3.5" />
               Очистить таблицу
@@ -217,13 +269,14 @@ export default function AdminDBExplorer() {
             >
               <AlertDialogHeader>
                 <AlertDialogTitle className={cn("text-sm sm:text-base")}>
-                  Очистить таблицу {currentTable.toUpperCase()}?
+                  Очистить таблицу
+                  {currentTable.toUpperCase()}?
                 </AlertDialogTitle>
                 <AlertDialogDescription
                   className={cn("text-[11px] sm:text-xs")}
                 >
-                  ВНИМАНИЕ! Это действие безвозвратно удалит абсолютно все
-                  строки из таблицы {currentTable} в базе Neon DB.
+                  ВНИМАНИЕ! Это действие удалит все строки из таблицы{" "}
+                  {currentTable}в базе Neon DB.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter className={cn("gap-1.5 sm:gap-2")}>
@@ -254,6 +307,7 @@ export default function AdminDBExplorer() {
           </AlertDialog>
         </div>
       </div>
+
       <div
         className={cn(
           "w-full rounded-2xl border",
@@ -282,66 +336,88 @@ export default function AdminDBExplorer() {
 
         <div
           className={cn(
-            "w-full max-h-150",
-            "overflow-x-auto overflow-y-auto",
+            "w-full max-h-150 relative",
             "scrollbar-thin min-w-0",
+            isSyncing ? "overflow-hidden" : "overflow-x-auto overflow-y-auto",
           )}
         >
-          {loading ? (
+          {isSyncing && (
             <div
               className={cn(
-                "flex p-20 gap-2 items-center",
-                "justify-center text-muted-foreground",
+                "absolute inset-0 bg-background/50",
+                "backdrop-blur-xs z-30 flex",
+                "items-center justify-center",
+                "gap-2 font-bold text-amber-500",
+                "select-none pointer-events-auto",
               )}
             >
-              <Spinner className={"text-amber-500"} />
-              <span>Чтение Neon DB...</span>
+              <Spinner className="text-amber-500 animate-spin" />
+              <span>Запрос Bybit API...</span>
             </div>
-          ) : dbData.length === 0 ? (
-            <div className={cn("p-12 text-center", "text-muted-foreground")}>
-              Таблица пуста
-            </div>
-          ) : (
-            <Table
-              className={cn("w-full text-xs min-w-225", "border-collapse")}
-            >
-              <TableHeader>
-                <TableRow className={cn("bg-muted/40 font-bold")}>
-                  {Object.keys(dbData[0]).map((key) => (
-                    <TableHead
-                      key={key}
-                      className={cn(
-                        "font-black text-[10px]",
-                        "uppercase tracking-wider",
-                      )}
-                    >
-                      {key}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {dbData.map((row, idx) => (
-                  <TableRow key={idx} className="hover:bg-muted/20">
-                    {Object.values(row).map((val: any, vIdx) => (
-                      <TableCell
-                        key={vIdx}
-                        className={cn("font-mono max-w-48", "truncate")}
+          )}
+
+          <div
+            className={cn(
+              "w-full transition-all duration-300",
+              isSyncing ? "blur-xs pointer-events-none opacity-50" : "",
+            )}
+          >
+            {loading && !isSyncing ? (
+              <div
+                className={cn(
+                  "flex p-20 gap-2 items-center",
+                  "justify-center text-muted-foreground",
+                )}
+              >
+                <Spinner className={"text-amber-500"} />
+                <span>Чтение Neon DB...</span>
+              </div>
+            ) : dbData.length === 0 ? (
+              <div className={cn("p-12 text-center", "text-muted-foreground")}>
+                Таблица пуста
+              </div>
+            ) : (
+              <Table
+                className={cn("w-full text-xs min-w-225", "border-collapse")}
+              >
+                <TableHeader>
+                  <TableRow className={cn("bg-muted/40 font-bold")}>
+                    {Object.keys(dbData[0] || {}).map((key) => (
+                      <TableHead
+                        key={key}
+                        className={cn(
+                          "font-black text-[10px]",
+                          "uppercase tracking-wider",
+                        )}
                       >
-                        {val === null
-                          ? "NULL"
-                          : typeof val === "boolean"
-                            ? val
-                              ? "TRUE"
-                              : "FALSE"
-                            : String(val)}
-                      </TableCell>
+                        {key}
+                      </TableHead>
                     ))}
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+                </TableHeader>
+                <TableBody>
+                  {dbData.map((row, idx) => (
+                    <TableRow key={idx} className="hover:bg-muted/20">
+                      {Object.values(row).map((val: any, vIdx) => (
+                        <TableCell
+                          key={vIdx}
+                          className={cn("font-mono max-w-48", "truncate")}
+                        >
+                          {val === null
+                            ? "NULL"
+                            : typeof val === "boolean"
+                              ? val
+                                ? "TRUE"
+                                : "FALSE"
+                              : String(val)}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
         </div>
       </div>
     </main>

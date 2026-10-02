@@ -21,10 +21,100 @@ const REAL_STABLE_COINS = [
 
 function getDecimalsFromTick(tickStr: string): number {
   if (!tickStr || !tickStr.includes(".")) {
-    return 2;
+    return 0;
   }
   const parts = tickStr.split(".");
-  return parts ? parts.length : 2;
+  return parts[1] ? parts[1].length : 2;
+}
+
+async function fetchAndSyncBybitPairs() {
+  const bybitApiUrl = process.env.BYBIT_API_URL || "https://bytick.com";
+  const endpoint = "/v5/market/instruments-info";
+
+  let allLiveUsdtPairs: any[] = [];
+  let currentCursor = "";
+  let hasNextPage = true;
+  let loopSafetyCounter = 0;
+
+  try {
+    while (hasNextPage && loopSafetyCounter < 15) {
+      loopSafetyCounter++;
+      let targetUrl =
+        `${bybitApiUrl}${endpoint}` + "?category=linear&limit=1000";
+      if (currentCursor) {
+        targetUrl += `&cursor=${currentCursor}`;
+      }
+
+      const response = await fetch(targetUrl, {
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(8000),
+      });
+
+      if (response.ok) {
+        const json = await response.json();
+        const list = json.result?.list || [];
+
+        const filtered = list.filter(
+          (item: any) => item.status === "Trading" && item.quoteCoin === "USDT",
+        );
+
+        allLiveUsdtPairs = [...allLiveUsdtPairs, ...filtered];
+        currentCursor = json.result?.nextPageCursor || "";
+        if (!currentCursor || list.length === 0) {
+          hasNextPage = false;
+        }
+      } else {
+        hasNextPage = false;
+      }
+    }
+  } catch (bybitErr) {
+    console.warn("⚠️ Сбой Bybit API:", bybitErr);
+    return false;
+  }
+
+  if (allLiveUsdtPairs.length > 0) {
+    const names = allLiveUsdtPairs.map((i: any) => i.symbol);
+
+    await sql`
+UPDATE coins 
+SET is_active = FALSE, 
+is_delisted = TRUE 
+WHERE NOT (coin = ANY(${names}));
+`;
+
+    for (const item of allLiveUsdtPairs) {
+      const coinName = item.symbol;
+      const tick = item.priceFilter?.tickSize || "0.01";
+      const decimals = getDecimalsFromTick(tick);
+      const defaultFavs = [
+        "BTCUSDT",
+        "ETHUSDT",
+        "SOLUSDT",
+        "SUIUSDT",
+        "XRPUSDT",
+      ];
+
+      await sql`
+INSERT INTO coins (
+coin, decimals, is_favorite, 
+is_active, is_delisted
+)
+VALUES (
+${coinName}, ${decimals}, 
+${defaultFavs.includes(coinName)}, 
+TRUE, FALSE
+)
+ON CONFLICT (coin) 
+DO UPDATE SET 
+decimals = ${decimals}, 
+is_active = TRUE,
+is_delisted = FALSE;
+`;
+    }
+    return true;
+  }
+  return false;
 }
 async function ensureCoinsTableExists() {
   if (isCoinsVerified) return;
@@ -47,123 +137,25 @@ ADD COLUMN IF NOT EXISTS is_delisted BOOLEAN
 NOT NULL DEFAULT FALSE;
 `;
 
-    const bybitApiUrl = process.env.BYBIT_API_URL || "https://bytick.com";
-    const endpoint = "/v5/market/instruments-info";
-
-    let allLiveUsdtPairs: any[] = [];
-    let currentCursor = "";
-    let hasNextPage = true;
-    let loopSafetyCounter = 0;
-
-    while (hasNextPage && loopSafetyCounter < 15) {
-      loopSafetyCounter++;
-      let targetUrl =
-        `${bybitApiUrl}${endpoint}` + "?category=linear&limit=1000";
-      if (currentCursor) {
-        targetUrl += `&cursor=${currentCursor}`;
-      }
-
-      try {
-        const response = await fetch(targetUrl, {
-          cache: "no-store",
-          headers: {
-            Accept: "application/json",
-          },
-          signal: AbortSignal.timeout(6000),
-        });
-
-        if (response.ok) {
-          const json = await response.json();
-          const list = json.result?.list || [];
-
-          const filtered = list.filter(
-            (item: any) =>
-              item.status === "Trading" && item.quoteCoin === "USDT",
-          );
-
-          allLiveUsdtPairs = [...allLiveUsdtPairs, ...filtered];
-          currentCursor = json.result?.nextPageCursor || "";
-          if (!currentCursor || list.length === 0) {
-            hasNextPage = false;
-          }
-        } else {
-          hasNextPage = false;
-        }
-      } catch (e) {
-        hasNextPage = false;
-      }
-    }
-    if (allLiveUsdtPairs.length > 0) {
-      const names = allLiveUsdtPairs.map((i: any) => i.symbol);
-
+    try {
       await sql`
-UPDATE coins 
-SET is_active = FALSE, 
-is_delisted = TRUE 
-WHERE NOT (
-coin = ANY(${names})
-);
+ALTER TABLE coins 
+DROP COLUMN IF EXISTS turnover24h;
 `;
-
-      for (const item of allLiveUsdtPairs) {
-        const coinName = item.symbol;
-        const tick = item.priceFilter?.tickSize || "0.01";
-        const decimals = getDecimalsFromTick(tick);
-        const defaultFavs = [
-          "BTCUSDT",
-          "ETHUSDT",
-          "SOLUSDT",
-          "SUIUSDT",
-          "XRPUSDT",
-        ];
-
-        await sql`
-INSERT INTO coins (
-coin, decimals, is_favorite, 
-is_active, is_delisted
-)
-VALUES (
-${coinName}, ${decimals}, 
-${defaultFavs.includes(coinName)}, 
-TRUE, FALSE
-)
-ON CONFLICT (coin) 
-DO UPDATE SET 
-decimals = ${decimals}, 
-is_active = TRUE,
-is_delisted = FALSE;
+      await sql`
+ALTER TABLE coins 
+DROP COLUMN IF EXISTS price24hPcnt;
 `;
-      }
+    } catch (e) {
+      console.log("Колонки уже удалены");
     }
 
-    const res: any = await sql`
-SELECT COUNT(*) as count 
-FROM coins;
-`;
-    const coinCount = parseInt((res && res?.count) || "0", 10);
-
-    if (allLiveUsdtPairs.length === 0 && coinCount === 0) {
-      for (const item of REAL_STABLE_COINS) {
-        await sql`
-INSERT INTO coins (
-coin, decimals, is_favorite, 
-is_active, is_delisted
-)
-VALUES (
-${item.coin}, ${item.decimals}, 
-${item.coin === "BTCUSDT"}, 
-TRUE, FALSE
-)
-ON CONFLICT (coin) 
-DO NOTHING;
-`;
-      }
-    }
     isCoinsVerified = true;
   } catch (err) {
     console.error(err);
   }
 }
+
 export async function GET(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
@@ -179,30 +171,56 @@ export async function GET(request: Request) {
 
     if (all === "true") {
       coinsResult = await sql`
-SELECT coin, decimals, 
-is_favorite, is_active, 
-is_delisted 
+SELECT coin, decimals, is_favorite, 
+is_active, is_delisted 
 FROM coins 
-ORDER BY is_favorite DESC, 
-coin ASC;
+ORDER BY is_favorite DESC, coin ASC;
 `;
     } else if (search) {
       const cleanSearch = `%${search.trim().toUpperCase()}%`;
       coinsResult = await sql`
-SELECT coin, decimals, 
-is_favorite, is_active, 
-is_delisted 
+SELECT coin, decimals, is_favorite, 
+is_active, is_delisted 
 FROM coins 
 WHERE coin LIKE ${cleanSearch}
-ORDER BY is_favorite DESC, 
-coin ASC 
+ORDER BY is_favorite DESC, coin ASC 
 LIMIT 30;
 `;
     } else {
       coinsResult = await sql`
-SELECT coin, decimals, 
-is_favorite, is_active, 
-is_delisted 
+SELECT coin, decimals, is_favorite, 
+is_active, is_delisted 
+FROM coins 
+WHERE is_favorite = TRUE
+ORDER BY coin ASC;
+`;
+    }
+
+    if (coinsResult.length === 0 && !search && !all) {
+      const defaultFavs = [
+        "BTCUSDT",
+        "ETHUSDT",
+        "SOLUSDT",
+        "SUIUSDT",
+        "XRPUSDT",
+      ];
+      for (const item of REAL_STABLE_COINS) {
+        await sql`
+INSERT INTO coins (
+coin, decimals, is_favorite, 
+is_active, is_delisted
+)
+VALUES (
+${item.coin}, ${item.decimals}, 
+${defaultFavs.includes(item.coin)}, 
+TRUE, FALSE
+)
+ON CONFLICT (coin) DO NOTHING;
+`;
+      }
+      coinsResult = await sql`
+SELECT coin, decimals, is_favorite, 
+is_active, is_delisted
 FROM coins 
 WHERE is_favorite = TRUE
 ORDER BY coin ASC;
@@ -217,32 +235,29 @@ ORDER BY coin ASC;
       }
     > = {};
 
-    try {
-      const bybitApiUrl = process.env.BYBIT_API_URL || "https://bytick.com";
-      const endpoint = "/v5/market/tickers";
-      const tickersUrl = `${bybitApiUrl}${endpoint}` + "?category=linear";
+    if (all === "true" || search) {
+      try {
+        const bybitApiUrl = process.env.BYBIT_API_URL || "https://bytick.com";
+        const endpoint = "/v5/market/tickers";
+        const tickersUrl = `${bybitApiUrl}${endpoint}` + "?category=linear";
 
-      const tickersRes = await fetch(tickersUrl, {
-        cache: "no-store",
-        signal: AbortSignal.timeout(5000),
-      });
-      if (tickersRes.ok) {
-        const bulkJson = await tickersRes.json();
-        const list = bulkJson.result?.list || [];
-        list.forEach((item: any) => {
-          const isInSelection = coinsResult.some(
-            (c: any) => c.coin === item.symbol,
-          );
-          if (isInSelection || all === "true") {
+        const tickersRes = await fetch(tickersUrl, {
+          cache: "no-store",
+          signal: AbortSignal.timeout(6000),
+        });
+        if (tickersRes.ok) {
+          const bulkJson = await tickersRes.json();
+          const list = bulkJson.result?.list || [];
+          list.forEach((item: any) => {
             registryMap[item.symbol] = {
               price24hPcnt: parseFloat(item.price24hPcnt || "0"),
               turnover24h: parseFloat(item.turnover24h || "0"),
             };
-          }
-        });
+          });
+        }
+      } catch (e) {
+        console.warn("⚠️ Сбой живых тикеров:", e);
       }
-    } catch (e) {
-      console.warn(e);
     }
 
     return NextResponse.json({
@@ -253,7 +268,6 @@ ORDER BY coin ASC;
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
-
 export async function PATCH(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
@@ -261,6 +275,17 @@ export async function PATCH(request: Request) {
     }
     const body = await request.json();
     const { action, coin } = body;
+
+    if (action === "SYNC_BYBIT") {
+      const success = await fetchAndSyncBybitPairs();
+      if (!success) {
+        return NextResponse.json({ error: "Bybit API error" }, { status: 502 });
+      }
+      return NextResponse.json({
+        success: true,
+        message: "Листинг синхронизирован",
+      });
+    }
 
     if (!coin) {
       return NextResponse.json({ error: "No coin" }, { status: 400 });
