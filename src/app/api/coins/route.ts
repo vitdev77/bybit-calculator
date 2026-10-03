@@ -24,11 +24,14 @@ function getDecimalsFromTick(tickStr: string): number {
     return 0;
   }
   const parts = tickStr.split(".");
-  return parts ? parts.length : 2;
+  if (parts && parts[1]) {
+    return parts[1].length;
+  }
+  return 2;
 }
 
 async function fetchAndSyncBybitPairs() {
-  const bybitApiUrl = process.env.BYBIT_API_URL || "https://api.bytick.com";
+  const bybitApiUrl = process.env.BYBIT_API_URL || "https://bytick.com";
   const endpoint = "/v5/market/instruments-info";
 
   let allLiveUsdtPairs: any[] = [];
@@ -87,7 +90,6 @@ WHERE NOT (coin = ANY(${names}));
       const coinName = item.symbol;
       const tick = item.priceFilter?.tickSize || "0.01";
       const decimals = getDecimalsFromTick(tick);
-
       const officialName = item.fullName || item.baseCoin || "Crypto Asset";
 
       const defaultFavs = [
@@ -120,6 +122,7 @@ fullname = ${officialName};
   }
   return false;
 }
+
 async function ensureCoinsTableExists() {
   if (isCoinsVerified) return;
   try {
@@ -147,28 +150,16 @@ NOT NULL DEFAULT 'Crypto Asset';
 `;
 
     try {
-      await sql`
-ALTER TABLE coins 
-DROP COLUMN IF EXISTS turnover24h;
-`;
-      await sql`
-ALTER TABLE coins 
-DROP COLUMN IF EXISTS price24hPcnt;
-`;
-      await sql`
-ALTER TABLE coins 
-DROP COLUMN IF EXISTS icon_path;
-`;
-    } catch (e) {
-      console.log("Удаление старых колонок выполнено");
-    }
+      await sql`ALTER TABLE coins DROP COLUMN IF EXISTS turnover24h;`;
+      await sql`ALTER TABLE coins DROP COLUMN IF EXISTS price24hPcnt;`;
+      await sql`ALTER TABLE coins DROP COLUMN IF EXISTS icon_path;`;
+    } catch (e) {}
 
     isCoinsVerified = true;
   } catch (err) {
     console.error(err);
   }
 }
-
 export async function GET(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
@@ -228,7 +219,10 @@ ${item.coin}, ${item.decimals},
 ${defaultFavs.includes(item.coin)}, 
 TRUE, FALSE, ${item.fullname}
 )
-ON CONFLICT (coin) DO NOTHING;
+ON CONFLICT (coin) 
+DO UPDATE SET 
+decimals = EXCLUDED.decimals,
+fullname = EXCLUDED.fullname;
 `;
       }
       coinsResult = await sql`
@@ -281,6 +275,7 @@ ORDER BY coin ASC;
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
 export async function PATCH(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {

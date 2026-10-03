@@ -269,14 +269,13 @@ export default function AdminDBExplorer() {
             >
               <AlertDialogHeader>
                 <AlertDialogTitle className={cn("text-sm sm:text-base")}>
-                  Очистить таблицу
-                  {currentTable.toUpperCase()}?
+                  Очистить таблицу {currentTable.toUpperCase()}?
                 </AlertDialogTitle>
                 <AlertDialogDescription
                   className={cn("text-[11px] sm:text-xs")}
                 >
                   ВНИМАНИЕ! Это действие удалит все строки из таблицы{" "}
-                  {currentTable}в базе Neon DB.
+                  {currentTable} в базе Neon DB.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter className={cn("gap-1.5 sm:gap-2")}>
@@ -307,7 +306,6 @@ export default function AdminDBExplorer() {
           </AlertDialog>
         </div>
       </div>
-
       <div
         className={cn(
           "w-full rounded-2xl border",
@@ -398,20 +396,40 @@ export default function AdminDBExplorer() {
                 <TableBody>
                   {dbData.map((row, idx) => (
                     <TableRow key={idx} className="hover:bg-muted/20">
-                      {Object.values(row).map((val: any, vIdx) => (
-                        <TableCell
-                          key={vIdx}
-                          className={cn("font-mono max-w-48", "truncate")}
-                        >
-                          {val === null
-                            ? "NULL"
-                            : typeof val === "boolean"
-                              ? val
-                                ? "TRUE"
-                                : "FALSE"
-                              : String(val)}
-                        </TableCell>
-                      ))}
+                      {Object.entries(row).map(([key, val]: any, vIdx) => {
+                        let displayValue = String(val);
+
+                        if (val === null) {
+                          displayValue = "NULL";
+                        } else if (typeof val === "boolean") {
+                          displayValue = val ? "TRUE" : "FALSE";
+                        } else if (
+                          typeof val === "number" ||
+                          (!isNaN(Number(val)) && val !== "")
+                        ) {
+                          const numVal = Number(val);
+                          if (
+                            key.includes("price") ||
+                            key.includes("loss") ||
+                            key.includes("profit")
+                          ) {
+                            const rowDecimals = parseInt(row.decimals, 10);
+                            const activePrec = !isNaN(rowDecimals)
+                              ? rowDecimals
+                              : 2;
+                            displayValue = numVal.toFixed(activePrec);
+                          }
+                        }
+
+                        return (
+                          <TableCell
+                            key={vIdx}
+                            className={cn("font-mono max-w-48", "truncate")}
+                          >
+                            {displayValue}
+                          </TableCell>
+                        );
+                      })}
                     </TableRow>
                   ))}
                 </TableBody>
