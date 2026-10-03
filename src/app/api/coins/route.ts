@@ -28,7 +28,7 @@ function getDecimalsFromTick(tickStr: string): number {
 }
 
 async function fetchAndSyncBybitPairs() {
-  const bybitApiUrl = process.env.BYBIT_API_URL || "https://bytick.com";
+  const bybitApiUrl = process.env.BYBIT_API_URL || "https://api.bytick.com";
   const endpoint = "/v5/market/instruments-info";
 
   let allLiveUsdtPairs: any[] = [];
