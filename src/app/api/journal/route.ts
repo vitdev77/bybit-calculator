@@ -10,38 +10,38 @@ async function ensureTableExists() {
   if (isTableVerified) return;
   try {
     await sql`
-      CREATE TABLE IF NOT EXISTS deals (
-        id SERIAL PRIMARY KEY,
-        created_at TIMESTAMP WITH TIME ZONE 
-          DEFAULT CURRENT_TIMESTAMP,
-        coin VARCHAR(50) NOT NULL,
-        side VARCHAR(10) NOT NULL,
-        order_type VARCHAR(10) NOT NULL,
-        entry_price NUMERIC(20, 8) NOT NULL,
-        stop_loss NUMERIC(20, 8) NOT NULL,
-        take_profit NUMERIC(20, 8) NOT NULL,
-        volume DOUBLE PRECISION NOT NULL,
-        margin DOUBLE PRECISION NOT NULL,
-        leverage INTEGER NOT NULL,
-        status VARCHAR(20) DEFAULT 'OPEN',
-        closed_at_price NUMERIC(20, 8),
-        tp_touched BOOLEAN DEFAULT FALSE,
-        sl_touched BOOLEAN DEFAULT FALSE
-      );
-    `;
+CREATE TABLE IF NOT EXISTS deals (
+id SERIAL PRIMARY KEY,
+created_at TIMESTAMP WITH TIME ZONE 
+DEFAULT CURRENT_TIMESTAMP,
+coin VARCHAR(50) NOT NULL,
+side VARCHAR(10) NOT NULL,
+order_type VARCHAR(10) NOT NULL,
+entry_price NUMERIC(20, 8) NOT NULL,
+stop_loss NUMERIC(20, 8) NOT NULL,
+take_profit NUMERIC(20, 8) NOT NULL,
+volume DOUBLE PRECISION NOT NULL,
+margin DOUBLE PRECISION NOT NULL,
+leverage INTEGER NOT NULL,
+status VARCHAR(20) DEFAULT 'OPEN',
+closed_at_price NUMERIC(20, 8),
+tp_touched BOOLEAN DEFAULT FALSE,
+sl_touched BOOLEAN DEFAULT FALSE
+);
+`;
 
     await sql`
-      ALTER TABLE deals 
-      ALTER COLUMN entry_price TYPE NUMERIC(20, 8),
-      ALTER COLUMN stop_loss TYPE NUMERIC(20, 8),
-      ALTER COLUMN take_profit TYPE NUMERIC(20, 8),
-      ALTER COLUMN closed_at_price TYPE NUMERIC(20, 8);
-    `;
+ALTER TABLE deals 
+ALTER COLUMN entry_price TYPE NUMERIC(20, 8),
+ALTER COLUMN stop_loss TYPE NUMERIC(20, 8),
+ALTER COLUMN take_profit TYPE NUMERIC(20, 8),
+ALTER COLUMN closed_at_price TYPE NUMERIC(20, 8);
+`;
 
     await sql`
-      CREATE INDEX IF NOT EXISTS idx_deals_status_coin 
-      ON deals (status, coin);
-    `;
+CREATE INDEX IF NOT EXISTS idx_deals_status_coin 
+ON deals (status, coin);
+`;
 
     isTableVerified = true;
   } catch (err) {
@@ -63,57 +63,59 @@ export async function GET(request: Request) {
     const activeCoin = searchParams.get("activeCoin");
 
     const rawDeals = await sql`
-      SELECT d.id, d.created_at, d.coin, d.side, d.order_type, 
-             d.entry_price::TEXT as entry_price, 
-             d.stop_loss::TEXT as stop_loss, 
-             d.take_profit::TEXT as take_profit, 
-             d.volume, d.margin, d.leverage, d.status, 
-             d.closed_at_price::TEXT as closed_at_price, 
-             d.tp_touched, d.sl_touched,
-             COALESCE(c.decimals, 2) as precision
-      FROM deals d
-      LEFT JOIN coins c ON d.coin = c.coin
-      ORDER BY d.created_at DESC;
-    `;
+SELECT d.id, d.created_at, d.coin, d.side, d.order_type, 
+d.entry_price::TEXT as entry_price, 
+d.stop_loss::TEXT as stop_loss, 
+d.take_profit::TEXT as take_profit, 
+d.volume, d.margin, d.leverage, d.status, 
+d.closed_at_price::TEXT as closed_at_price, 
+d.tp_touched, d.sl_touched,
+COALESCE(c.decimals, 2) as precision
+FROM deals d
+LEFT JOIN coins c ON d.coin = c.coin
+ORDER BY 
+CASE WHEN d.status = 'OPEN' THEN 0 ELSE 1 END ASC,
+d.created_at DESC;
+`;
 
     let activeOpenDeal = null;
     let lastManualClosedDeal = null;
 
     if (activeCoin) {
       const openResult = await sql`
-        SELECT d.id, d.created_at, d.coin, d.side, d.order_type, 
-               d.entry_price::TEXT as entry_price, 
-               d.stop_loss::TEXT as stop_loss, 
-               d.take_profit::TEXT as take_profit, 
-               d.volume, d.margin, d.leverage, d.status, 
-               d.closed_at_price::TEXT as closed_at_price, 
-               d.tp_touched, d.sl_touched,
-               COALESCE(c.decimals, 2) as precision
-        FROM deals d
-        LEFT JOIN coins c ON d.coin = c.coin
-        WHERE d.coin = ${activeCoin} AND d.status = 'OPEN' 
-        LIMIT 1;
-      `;
+SELECT d.id, d.created_at, d.coin, d.side, d.order_type, 
+d.entry_price::TEXT as entry_price, 
+d.stop_loss::TEXT as stop_loss, 
+d.take_profit::TEXT as take_profit, 
+d.volume, d.margin, d.leverage, d.status, 
+d.closed_at_price::TEXT as closed_at_price, 
+d.tp_touched, d.sl_touched,
+COALESCE(c.decimals, 2) as precision
+FROM deals d
+LEFT JOIN coins c ON d.coin = c.coin
+WHERE d.coin = ${activeCoin} AND d.status = 'OPEN' 
+LIMIT 1;
+`;
       if (openResult && openResult.length > 0) {
         activeOpenDeal = openResult[0];
       }
 
       if (!activeOpenDeal) {
         const closedResult = await sql`
-          SELECT d.id, d.created_at, d.coin, d.side, d.order_type, 
-                 d.entry_price::TEXT as entry_price, 
-                 d.stop_loss::TEXT as stop_loss, 
-                 d.take_profit::TEXT as take_profit, 
-                 d.volume, d.margin, d.leverage, d.status, 
-                 d.closed_at_price::TEXT as closed_at_price, 
-                 d.tp_touched, d.sl_touched,
-                 COALESCE(c.decimals, 2) as precision
-          FROM deals d
-          LEFT JOIN coins c ON d.coin = c.coin
-          WHERE d.coin = ${activeCoin} AND d.status = 'CLOSED' 
-          ORDER BY d.created_at DESC 
-          LIMIT 1;
-        `;
+SELECT d.id, d.created_at, d.coin, d.side, d.order_type, 
+d.entry_price::TEXT as entry_price, 
+d.stop_loss::TEXT as stop_loss, 
+d.take_profit::TEXT as take_profit, 
+d.volume, d.margin, d.leverage, d.status, 
+d.closed_at_price::TEXT as closed_at_price, 
+d.tp_touched, d.sl_touched,
+COALESCE(c.decimals, 2) as precision
+FROM deals d
+LEFT JOIN coins c ON d.coin = c.coin
+WHERE d.coin = ${activeCoin} AND d.status = 'CLOSED' 
+ORDER BY d.created_at DESC 
+LIMIT 1;
+`;
         if (closedResult && closedResult.length > 0) {
           lastManualClosedDeal = closedResult[0];
         }
@@ -193,21 +195,21 @@ export async function POST(request: Request) {
     const leverage = parseInt(body.leverage, 10);
 
     const coinData = await sql`
-      SELECT decimals FROM coins 
-      WHERE coin = ${coin} LIMIT 1;
-    `;
+SELECT decimals FROM coins 
+WHERE coin = ${coin} LIMIT 1;
+`;
 
     const decimals = (coinData && coinData[0]?.decimals) ?? 2;
     const priceEpsilon = 1 / Math.pow(10, decimals + 2);
 
     const existingDuplicates = await sql`
-      SELECT id FROM deals
-      WHERE coin = ${coin} AND side = ${side} 
-        AND status = 'OPEN'
-        AND ABS(entry_price::DOUBLE PRECISION - ${entry_price}) < ${priceEpsilon}
-        AND ABS(stop_loss::DOUBLE PRECISION - ${stop_loss}) < ${priceEpsilon}
-        AND ABS(take_profit::DOUBLE PRECISION - ${take_profit}) < ${priceEpsilon};
-    `;
+SELECT id FROM deals
+WHERE coin = ${coin} AND side = ${side} 
+AND status = 'OPEN'
+AND ABS(entry_price::DOUBLE PRECISION - ${entry_price}) < ${priceEpsilon}
+AND ABS(stop_loss::DOUBLE PRECISION - ${stop_loss}) < ${priceEpsilon}
+AND ABS(take_profit::DOUBLE PRECISION - ${take_profit}) < ${priceEpsilon};
+`;
 
     if (existingDuplicates && existingDuplicates.length > 0) {
       return NextResponse.json(
@@ -217,18 +219,18 @@ export async function POST(request: Request) {
     }
 
     const result = await sql`
-      INSERT INTO deals (
-        coin, side, order_type, entry_price, stop_loss, 
-        take_profit, volume, margin, leverage, status, 
-        tp_touched, sl_touched
-      )
-      VALUES (
-        ${coin}, ${side}, ${order_type}, ${entry_price}, ${stop_loss}, 
-        ${take_profit}, ${volume}, ${margin}, ${leverage}, 'OPEN', 
-        FALSE, FALSE
-      )
-      RETURNING *;
-    `;
+INSERT INTO deals (
+coin, side, order_type, entry_price, stop_loss, 
+take_profit, volume, margin, leverage, status, 
+tp_touched, sl_touched
+)
+VALUES (
+${coin}, ${side}, ${order_type}, ${entry_price}, ${stop_loss}, 
+${take_profit}, ${volume}, ${margin}, ${leverage}, 'OPEN', 
+FALSE, FALSE
+)
+RETURNING *;
+`;
 
     return NextResponse.json({
       success: true,
@@ -238,6 +240,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
 export async function PATCH(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
@@ -258,11 +261,11 @@ export async function PATCH(request: Request) {
     if (body.action === "MOVE_TO_BREAKEVEN" && body.stop_loss !== undefined) {
       const nextSl = Number(body.stop_loss);
       const result = await sql`
-        UPDATE deals 
-        SET stop_loss = ${nextSl} 
-        WHERE id = ${targetId} AND status = 'OPEN'
-        RETURNING *;
-      `;
+UPDATE deals 
+SET stop_loss = ${nextSl} 
+WHERE id = ${targetId} AND status = 'OPEN'
+RETURNING *;
+`;
       return NextResponse.json({
         success: true,
         data: result,
@@ -271,10 +274,10 @@ export async function PATCH(request: Request) {
 
     if (body.action === "TOUCH_TP") {
       const result = await sql`
-        UPDATE deals SET tp_touched = TRUE 
-        WHERE id = ${targetId} AND status = 'OPEN' 
-        RETURNING *;
-      `;
+UPDATE deals SET tp_touched = TRUE 
+WHERE id = ${targetId} AND status = 'OPEN' 
+RETURNING *;
+`;
       return NextResponse.json({
         success: true,
         data: result,
@@ -282,12 +285,11 @@ export async function PATCH(request: Request) {
     }
 
     if (body.action === "TOUCH_SL") {
-      // ФИКС: Опечатка Extends успешно заменена на валидный оператор AND
       const result = await sql`
-        UPDATE deals SET sl_touched = TRUE 
-        WHERE id = ${targetId} AND status = 'OPEN' 
-        RETURNING *;
-      `;
+UPDATE deals SET sl_touched = TRUE 
+WHERE id = ${targetId} AND status = 'OPEN' 
+RETURNING *;
+`;
       return NextResponse.json({
         success: true,
         data: result,
@@ -307,18 +309,18 @@ export async function PATCH(request: Request) {
     let result;
     if (closedAtPrice !== null) {
       result = await sql`
-        UPDATE deals 
-        SET status = ${targetStatus}, 
-            closed_at_price = ${closedAtPrice} 
-        WHERE id = ${targetId} 
-        RETURNING *;
-      `;
+UPDATE deals 
+SET status = ${targetStatus}, 
+closed_at_price = ${closedAtPrice} 
+WHERE id = ${targetId} 
+RETURNING *;
+`;
     } else {
       result = await sql`
-        UPDATE deals SET status = ${targetStatus} 
-        WHERE id = ${targetId} 
-        RETURNING *;
-      `;
+UPDATE deals SET status = ${targetStatus} 
+WHERE id = ${targetId} 
+RETURNING *;
+`;
     }
 
     return NextResponse.json({
