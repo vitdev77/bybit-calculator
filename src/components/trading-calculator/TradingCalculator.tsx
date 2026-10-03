@@ -155,7 +155,6 @@ export default function TradingCalculator({
   useEffect(() => {
     entryPriceRef.current = entryPrice;
   }, [entryPrice]);
-
   const loadDatabaseCoins = useCallback(
     async (event?: Event) => {
       try {
@@ -172,10 +171,9 @@ export default function TradingCalculator({
               c.coin === coin ? { ...c, is_favorite } : c,
             );
           } else {
-            const prevMeta = availableCoinsList.find((c) => c.coin === coin);
             fetchedCoins.push({
               coin,
-              decimals: prevMeta?.decimals || 4,
+              decimals: 4,
               is_favorite,
               is_active: true,
               is_delisted: false,
@@ -183,23 +181,24 @@ export default function TradingCalculator({
           }
         }
 
-        const currentCoinInFetched = fetchedCoins.some(
-          (c) => c.coin === selectedCoin,
-        );
-        if (!currentCoinInFetched && selectedCoin) {
-          const prevMeta = availableCoinsList.find(
+        setAvailableCoinsList((prevList) => {
+          const currentCoinInFetched = fetchedCoins.some(
             (c) => c.coin === selectedCoin,
           );
-          fetchedCoins.push({
-            coin: selectedCoin,
-            decimals: prevMeta?.decimals || 4,
-            is_favorite: false,
-            is_active: true,
-            is_delisted: false,
-          });
-        }
+          const merged = [...fetchedCoins];
+          if (!currentCoinInFetched && selectedCoin) {
+            const prevMeta = prevList.find((c) => c.coin === selectedCoin);
+            merged.push({
+              coin: selectedCoin,
+              decimals: prevMeta?.decimals || 4,
+              is_favorite: false,
+              is_active: true,
+              is_delisted: false,
+            });
+          }
+          return merged;
+        });
 
-        setAvailableCoinsList(fetchedCoins);
         if (data.tickerRegistry) {
           setTickerRegistry(data.tickerRegistry);
         }
@@ -207,7 +206,7 @@ export default function TradingCalculator({
         console.error(e);
       }
     },
-    [selectedCoin, availableCoinsList],
+    [selectedCoin],
   );
 
   useEffect(() => {
@@ -220,6 +219,7 @@ export default function TradingCalculator({
       window.removeEventListener("refresh-calculator-coins", handleRefresh);
     };
   }, [loadDatabaseCoins]);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedState = localStorage.getItem(STORAGE_KEY);
@@ -230,33 +230,17 @@ export default function TradingCalculator({
             setBalance(parsed.balance);
             onBalanceChange?.(parsed.balance);
           }
-          if (parsed.riskPercent) {
-            setRiskPercent(parsed.riskPercent);
-          }
-          if (parsed.riskRewardRatio) {
+          if (parsed.riskPercent) setRiskPercent(parsed.riskPercent);
+          if (parsed.riskRewardRatio)
             setRiskRewardRatio(parsed.riskRewardRatio);
-          }
-          if (parsed.selectedCoin) {
-            setSelectedCoin(parsed.selectedCoin);
-          }
-          if (parsed.orderType) {
-            setOrderType(parsed.orderType);
-          }
-          if (parsed.entryPrice) {
-            setEntryPrice(parsed.entryPrice);
-          }
-          if (parsed.stopLossPercent) {
+          if (parsed.selectedCoin) setSelectedCoin(parsed.selectedCoin);
+          if (parsed.orderType) setOrderType(parsed.orderType);
+          if (parsed.entryPrice) setEntryPrice(parsed.entryPrice);
+          if (parsed.stopLossPercent)
             setStopLossPercent(parsed.stopLossPercent);
-          }
-          if (parsed.leverage) {
-            setLeverage(Number(parsed.leverage));
-          }
-          if (parsed.side) {
-            setSide(parsed.side);
-          }
-          if (parsed.partsCount) {
-            setPartsCount(Number(parsed.partsCount));
-          }
+          if (parsed.leverage) setLeverage(Number(parsed.leverage));
+          if (parsed.side) setSide(parsed.side);
+          if (parsed.partsCount) setPartsCount(Number(parsed.partsCount));
         } catch (e) {
           console.error(e);
         }
@@ -270,7 +254,6 @@ export default function TradingCalculator({
       onBalanceChange?.(balance);
     }
   }, [balance, isLoaded, onBalanceChange]);
-
   const getCalculatedIdealLeverage = useCallback(() => {
     const baseRiskAmount = (balance * riskPercent) / 100;
     const allocatedMarginMax = balance / partsCount;
@@ -502,11 +485,13 @@ export default function TradingCalculator({
   ]);
 
   const cardCls = cn(
-    "shadow-sm border flex flex-col border-border/40 bg-background rounded-xl sm:rounded-2xl",
+    "shadow-sm border flex flex-col border-border/40",
+    "bg-background rounded-xl sm:rounded-2xl",
   );
   const headCls = cn("py-2 px-2.5 border-b border-border/40 sm:py-2.5 sm:px-4");
   const titCls = cn(
-    "text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground",
+    "text-[11px] sm:text-xs font-semibold uppercase",
+    "tracking-wider text-muted-foreground",
   );
   const contCls = cn("space-y-3.5 p-2.5 flex-1 sm:space-y-4 sm:p-4");
   const repCls = cn("p-2.5 flex-1 flex flex-col justify-between sm:p-4");
@@ -528,7 +513,8 @@ export default function TradingCalculator({
 
         <div
           className={cn(
-            "grid grid-cols-1 md:grid-cols-2 md:items-stretch gap-3 sm:gap-4 items-start",
+            "grid grid-cols-1 md:grid-cols-2 md:items-stretch",
+            "gap-3 sm:gap-4 items-start",
           )}
         >
           <Card className={cardCls}>
