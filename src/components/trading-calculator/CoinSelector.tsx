@@ -3,12 +3,21 @@ import React, { useState, useEffect, useRef } from "react";
 import { Star, Settings } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
-import { OrderType, DBAssetCoin } from "./TradingCalculator";
+import { OrderType } from "./TradingCalculator";
 import { Select, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { CoinSelectorDrop } from "./CoinSelectorDrop";
+
+export interface DBAssetCoin {
+  coin: string;
+  decimals: number;
+  is_favorite: boolean;
+  is_active: boolean;
+  is_delisted: boolean;
+  fullname?: string;
+}
 
 interface SelectorProps {
   selectedCoin: string;
@@ -40,23 +49,34 @@ function getCoinGradient(name: string): string {
 }
 
 function CoinIcon({ symbol }: { symbol: string }) {
-  const [err, setErr] = useState(false);
+  const [imgSrc, setMainSrc] = useState("");
+  const [fallbackStage, setFallbackStage] = useState(0);
   const base = symbol.replace("USDT", "").toUpperCase();
 
   useEffect(() => {
-    setErr(false);
-  }, [symbol]);
+    setFallbackStage(0);
+    const p1 = "https:/s3-symbol-logo.tradingview.com";
+    setMainSrc(p1 + "/crypto/XTVC" + base + ".svg");
+  }, [symbol, base]);
 
-  const cdnHost = "s3-symbol-logo.tradingview.com";
-  const fullUrl = "https://" + cdnHost + "/crypto/XTVC" + base + ".svg";
+  const handleIconError = () => {
+    if (fallbackStage === 0) {
+      setFallbackStage(1);
+      const p1 = "https:///api.bybit.com";
+      const p2 = "/modules/symbols/web/svg/light/";
+      setMainSrc(p1 + p2 + base + ".svg");
+    } else if (fallbackStage === 1) {
+      setFallbackStage(2);
+    }
+  };
 
-  if (!err) {
+  if (fallbackStage < 2 && imgSrc) {
     return (
       <img
-        src={fullUrl}
+        src={imgSrc}
         alt={base}
         className="size-4 shrink-0 rounded-full bg-neutral-100 dark:bg-zinc-800"
-        onError={() => setErr(true)}
+        onError={handleIconError}
       />
     );
   }
@@ -197,7 +217,7 @@ export default function CoinSelector({
     );
 
     try {
-      await fetch("/api/coins", {
+      await fetch("api/coins", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "TOGGLE_FAVORITE", coin: coinName }),
@@ -262,6 +282,7 @@ export default function CoinSelector({
     "h-9.5 w-9.5 border-input rounded-xl outline-none transition-colors",
     "hover:bg-muted/40 cursor-pointer text-muted-foreground hover:text-foreground",
   );
+
   return (
     <div className={cn("space-y-3.5 w-full")}>
       <div className="space-y-1 w-full">

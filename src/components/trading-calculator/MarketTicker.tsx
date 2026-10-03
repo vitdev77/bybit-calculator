@@ -71,7 +71,8 @@ export default function MarketTicker({
   const [tickDirection, setTickDirection] = useState<"up" | "down" | "stable">(
     "stable",
   );
-  const [iconImgError, setIconImgError] = useState(false);
+  const [imgSrc, setMainSrc] = useState("");
+  const [fallbackStage, setFallbackStage] = useState(0);
   const prevPriceRef = useRef<number | null>(null);
 
   const [fng, setFng] = useState<FGData | null>(null);
@@ -79,9 +80,24 @@ export default function MarketTicker({
   const [timeLeft, setTimeLeft] = useState("00:00:00");
   const [fundProgress, setFundProgress] = useState(100);
 
+  const coinCleanTicker = selectedCoin.replace("USDT", "").toUpperCase();
+
   useEffect(() => {
-    setIconImgError(false);
-  }, [selectedCoin]);
+    setFallbackStage(0);
+    const p1 = "https://s3-symbol-logo.tradingview.com";
+    setMainSrc(p1 + "/crypto/XTVC" + coinCleanTicker + ".svg");
+  }, [selectedCoin, coinCleanTicker]);
+
+  const handleIconError = () => {
+    if (fallbackStage === 0) {
+      setFallbackStage(1);
+      const p1 = "https://api.bybit.com";
+      const p2 = "/modules/symbols/web/svg/light/";
+      setMainSrc(p1 + p2 + coinCleanTicker + ".svg");
+    } else if (fallbackStage === 1) {
+      setFallbackStage(2);
+    }
+  };
 
   useEffect(() => {
     if (data?.lastPrice) {
@@ -208,12 +224,7 @@ export default function MarketTicker({
         : "text-muted-foreground";
 
   const coinBaseName = selectedCoin;
-  const coinCleanTicker = selectedCoin.replace("USDT", "").toUpperCase();
   const fullName = data.fullname || "Crypto Asset";
-
-  const cdnHost = "s3-symbol-logo.tradingview.com";
-  const mainIconUrl =
-    "https://" + cdnHost + "/crypto/XTVC" + coinCleanTicker + ".svg";
 
   return (
     <div
@@ -232,12 +243,12 @@ export default function MarketTicker({
       >
         <div className="flex items-center gap-3 min-w-0 max-w-[50%] md:max-w-full">
           <div className="relative size-9 shrink-0 flex items-center justify-center">
-            {!iconImgError ? (
+            {fallbackStage < 2 && imgSrc ? (
               <img
-                src={mainIconUrl}
+                src={imgSrc}
                 alt={coinBaseName}
                 className="w-full h-full rounded-full bg-neutral-100 dark:bg-zinc-800"
-                onError={() => setIconImgError(true)}
+                onError={handleIconError}
               />
             ) : (
               <div
