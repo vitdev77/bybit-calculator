@@ -20,18 +20,14 @@ const REAL_STABLE_COINS = [
 ];
 
 function getDecimalsFromTick(tickStr: string): number {
-  if (!tickStr || !tickStr.includes(".")) {
-    return 0;
-  }
-  const parts = tickStr.split(".");
-  if (parts && parts[1]) {
-    return parts[1].length;
-  }
-  return 2;
+  if (!tickStr) return 2;
+  const dotIdx = tickStr.indexOf(".");
+  if (dotIdx === -1) return 0;
+  return tickStr.length - dotIdx - 1;
 }
 
 async function fetchAndSyncBybitPairs() {
-  const bybitApiUrl = process.env.BYBIT_API_URL || "https://bytick.com";
+  const baseUrl = process.env.BYBIT_API_URL || "https://bytick.com";
   const endpoint = "/v5/market/instruments-info";
 
   let allLiveUsdtPairs: any[] = [];
@@ -42,16 +38,14 @@ async function fetchAndSyncBybitPairs() {
   try {
     while (hasNextPage && loopSafetyCounter < 15) {
       loopSafetyCounter++;
-      let targetUrl =
-        `${bybitApiUrl}${endpoint}` + "?category=linear&limit=1000";
+      let targetUrl = baseUrl + endpoint + "?category=linear&limit=1000";
       if (currentCursor) {
-        targetUrl += `&cursor=${currentCursor}`;
+        targetUrl += "&cursor=" + currentCursor;
       }
 
       const response = await fetch(targetUrl, {
         cache: "no-store",
         headers: { Accept: "application/json" },
-        signal: AbortSignal.timeout(8000),
       });
 
       if (response.ok) {
@@ -150,9 +144,7 @@ NOT NULL DEFAULT 'Crypto Asset';
 `;
 
     try {
-      await sql`ALTER TABLE coins DROP COLUMN IF EXISTS turnover24h;`;
-      await sql`ALTER TABLE coins DROP COLUMN IF EXISTS price24hPcnt;`;
-      await sql`ALTER TABLE coins DROP COLUMN IF EXISTS icon_path;`;
+      await sql`ALTER TABLE coins DROP COLUMN IF EXISTS icon_url;`;
     } catch (e) {}
 
     isCoinsVerified = true;
@@ -181,7 +173,7 @@ FROM coins
 ORDER BY is_favorite DESC, coin ASC;
 `;
     } else if (search) {
-      const cleanSearch = `%${search.trim().toUpperCase()}%`;
+      const cleanSearch = "%" + search.trim().toUpperCase() + "%";
       coinsResult = await sql`
 SELECT coin, decimals, is_favorite, 
 is_active, is_delisted, fullname 
@@ -246,11 +238,10 @@ ORDER BY coin ASC;
       try {
         const bybitApiUrl = process.env.BYBIT_API_URL || "https://bytick.com";
         const endpoint = "/v5/market/tickers";
-        const tickersUrl = `${bybitApiUrl}${endpoint}` + "?category=linear";
+        const tickersUrl = bybitApiUrl + endpoint + "?category=linear";
 
         const tickersRes = await fetch(tickersUrl, {
           cache: "no-store",
-          signal: AbortSignal.timeout(6000),
         });
         if (tickersRes.ok) {
           const bulkJson = await tickersRes.json();

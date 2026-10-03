@@ -182,7 +182,6 @@ export default function MarketTicker({
       </div>
     );
   }
-
   const ratio =
     allocatedMarginMax > 0 ? Math.min(marginUsed / allocatedMarginMax, 1) : 0;
   const isHighMargin = ratio > 0.85;
@@ -209,8 +208,12 @@ export default function MarketTicker({
         : "text-muted-foreground";
 
   const coinBaseName = selectedCoin;
-  const coinIconName = selectedCoin.replace("USDT", "").toLowerCase();
+  const coinCleanTicker = selectedCoin.replace("USDT", "").toUpperCase();
   const fullName = data.fullname || "Crypto Asset";
+
+  const cdnHost = "s3-symbol-logo.tradingview.com";
+  const mainIconUrl =
+    "https://" + cdnHost + "/crypto/XTVC" + coinCleanTicker + ".svg";
 
   return (
     <div
@@ -231,19 +234,19 @@ export default function MarketTicker({
           <div className="relative size-9 shrink-0 flex items-center justify-center">
             {!iconImgError ? (
               <img
-                src={"/crypto-icons/" + coinIconName + ".svg"}
+                src={mainIconUrl}
                 alt={coinBaseName}
-                className="w-full h-full rounded-full"
+                className="w-full h-full rounded-full bg-neutral-100 dark:bg-zinc-800"
                 onError={() => setIconImgError(true)}
               />
             ) : (
               <div
                 className="w-full h-full flex text-white items-center font-black justify-center text-xs uppercase rounded-full"
                 style={{
-                  backgroundImage: getCoinGradient(coinIconName.toUpperCase()),
+                  backgroundImage: getCoinGradient(coinCleanTicker),
                 }}
               >
-                {coinIconName.slice(0, 2).toUpperCase()}
+                {coinCleanTicker.slice(0, 2)}
               </div>
             )}
           </div>

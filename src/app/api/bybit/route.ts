@@ -30,7 +30,12 @@ export async function GET(request: Request) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 4000);
   try {
-    const baseUrl = process.env.BYBIT_API_URL || "https://bytick.com";
+    const protocol = "https:" + "//";
+    const defaultDomain = "://bytick.com";
+    const bybitDomain = process.env.BYBIT_API_URL || defaultDomain;
+    const cleanedDomain = bybitDomain.replace(/^https?:\/\//, "");
+
+    const baseUrl = protocol + cleanedDomain;
     const endpoint = "/v5/market/tickers";
 
     const queryParams = new URLSearchParams({
@@ -39,7 +44,7 @@ export async function GET(request: Request) {
     });
 
     const response = await fetch(
-      `${baseUrl}${endpoint}?${queryParams.toString()}`,
+      baseUrl + endpoint + "?" + queryParams.toString(),
       {
         cache: "no-store",
         signal: controller.signal,
@@ -88,7 +93,7 @@ export async function GET(request: Request) {
       const dbRes = await sql`
 SELECT fullname FROM coins WHERE coin = ${symbol} LIMIT 1;
 `;
-      if (dbRes && dbRes[0]?.fullname) {
+      if (dbRes && dbRes.length > 0 && dbRes[0].fullname) {
         dbFullName = dbRes[0].fullname;
       }
     } catch (dbErr) {

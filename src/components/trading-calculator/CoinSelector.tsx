@@ -41,14 +41,21 @@ function getCoinGradient(name: string): string {
 
 function CoinIcon({ symbol }: { symbol: string }) {
   const [err, setErr] = useState(false);
-  const base = symbol.replace("USDT", "").toLowerCase();
+  const base = symbol.replace("USDT", "").toUpperCase();
+
+  useEffect(() => {
+    setErr(false);
+  }, [symbol]);
+
+  const cdnHost = "s3-symbol-logo.tradingview.com";
+  const fullUrl = "https://" + cdnHost + "/crypto/XTVC" + base + ".svg";
 
   if (!err) {
     return (
       <img
-        src={"/crypto-icons/" + base + ".svg"}
+        src={fullUrl}
         alt={base}
-        className="size-4 shrink-0 rounded-full"
+        className="size-4 shrink-0 rounded-full bg-neutral-100 dark:bg-zinc-800"
         onError={() => setErr(true)}
       />
     );
@@ -64,14 +71,13 @@ function CoinIcon({ symbol }: { symbol: string }) {
         "uppercase shrink-0 select-none",
       )}
       style={{
-        backgroundImage: getCoinGradient(base.toUpperCase()),
+        backgroundImage: getCoinGradient(base),
       }}
     >
-      {base.slice(0, 2).toUpperCase()}
+      {base.slice(0, 2)}
     </div>
   );
 }
-
 export default function CoinSelector({
   selectedCoin,
   onCoinChange,
@@ -129,7 +135,6 @@ export default function CoinSelector({
       .catch((err) => console.error(err))
       .finally(() => setSearchResultsLoading(false));
   }, [debouncedSearch]);
-
   const handleToggleFavClick = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -173,6 +178,7 @@ export default function CoinSelector({
       setIsStarToggling(false);
     }
   };
+
   const handleToggleFavInMenu = async (
     e: React.MouseEvent,
     coinName: string,
