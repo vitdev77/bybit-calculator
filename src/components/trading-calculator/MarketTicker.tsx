@@ -80,22 +80,38 @@ export default function MarketTicker({
   const [timeLeft, setTimeLeft] = useState("00:00:00");
   const [fundProgress, setFundProgress] = useState(100);
 
-  const coinCleanTicker = selectedCoin.replace("USDT", "").toUpperCase();
+  const baseCoin = selectedCoin.replace("USDT", "").toUpperCase();
+  const fullName = data?.fullname || "Crypto Asset";
 
   useEffect(() => {
     setFallbackStage(0);
-    const p1 = "https://s3-symbol-logo.tradingview.com";
-    setMainSrc(p1 + "/crypto/XTVC" + coinCleanTicker + ".svg");
-  }, [selectedCoin, coinCleanTicker]);
+    const tvRoot = "https://s3-symbol-logo.tradingview.com/";
+    setMainSrc(`${tvRoot}crypto/XTVC${baseCoin}.svg`);
+  }, [selectedCoin, baseCoin]);
 
   const handleIconError = () => {
+    const tvRoot = "https://s3-symbol-logo.tradingview.com/";
     if (fallbackStage === 0) {
       setFallbackStage(1);
-      const p1 = "https://api.bybit.com";
-      const p2 = "/modules/symbols/web/svg/light/";
-      setMainSrc(p1 + p2 + coinCleanTicker + ".svg");
+      if (data?.fullname) {
+        const cleanName = data.fullname
+          .toLowerCase()
+          .replace(/\s+/g, "-")
+          .replace(/[^a-z0-9\-]/g, "");
+        setMainSrc(`${tvRoot}${cleanName}.svg`);
+      } else {
+        setMainSrc(`${tvRoot}${baseCoin.toLowerCase()}.svg`);
+      }
     } else if (fallbackStage === 1) {
       setFallbackStage(2);
+      setMainSrc(`${tvRoot}${baseCoin.toLowerCase()}.svg`);
+    } else if (fallbackStage === 2) {
+      setFallbackStage(3);
+      const bybitBase = "https://api.bybit.com";
+      const bybitPath = "/modules/symbols/web/svg/light/";
+      setMainSrc(`${bybitBase}${bybitPath}${baseCoin}.svg`);
+    } else if (fallbackStage === 3) {
+      setFallbackStage(4);
     }
   };
 
@@ -222,10 +238,6 @@ export default function MarketTicker({
       : changeValue < 0
         ? "text-rose-600 dark:text-rose-400"
         : "text-muted-foreground";
-
-  const coinBaseName = selectedCoin;
-  const fullName = data.fullname || "Crypto Asset";
-
   return (
     <div
       className={cn(
@@ -243,10 +255,10 @@ export default function MarketTicker({
       >
         <div className="flex items-center gap-3 min-w-0 max-w-[50%] md:max-w-full">
           <div className="relative size-9 shrink-0 flex items-center justify-center">
-            {fallbackStage < 2 && imgSrc ? (
+            {fallbackStage < 4 && imgSrc ? (
               <img
                 src={imgSrc}
-                alt={coinBaseName}
+                alt={selectedCoin}
                 className="w-full h-full rounded-full bg-neutral-100 dark:bg-zinc-800"
                 onError={handleIconError}
               />
@@ -254,16 +266,16 @@ export default function MarketTicker({
               <div
                 className="w-full h-full flex text-white items-center font-black justify-center text-xs uppercase rounded-full"
                 style={{
-                  backgroundImage: getCoinGradient(coinCleanTicker),
+                  backgroundImage: getCoinGradient(baseCoin),
                 }}
               >
-                {coinCleanTicker.slice(0, 2)}
+                {baseCoin.slice(0, 2)}
               </div>
             )}
           </div>
           <div className="flex flex-col min-w-0 flex-1 leading-tight">
             <span className="text-sm sm:text-base font-black text-foreground truncate block max-w-30 xs:max-w-none">
-              {coinBaseName}
+              {selectedCoin}
             </span>
             <span className="text-[9px] font-bold opacity-30 truncate mt-0.5">
               {fullName}

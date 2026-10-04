@@ -47,30 +47,44 @@ function getCoinGradient(name: string): string {
     `hsl(${c2}, 80%, 35%))`
   );
 }
-
-function CoinIcon({ symbol }: { symbol: string }) {
+function CoinIcon({ symbol, fullname }: { symbol: string; fullname?: string }) {
   const [imgSrc, setMainSrc] = useState("");
   const [fallbackStage, setFallbackStage] = useState(0);
   const base = symbol.replace("USDT", "").toUpperCase();
 
   useEffect(() => {
     setFallbackStage(0);
-    const p1 = "https:/s3-symbol-logo.tradingview.com";
-    setMainSrc(p1 + "/crypto/XTVC" + base + ".svg");
+    const tvRoot = "https://s3-symbol-logo.tradingview.com/";
+    setMainSrc(`${tvRoot}crypto/XTVC${base}.svg`);
   }, [symbol, base]);
 
   const handleIconError = () => {
+    const tvRoot = "https://s3-symbol-logo.tradingview.com/";
     if (fallbackStage === 0) {
       setFallbackStage(1);
-      const p1 = "https:///api.bybit.com";
-      const p2 = "/modules/symbols/web/svg/light/";
-      setMainSrc(p1 + p2 + base + ".svg");
+      if (fullname) {
+        const cleanName = fullname
+          .toLowerCase()
+          .replace(/\s+/g, "-")
+          .replace(/[^a-z0-9\-]/g, "");
+        setMainSrc(`${tvRoot}${cleanName}.svg`);
+      } else {
+        setMainSrc(`${tvRoot}${base.toLowerCase()}.svg`);
+      }
     } else if (fallbackStage === 1) {
       setFallbackStage(2);
+      setMainSrc(`${tvRoot}${base.toLowerCase()}.svg`);
+    } else if (fallbackStage === 2) {
+      setFallbackStage(3);
+      const bybitBase = "https://api.bybit.com";
+      const bybitPath = "/modules/symbols/web/svg/light/";
+      setMainSrc(`${bybitBase}${bybitPath}${base}.svg`);
+    } else if (fallbackStage === 3) {
+      setFallbackStage(4);
     }
   };
 
-  if (fallbackStage < 2 && imgSrc) {
+  if (fallbackStage < 4 && imgSrc) {
     return (
       <img
         src={imgSrc}
@@ -155,6 +169,7 @@ export default function CoinSelector({
       .catch((err) => console.error(err))
       .finally(() => setSearchResultsLoading(false));
   }, [debouncedSearch]);
+
   const handleToggleFavClick = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -346,7 +361,17 @@ export default function CoinSelector({
                 groupedCoins={groupedCoins}
                 selectedCoin={selectedCoin}
                 handleToggleFavInMenu={handleToggleFavInMenu}
-                CoinIcon={CoinIcon}
+                CoinIcon={(p) => {
+                  const currentMeta = availableCoinsList.find(
+                    (c) => c.coin === p.symbol,
+                  );
+                  return (
+                    <CoinIcon
+                      symbol={p.symbol}
+                      fullname={currentMeta?.fullname}
+                    />
+                  );
+                }}
                 popupCls={popupCls}
                 searchBoxCls={searchBoxCls}
                 inpCls={inpCls}
