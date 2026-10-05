@@ -17,6 +17,7 @@ export interface DBAssetCoin {
   is_active: boolean;
   is_delisted: boolean;
   fullname?: string;
+  logo_slug?: string;
 }
 
 interface SelectorProps {
@@ -47,7 +48,15 @@ function getCoinGradient(name: string): string {
     `hsl(${c2}, 80%, 35%))`
   );
 }
-function CoinIcon({ symbol, fullname }: { symbol: string; fullname?: string }) {
+function CoinIcon({
+  symbol,
+  fullname,
+  logo_slug,
+}: {
+  symbol: string;
+  fullname?: string;
+  logo_slug?: string;
+}) {
   const [imgSrc, setMainSrc] = useState("");
   const [fallbackStage, setFallbackStage] = useState(0);
   const base = symbol.replace("USDT", "").toUpperCase();
@@ -55,14 +64,18 @@ function CoinIcon({ symbol, fullname }: { symbol: string; fullname?: string }) {
   useEffect(() => {
     setFallbackStage(0);
     const tvRoot = "https://s3-symbol-logo.tradingview.com/";
-    setMainSrc(`${tvRoot}crypto/XTVC${base}.svg`);
-  }, [symbol, base]);
+    if (logo_slug) {
+      setMainSrc(`${tvRoot}${logo_slug}.svg`);
+    } else {
+      setMainSrc(`${tvRoot}crypto/XTVC${base}.svg`);
+    }
+  }, [symbol, base, logo_slug]);
 
   const handleIconError = () => {
     const tvRoot = "https://s3-symbol-logo.tradingview.com/";
     if (fallbackStage === 0) {
       setFallbackStage(1);
-      if (fullname) {
+      if (fullname && fullname !== "Crypto Asset") {
         const cleanName = fullname
           .toLowerCase()
           .replace(/\s+/g, "-")
@@ -76,15 +89,18 @@ function CoinIcon({ symbol, fullname }: { symbol: string; fullname?: string }) {
       setMainSrc(`${tvRoot}${base.toLowerCase()}.svg`);
     } else if (fallbackStage === 2) {
       setFallbackStage(3);
+      setMainSrc(`${tvRoot}crypto/${base}.svg`);
+    } else if (fallbackStage === 3) {
+      setFallbackStage(4);
       const bybitBase = "https://api.bybit.com";
       const bybitPath = "/modules/symbols/web/svg/light/";
       setMainSrc(`${bybitBase}${bybitPath}${base}.svg`);
-    } else if (fallbackStage === 3) {
-      setFallbackStage(4);
+    } else if (fallbackStage === 4) {
+      setFallbackStage(5);
     }
   };
 
-  if (fallbackStage < 4 && imgSrc) {
+  if (fallbackStage < 5 && imgSrc) {
     return (
       <img
         src={imgSrc}
@@ -369,6 +385,7 @@ export default function CoinSelector({
                     <CoinIcon
                       symbol={p.symbol}
                       fullname={currentMeta?.fullname}
+                      logo_slug={currentMeta?.logo_slug}
                     />
                   );
                 }}

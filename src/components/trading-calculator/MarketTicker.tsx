@@ -13,6 +13,7 @@ interface TickerData {
   fundingRate: number;
   turnover24h: number;
   fullname?: string;
+  logo_slug?: string;
 }
 
 interface FGData {
@@ -86,14 +87,18 @@ export default function MarketTicker({
   useEffect(() => {
     setFallbackStage(0);
     const tvRoot = "https://s3-symbol-logo.tradingview.com/";
-    setMainSrc(`${tvRoot}crypto/XTVC${baseCoin}.svg`);
-  }, [selectedCoin, baseCoin]);
+    if (data?.logo_slug) {
+      setMainSrc(`${tvRoot}${data.logo_slug}.svg`);
+    } else {
+      setMainSrc(`${tvRoot}crypto/XTVC${baseCoin}.svg`);
+    }
+  }, [selectedCoin, baseCoin, data?.logo_slug]);
 
   const handleIconError = () => {
     const tvRoot = "https://s3-symbol-logo.tradingview.com/";
     if (fallbackStage === 0) {
       setFallbackStage(1);
-      if (data?.fullname) {
+      if (data?.fullname && data.fullname !== "Crypto Asset") {
         const cleanName = data.fullname
           .toLowerCase()
           .replace(/\s+/g, "-")
@@ -107,11 +112,14 @@ export default function MarketTicker({
       setMainSrc(`${tvRoot}${baseCoin.toLowerCase()}.svg`);
     } else if (fallbackStage === 2) {
       setFallbackStage(3);
+      setMainSrc(`${tvRoot}crypto/${baseCoin}.svg`);
+    } else if (fallbackStage === 3) {
+      setFallbackStage(4);
       const bybitBase = "https://api.bybit.com";
       const bybitPath = "/modules/symbols/web/svg/light/";
       setMainSrc(`${bybitBase}${bybitPath}${baseCoin}.svg`);
-    } else if (fallbackStage === 3) {
-      setFallbackStage(4);
+    } else if (fallbackStage === 4) {
+      setFallbackStage(5);
     }
   };
 
@@ -255,7 +263,7 @@ export default function MarketTicker({
       >
         <div className="flex items-center gap-3 min-w-0 max-w-[50%] md:max-w-full">
           <div className="relative size-9 shrink-0 flex items-center justify-center">
-            {fallbackStage < 4 && imgSrc ? (
+            {fallbackStage < 5 && imgSrc ? (
               <img
                 src={imgSrc}
                 alt={selectedCoin}

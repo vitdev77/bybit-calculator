@@ -19,13 +19,28 @@ const REAL_STABLE_COINS = [
   { coin: "HYPEUSDT", decimals: 2, fullname: "Hyperliquid" },
 ];
 
+const TROUBLESOME_SLUGS: Record<string, string> = {
+  AVGOUSDT: "broadcom",
+  ANETUSDT: "arista-networks",
+  BABAUSDT: "alibaba",
+  AAPLUSDT: "apple",
+  TSLAUSDT: "tesla",
+  NVDAUSDT: "nvidia",
+  AMZNUSDT: "amazon",
+  MSFTUSDT: "microsoft",
+  GOOGLUSDT: "google",
+  METAUSDT: "meta-platforms",
+  COINUSDT: "coinbase",
+  MSTRUSDT: "microstrategy",
+  AMDUSDT: "advanced-micro-devices",
+};
+
 function getDecimalsFromTick(tickStr: string): number {
   if (!tickStr) return 2;
   const dotIdx = tickStr.indexOf(".");
   if (dotIdx === -1) return 0;
   return tickStr.length - dotIdx - 1;
 }
-
 async function fetchAndSyncBybitPairs() {
   const baseUrl = process.env.BYBIT_API_URL || "https://bytick.com";
   const endpoint = "/v5/market/instruments-info";
@@ -116,7 +131,6 @@ fullname = ${officialName};
   }
   return false;
 }
-
 async function ensureCoinsTableExists() {
   if (isCoinsVerified) return;
   try {
@@ -142,16 +156,17 @@ ALTER TABLE coins
 ADD COLUMN IF NOT EXISTS fullname VARCHAR(100) 
 NOT NULL DEFAULT 'Crypto Asset';
 `;
-
-    try {
-      await sql`ALTER TABLE coins DROP COLUMN IF EXISTS icon_url;`;
-    } catch (e) {}
+    await sql`
+ALTER TABLE coins 
+ADD COLUMN IF NOT EXISTS logo_slug VARCHAR(100);
+`;
 
     isCoinsVerified = true;
   } catch (err) {
     console.error(err);
   }
 }
+
 export async function GET(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
@@ -168,7 +183,7 @@ export async function GET(request: Request) {
     if (all === "true") {
       coinsResult = await sql`
 SELECT coin, decimals, is_favorite, 
-is_active, is_delisted, fullname 
+is_active, is_delisted, fullname, logo_slug 
 FROM coins 
 ORDER BY is_favorite DESC, coin ASC;
 `;
@@ -176,7 +191,7 @@ ORDER BY is_favorite DESC, coin ASC;
       const cleanSearch = "%" + search.trim().toUpperCase() + "%";
       coinsResult = await sql`
 SELECT coin, decimals, is_favorite, 
-is_active, is_delisted, fullname 
+is_active, is_delisted, fullname, logo_slug 
 FROM coins 
 WHERE coin LIKE ${cleanSearch}
 ORDER BY is_favorite DESC, coin ASC 
@@ -185,7 +200,7 @@ LIMIT 30;
     } else {
       coinsResult = await sql`
 SELECT coin, decimals, is_favorite, 
-is_active, is_delisted, fullname 
+is_active, is_delisted, fullname, logo_slug 
 FROM coins 
 WHERE is_favorite = TRUE
 ORDER BY coin ASC;
@@ -219,7 +234,7 @@ fullname = EXCLUDED.fullname;
       }
       coinsResult = await sql`
 SELECT coin, decimals, is_favorite, 
-is_active, is_delisted, fullname 
+is_active, is_delisted, fullname, logo_slug 
 FROM coins 
 WHERE is_favorite = TRUE
 ORDER BY coin ASC;
@@ -266,14 +281,13 @@ ORDER BY coin ASC;
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
-
 export async function PATCH(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
       return NextResponse.json({ error: "DATABASE_URL?" }, { status: 500 });
     }
     const body = await request.json();
-    const { action, coin } = body;
+    const { action, coin, logo_slug } = body;
 
     if (action === "SYNC_BYBIT") {
       const success = await fetchAndSyncBybitPairs();
@@ -286,8 +300,31 @@ export async function PATCH(request: Request) {
       });
     }
 
+    if (action === "SEED_SLUGS") {
+      for (const [targetCoin, slug] of Object.entries(TROUBLESOME_SLUGS)) {
+        await sql`
+UPDATE coins 
+SET logo_slug = ${slug} 
+WHERE coin = ${targetCoin};
+`;
+      }
+      return NextResponse.json({
+        success: true,
+        message: "Слаги логотипов успешно размечены в БД",
+      });
+    }
+
     if (!coin) {
       return NextResponse.json({ error: "No coin" }, { status: 400 });
+    }
+
+    if (action === "UPDATE_SLUG") {
+      await sql`
+UPDATE coins 
+SET logo_slug = ${logo_slug} 
+WHERE coin = ${coin};
+`;
+      return NextResponse.json({ success: true });
     }
 
     if (action === "TOGGLE_FAVORITE") {

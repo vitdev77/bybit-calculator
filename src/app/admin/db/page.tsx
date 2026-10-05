@@ -1,26 +1,19 @@
 "use client";
-import React, { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
-import {
-  Database,
-  RefreshCw,
-  Layers,
-  Coins,
-  Trash2,
-  ArrowLeft,
-  CloudDownload,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Spinner } from "@/components/ui/spinner";
-import { Button, buttonVariants } from "@/components/ui/button";
+import React, { useState, useEffect } from "react";
+import { Database, Trash2, RefreshCw, Check, Image } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
-  TableHeader,
   TableBody,
-  TableHead,
-  TableRow,
   TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
+import { toast } from "@/components/ui/toast";
+import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,92 +25,63 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { toast } from "@/components/ui/toast";
-import { ModeToggle } from "@/components/ModeToggle";
 
-export default function AdminDBExplorer() {
-  const [currentTable, setCurrentTable] = useState<"deals" | "coins">("deals");
-  const [dbData, setDbData] = useState<any[]>([]);
-  const [stats, setStats] = useState<any>({});
-  const [loading, setLoading] = useState(true);
-  const [isTruncating, setIsTruncating] = useState(false);
+export default function AdminDbPage() {
+  const [activeTable, setActiveTable] = useState<"deals" | "coins">("deals");
+  const [rows, setRows] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>({ count: 0 });
+  const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(false);
 
-  const loadTableData = useCallback(async () => {
-    setLoading(true);
+  const loadTableData = async (tableName: "deals" | "coins") => {
+    setIsLoading(true);
     try {
-      const res = await fetch(`/api/admin/db?table=${currentTable}`);
-      if (!res.ok) throw new Error();
-      const json = await res.json();
-      if (json.success) {
-        setDbData(json.data || []);
-        setStats(json.stats || {});
+      const res = await fetch(`/api/admin/db?table=${tableName}`);
+      if (!res.ok) throw new Error("Ошибка загрузки данных");
+      const data = await res.json();
+      if (data.success) {
+        setRows(data.data || []);
+        setStats(data.stats || { count: 0 });
       }
-    } catch (e) {
+    } catch (err: any) {
       toast.add({
-        title: "Ошибка СУБД",
-        description: "Не удалось загрузить данные",
+        title: "Сбой БД",
+        description: err.message,
         type: "error",
       });
     } finally {
-      setLoading(false);
-    }
-  }, [currentTable]);
-
-  useEffect(() => {
-    loadTableData();
-  }, [loadTableData]);
-  const handleWipeTable = async () => {
-    setIsAlertOpen(false);
-    setIsTruncating(true);
-    try {
-      const res = await fetch(`/api/admin/db?table=${currentTable}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        toast.add({
-          title: "Таблица очищена",
-          description: "Сброс TRUNCATE успешен",
-          type: "success",
-        });
-        loadTableData();
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsTruncating(false);
+      setIsLoading(false);
     }
   };
 
+  useEffect(() => {
+    loadTableData(activeTable);
+  }, [activeTable]);
   const handleSyncBybit = async () => {
+    if (isSyncing) return;
     setIsSyncing(true);
     try {
       const res = await fetch("/api/coins", {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          action: "SYNC_BYBIT",
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "SYNC_BYBIT" }),
       });
-      if (res.ok) {
+      const data = await res.json();
+      if (res.ok && data.success) {
         toast.add({
-          title: "Листинг обновлен",
-          description: "Данные Bybit синхронизированы",
+          title: "Синхронизация",
+          description: "Листинг фьючерсов Bybit успешно обновлен.",
           type: "success",
         });
-        if (currentTable === "coins") {
-          loadTableData();
-        }
+        loadTableData(activeTable);
       } else {
-        throw new Error();
+        throw new Error(data.error || "Ошибка API");
       }
-    } catch (e) {
+    } catch (err: any) {
       toast.add({
         title: "Ошибка синхронизации",
-        description: "Не удалось связаться с Bybit",
+        description: err.message,
         type: "error",
       });
     } finally {
@@ -125,319 +89,269 @@ export default function AdminDBExplorer() {
     }
   };
 
-  const headClass = cn(
-    "sticky top-0 z-50 w-full",
-    "bg-background/60 backdrop-blur-xl",
-    "border-b border-white/5 py-3",
-    "mb-6 flex items-center",
-    "justify-between gap-4",
-  );
+  const handleSeedSlugs = async () => {
+    if (isSeeding) return;
+    setIsSeeding(true);
+    try {
+      const res = await fetch("/api/coins", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "SEED_SLUGS" }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.add({
+          title: "Разметка слагов",
+          description: "Слаги логотипов успешно сохранены.",
+          type: "success",
+        });
+        loadTableData(activeTable);
+      } else {
+        throw new Error(data.error || "Ошибка API");
+      }
+    } catch (err: any) {
+      toast.add({
+        title: "Ошибка разметки",
+        description: err.message,
+        type: "error",
+      });
+    } finally {
+      setIsSeeding(false);
+    }
+  };
+
+  const handleTruncateTable = async () => {
+    try {
+      const res = await fetch(`/api/admin/db?table=${activeTable}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Не удалось очистить таблицу");
+      toast.add({
+        title: "Очистка завершена",
+        description: `Таблица ${activeTable} полностью очищена.`,
+        type: "success",
+      });
+      setRows([]);
+      setStats({ count: 0 });
+    } catch (err: any) {
+      toast.add({
+        title: "Ошибка удаления",
+        description: err.message,
+        type: "error",
+      });
+    }
+  };
+
+  const formatValue = (val: any, col: string, decimals: number = 2) => {
+    if (val === null || val === undefined) return "--";
+    const c = col.toLowerCase();
+    if (c === "created_at") {
+      return new Date(val).toLocaleString("ru-RU");
+    }
+    if (
+      [
+        "price",
+        "entry_price",
+        "stop_loss",
+        "take_profit",
+        "closed_at_price",
+      ].includes(c)
+    ) {
+      const num = parseFloat(val);
+      return isNaN(num) ? val : num.toFixed(decimals);
+    }
+    if (typeof val === "boolean") {
+      return val ? (
+        <Check className="size-3.5 text-emerald-500 mx-auto" />
+      ) : (
+        <span className="text-muted-foreground/30 font-medium">-</span>
+      );
+    }
+    return String(val);
+  };
   return (
-    <main
-      className={cn(
-        "min-h-screen p-4 sm:p-6",
-        "max-w-[2000px] mx-auto",
-        "w-full overflow-hidden",
-      )}
-    >
-      <div className={headClass}>
-        <div className={cn("flex items-center", "gap-2.5 min-w-0 flex-1")}>
-          <Database className={cn("size-5 text-amber-500")} />
-          <h1
-            className={cn(
-              "text-sm sm:text-base font-black",
-              "tracking-tight text-foreground",
-              "hidden xs:inline",
-            )}
-          >
-            Neon DB{" "}
-            <span className={cn("text-muted-foreground", "font-normal")}>
-              / Explorer
-            </span>
+    <div className="w-full max-w-5xl mx-auto p-3 sm:p-6 space-y-4">
+      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between pb-2 border-b border-border/40 select-none">
+        <div className="flex items-center gap-2">
+          <Database className="size-5 text-violet-500" />
+          <h1 className="text-base sm:text-lg font-black uppercase tracking-wider">
+            Администрирование СУБД (Neon)
           </h1>
-
-          <Link
-            href="/"
-            className={cn(
-              "inline-flex items-center",
-              "gap-1 px-2 py-1",
-              "text-[10px] sm:text-xs",
-              "font-bold uppercase",
-              "tracking-wider",
-              "text-neutral-400",
-              "hover:text-foreground",
-              "bg-muted/40",
-              "hover:bg-muted/80",
-              "border border-border/40",
-              "rounded-lg",
-              "transition-all",
-              "ml-1",
-            )}
-            title="Вернуться к калькулятору"
-          >
-            <ArrowLeft className="size-3" />
-            <span>Калькулятор</span>
-          </Link>
         </div>
-
-        <div className={cn("flex items-center gap-2", "shrink-0")}>
-          <span
-            className={cn(
-              "px-2 py-0.5 border",
-              "border-amber-500/20 text-[10px]",
-              "text-amber-500 font-bold",
-              "rounded bg-amber-500/5 shadow-xs",
-              "hidden sm:inline",
-            )}
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          <Button
+            type="button"
+            variant={activeTable === "deals" ? "default" : "outline"}
+            className="h-8.5 text-xs rounded-lg font-bold"
+            onClick={() => setActiveTable("deals")}
           >
-            Администратор
-          </span>
-          <ModeToggle />
+            Журнал сделок
+          </Button>
+          <Button
+            type="button"
+            variant={activeTable === "coins" ? "default" : "outline"}
+            className="h-8.5 text-xs rounded-lg font-bold"
+            onClick={() => setActiveTable("coins")}
+          >
+            Листинг монет
+          </Button>
         </div>
       </div>
 
-      <div
-        className={cn(
-          "flex flex-col sm:flex-row",
-          "gap-3 items-stretch sm:items-center",
-          "justify-between mb-4 w-full",
-        )}
-      >
-        <div className={cn("flex items-center gap-2")}>
-          <Button
-            variant={currentTable === "deals" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setCurrentTable("deals")}
-            className="gap-1.5 font-bold"
-          >
-            <Layers className="size-4" />
-            Журнал (deals)
-          </Button>
-          <Button
-            variant={currentTable === "coins" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setCurrentTable("coins")}
-            className="gap-1.5 font-bold"
-          >
-            <Coins className="size-4" />
-            Валюты (coins)
-          </Button>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 select-none">
+        <Card className="border border-border/40 shadow-xs bg-background/50 backdrop-blur-md">
+          <CardHeader className="py-2.5 px-4 border-b border-border/20">
+            <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Выбранная таблица
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 flex items-center justify-between">
+            <span className="text-sm font-black uppercase text-foreground">
+              {activeTable === "deals" ? "deals (Сделки)" : "coins (Валюты)"}
+            </span>
+          </CardContent>
+        </Card>
 
-        <div className={cn("flex items-center gap-2", "justify-end")}>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleSyncBybit}
-            disabled={isSyncing || loading}
-            className="gap-1 text-amber-500 border-amber-500/20 hover:bg-amber-500/10 font-bold"
-            title="Стянуть свежий листинг с Bybit"
-          >
-            <CloudDownload
-              className={cn("size-3.5", isSyncing ? "animate-bounce" : "")}
-            />
-            <span className="hidden xs:inline">Синхронизировать</span>
-          </Button>
+        <Card className="border border-border/40 shadow-xs bg-background/50 backdrop-blur-md">
+          <CardHeader className="py-2.5 px-4 border-b border-border/20">
+            <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Всего записей в СУБД
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 flex items-center justify-between">
+            <span className="text-2xl font-black text-violet-500">
+              {stats.count}
+            </span>
+          </CardContent>
+        </Card>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={loadTableData}
-            disabled={loading || isSyncing}
-          >
-            <RefreshCw
-              className={cn("size-3.5", loading ? "animate-spin" : "")}
-            />
-          </Button>
-
-          <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
-            <AlertDialogTrigger
-              className={buttonVariants({
-                variant: "destructive",
-                size: "sm",
-                className: cn("gap-1.5 font-black", "cursor-pointer"),
-              })}
-              disabled={
-                loading || isTruncating || dbData.length === 0 || isSyncing
-              }
-            >
-              <Trash2 className="size-3.5" />
-              Очистить таблицу
-            </AlertDialogTrigger>
-            <AlertDialogContent
-              className={cn("rounded-2xl max-w-xs", "sm:max-w-sm")}
-            >
-              <AlertDialogHeader>
-                <AlertDialogTitle className={cn("text-sm sm:text-base")}>
-                  Очистить таблицу {currentTable.toUpperCase()}?
-                </AlertDialogTitle>
-                <AlertDialogDescription
-                  className={cn("text-[11px] sm:text-xs")}
+        <Card className="border border-border/40 shadow-xs bg-background/50 backdrop-blur-md">
+          <CardHeader className="py-2.5 px-4 border-b border-border/20">
+            <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Быстрые операции
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-3 flex gap-2 flex-wrap items-center">
+            {activeTable === "coins" && (
+              <>
+                <Button
+                  type="button"
+                  disabled={isSyncing}
+                  onClick={handleSyncBybit}
+                  className="h-8 text-[10px] font-bold uppercase rounded-md bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
                 >
-                  ВНИМАНИЕ! Это действие удалит все строки из таблицы{" "}
-                  {currentTable} в базе Neon DB.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter className={cn("gap-1.5 sm:gap-2")}>
-                <AlertDialogCancel
-                  className={cn("rounded-xl text-xs", "h-9 cursor-pointer")}
+                  {isSyncing ? (
+                    <Spinner className="size-3" />
+                  ) : (
+                    <RefreshCw className="size-3 mr-1" />
+                  )}
+                  Синхронизация
+                </Button>
+                <Button
+                  type="button"
+                  disabled={isSeeding}
+                  onClick={handleSeedSlugs}
+                  className="h-8 text-[10px] font-bold uppercase rounded-md bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
                 >
-                  Отмена
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleWipeTable}
-                  className={buttonVariants({
-                    variant: "destructive",
-                    className: cn(
-                      "rounded-xl text-xs",
-                      "h-9 bg-rose-600",
-                      "hover:bg-rose-700",
-                      "text-white border-none",
-                      "cursor-pointer flex",
-                      "items-center",
-                      "justify-center",
-                    ),
-                  })}
-                >
-                  Удалить всё
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      </div>
-      <div
-        className={cn(
-          "w-full rounded-2xl border",
-          "border-border/40 bg-background",
-          "p-4 shadow-2xl min-w-0",
-        )}
-      >
-        <div
-          className={cn(
-            "w-full px-4 py-2 border-b",
-            "border-border/30 bg-muted/20",
-            "flex justify-between items-center",
-          )}
-        >
-          <span
-            className={cn(
-              "text-[10px] font-black",
-              "uppercase tracking-wider",
-              "text-muted-foreground",
+                  {isSeeding ? (
+                    <Spinner className="size-3" />
+                  ) : (
+                    <Image className="size-3 mr-1" />
+                  )}
+                  Заполнить слаги
+                </Button>
+              </>
             )}
-          >
-            Всего строк в СУБД:{" "}
-            <span className="text-foreground">{stats.count || 0}</span>
-          </span>
-        </div>
 
-        <div
-          className={cn(
-            "w-full max-h-150 relative",
-            "scrollbar-thin min-w-0",
-            isSyncing ? "overflow-hidden" : "overflow-x-auto overflow-y-auto",
-          )}
-        >
-          {isSyncing && (
-            <div
-              className={cn(
-                "absolute inset-0 bg-background/50",
-                "backdrop-blur-xs z-30 flex",
-                "items-center justify-center",
-                "gap-2 font-bold text-amber-500",
-                "select-none pointer-events-auto",
-              )}
-            >
-              <Spinner className="text-amber-500 animate-spin" />
-              <span>Запрос Bybit API...</span>
-            </div>
-          )}
-
-          <div
-            className={cn(
-              "w-full transition-all duration-300",
-              isSyncing ? "blur-xs pointer-events-none opacity-50" : "",
-            )}
-          >
-            {loading && !isSyncing ? (
-              <div
-                className={cn(
-                  "flex p-20 gap-2 items-center",
-                  "justify-center text-muted-foreground",
+            <AlertDialog>
+              <AlertDialogTrigger
+                render={(triggerProps) => (
+                  <Button
+                    {...triggerProps}
+                    type="button"
+                    disabled={isLoading || rows.length === 0}
+                    className="h-8 text-[10px] font-bold uppercase rounded-md bg-rose-600 hover:bg-rose-700 text-white cursor-pointer ml-auto"
+                  >
+                    <Trash2 className="size-3 mr-1" />
+                    Очистить таблицу
+                  </Button>
                 )}
-              >
-                <Spinner className={"text-amber-500"} />
-                <span>Чтение Neon DB...</span>
-              </div>
-            ) : dbData.length === 0 ? (
-              <div className={cn("p-12 text-center", "text-muted-foreground")}>
-                Таблица пуста
-              </div>
-            ) : (
-              <Table
-                className={cn("w-full text-xs min-w-225", "border-collapse")}
-              >
-                <TableHeader>
-                  <TableRow className={cn("bg-muted/40 font-bold")}>
-                    {Object.keys(dbData[0] || {}).map((key) => (
-                      <TableHead
-                        key={key}
-                        className={cn(
-                          "font-black text-[10px]",
-                          "uppercase tracking-wider",
-                        )}
+              />
+              <AlertDialogContent className="rounded-2xl max-w-sm">
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="text-sm sm:text-base">
+                    Уничтожить все данные в {activeTable}?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription className="text-xs">
+                    Это действие выполнит команду TRUNCATE и полностью удалит
+                    все строки. Восстановление невозможно.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="gap-1.5">
+                  <AlertDialogCancel className="rounded-xl text-xs h-9 cursor-pointer">
+                    Отмена
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleTruncateTable}
+                    className="rounded-xl text-xs h-9 bg-rose-600 hover:bg-rose-700 text-white border-none cursor-pointer"
+                  >
+                    Стереть всё
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="border border-border/40 shadow-sm bg-background">
+        <div className="overflow-x-auto max-h-140 scrollbar-thin">
+          {isLoading ? (
+            <div className="p-16 flex flex-col gap-2 items-center justify-center text-muted-foreground select-none">
+              <Spinner className="text-violet-500" />
+              <span className="text-xs font-medium">
+                Загрузка структуры СУБД...
+              </span>
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="p-12 text-center text-xs text-muted-foreground select-none">
+              Таблица пуста. Нет доступных данных для отображения.
+            </div>
+          ) : (
+            <Table className="text-[11px] font-medium border-collapse">
+              <TableHeader className="bg-muted/30 sticky top-0 z-20 backdrop-blur-md select-none border-b">
+                <TableRow>
+                  {Object.keys(rows[0]).map((col) => (
+                    <TableHead
+                      key={col}
+                      className="h-9 px-3 text-left font-black uppercase text-muted-foreground tracking-wider whitespace-nowrap"
+                    >
+                      {col}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((row, idx) => (
+                  <TableRow
+                    key={row.id || row.coin || idx}
+                    className="hover:bg-muted/10 transition-colors border-b border-border/20 odd:bg-muted/5"
+                  >
+                    {Object.keys(row).map((col) => (
+                      <TableCell
+                        key={col}
+                        className="p-3 max-w-44 truncate text-foreground/90 font-mono"
                       >
-                        {key}
-                      </TableHead>
+                        {formatValue(row[col], col, row.precision || 2)}
+                      </TableCell>
                     ))}
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {dbData.map((row, idx) => (
-                    <TableRow key={idx} className="hover:bg-muted/20">
-                      {Object.entries(row).map(([key, val]: any, vIdx) => {
-                        let displayValue = String(val);
-
-                        if (val === null) {
-                          displayValue = "NULL";
-                        } else if (typeof val === "boolean") {
-                          displayValue = val ? "TRUE" : "FALSE";
-                        } else if (
-                          typeof val === "number" ||
-                          (!isNaN(Number(val)) && val !== "")
-                        ) {
-                          const numVal = Number(val);
-                          if (
-                            key.includes("price") ||
-                            key.includes("loss") ||
-                            key.includes("profit")
-                          ) {
-                            const rowDecimals = parseInt(row.decimals, 10);
-                            const activePrec = !isNaN(rowDecimals)
-                              ? rowDecimals
-                              : 2;
-                            displayValue = numVal.toFixed(activePrec);
-                          }
-                        }
-
-                        return (
-                          <TableCell
-                            key={vIdx}
-                            className={cn("font-mono max-w-48", "truncate")}
-                          >
-                            {displayValue}
-                          </TableCell>
-                        );
-                      })}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </div>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </div>
-      </div>
-    </main>
+      </Card>
+    </div>
   );
 }
