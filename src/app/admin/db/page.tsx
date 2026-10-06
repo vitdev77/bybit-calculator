@@ -6,7 +6,6 @@ import {
   Trash2,
   RefreshCw,
   Check,
-  Image,
   ArrowLeft,
   TrendingUp,
   TrendingDown,
@@ -49,7 +48,7 @@ export default function AdminDbPage() {
   const [stats, setStats] = useState<any>({ count: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isSeeding, setIsSeeding] = useState(false);
+  const [isClearOpen, setIsClearOpen] = useState(false);
 
   const loadTableData = async (tableName: "deals" | "coins") => {
     setIsLoading(true);
@@ -58,7 +57,12 @@ export default function AdminDbPage() {
       if (!res.ok) throw new Error("Ошибка загрузки данных СУБД");
       const data = await res.json();
       if (data.success) {
-        setRows(data.data || []);
+        const rawRows = data.data || [];
+        const cleanedRows = rawRows.map((row: any) => {
+          const { logo_slug, ...rest } = row;
+          return rest;
+        });
+        setRows(Array.isArray(cleanedRows) ? cleanedRows : []);
         setStats(data.stats || { count: 0 });
       }
     } catch (err: any) {
@@ -79,7 +83,7 @@ export default function AdminDbPage() {
     if (isSyncing) return;
     setIsSyncing(true);
     setRows([]);
-    setStats({ count: 0 }); // ФИКС: Сбрасываем старый счетчик строк на 0 при старте
+    setStats({ count: 0 });
     setIsLoading(true);
     try {
       const res = await fetch("/api/coins", {
@@ -110,37 +114,6 @@ export default function AdminDbPage() {
     }
   };
 
-  const handleSeedSlugs = async () => {
-    if (isSeeding) return;
-    setIsSeeding(true);
-    try {
-      const res = await fetch("/api/coins", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "SEED_SLUGS" }),
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        toast.add({
-          title: "Разметка слагов",
-          description: "Слаги логотипов успешно сохранены.",
-          type: "success",
-        });
-        loadTableData(activeTable);
-      } else {
-        throw new Error(data.error || "Ошибка API");
-      }
-    } catch (err: any) {
-      toast.add({
-        title: "Ошибка разметки",
-        description: err.message,
-        type: "error",
-      });
-    } finally {
-      setIsSeeding(false);
-    }
-  };
-
   const handleTruncateTable = async () => {
     try {
       const res = await fetch(`/api/admin/db?table=${activeTable}`, {
@@ -154,6 +127,7 @@ export default function AdminDbPage() {
       });
       setRows([]);
       setStats({ count: 0 });
+      setIsClearOpen(false);
     } catch (err: any) {
       toast.add({
         title: "Ошибка удаления",
@@ -326,7 +300,7 @@ export default function AdminDbPage() {
         <Card className="border border-border/30 bg-muted/10 rounded-xl">
           <CardHeader className="py-2 px-3 border-b border-border/10">
             <CardTitle className="text-[9px] font-black uppercase text-muted-foreground/70 tracking-widest">
-              Структура Системы
+              Structure СУБД
             </CardTitle>
           </CardHeader>
           <CardContent className="p-3 flex items-center gap-3">
@@ -461,43 +435,25 @@ export default function AdminDbPage() {
           className="h-8.5 rounded-lg border border-input shadow-xs flex flex-row items-stretch bg-background overflow-hidden *:rounded-none w-full sm:w-auto"
         >
           {activeTable === "coins" && (
-            <>
-              <Button
-                type="button"
-                disabled={isSyncing}
-                onClick={handleSyncBybit}
-                className="h-full text-[10px] font-black uppercase tracking-wider bg-transparent hover:bg-muted text-foreground border-r border-input px-3 cursor-pointer flex-1 sm:flex-none flex items-center justify-center rounded-none"
-                title="Принудительная синхронизация листинга фьючерсов Bybit"
-              >
-                {isSyncing ? (
-                  <Spinner className="size-3" />
-                ) : (
-                  <>
-                    <RefreshCw className="size-3 md:mr-1.5" />
-                    <span className="hidden md:inline">Синхронизация</span>
-                  </>
-                )}
-              </Button>
-              <Button
-                type="button"
-                disabled={isSeeding}
-                onClick={handleSeedSlugs}
-                className="h-full text-[10px] font-black uppercase tracking-wider bg-transparent hover:bg-muted text-foreground border-r border-input px-3 cursor-pointer flex-1 sm:flex-none flex items-center justify-center rounded-none"
-                title="Заполнение и разметка слагов логотипов TradingView"
-              >
-                {isSeeding ? (
-                  <Spinner className="size-3" />
-                ) : (
-                  <>
-                    <Image className="size-3 md:mr-1.5" />
-                    <span className="hidden md:inline">Слаги логотипов</span>
-                  </>
-                )}
-              </Button>
-            </>
+            <Button
+              type="button"
+              disabled={isSyncing}
+              onClick={handleSyncBybit}
+              className="h-full text-[10px] font-black uppercase tracking-wider bg-transparent hover:bg-muted text-foreground border-r border-input px-3 cursor-pointer flex-1 sm:flex-none flex items-center justify-center rounded-none"
+              title="Принудительная синхронизация листинга фьючерсов Bybit"
+            >
+              {isSyncing ? (
+                <Spinner className="size-3" />
+              ) : (
+                <>
+                  <RefreshCw className="size-3 md:mr-1.5" />
+                  <span className="hidden md:inline">Синхронизация</span>
+                </>
+              )}
+            </Button>
           )}
 
-          <AlertDialog>
+          <AlertDialog open={isClearOpen} onOpenChange={setIsClearOpen}>
             <AlertDialogTrigger
               render={(triggerProps) => (
                 <Button
@@ -537,7 +493,7 @@ export default function AdminDbPage() {
         </ButtonGroup>
       </div>
 
-      {/* СТРУКТУРНАЯ ТАБЛИЦА РЕЗУЛЬТАТОВ */}
+      {/* СТРУКТУРНАЯ ТАБЛИЦА РЕЗУЛЬТАТОВ БЕЗ ОШИБОК И АРТЕФАКТОВ */}
       <Card className="border border-border/40 shadow-sm bg-background mt-1">
         <div className="overflow-x-auto max-h-140 scrollbar-thin touch-pan-x w-full">
           {isLoading ? (
@@ -555,18 +511,19 @@ export default function AdminDbPage() {
             <Table className="text-[11px] font-medium border-collapse min-w-150 w-full">
               <TableHeader className="bg-muted/30 sticky top-0 z-20 backdrop-blur-md select-none border-b">
                 <TableRow>
-                  {/* ФИКС: Заголовок для порядкового номера */}
                   <TableHead className="h-9 px-3 text-center font-black uppercase text-muted-foreground tracking-wider whitespace-nowrap w-12 border-r border-border/10">
                     #
                   </TableHead>
-                  {Object.keys(rows[0] || {}).map((col) => (
-                    <TableHead
-                      key={col}
-                      className="h-9 px-3 text-left font-black uppercase text-muted-foreground tracking-wider whitespace-nowrap"
-                    >
-                      {col}
-                    </TableHead>
-                  ))}
+                  {/* ФИКС: Безопасно парсим ключи строго из первого существующего объекта строк */}
+                  {rows[0] &&
+                    Object.keys(rows[0]).map((col) => (
+                      <TableHead
+                        key={col}
+                        className="h-9 px-3 text-left font-black uppercase text-muted-foreground tracking-wider whitespace-nowrap"
+                      >
+                        {col}
+                      </TableHead>
+                    ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -578,7 +535,6 @@ export default function AdminDbPage() {
                       getRowStyles(row),
                     )}
                   >
-                    {/* ФИКС: Клетка рендера порядкового номера */}
                     <TableCell className="p-3 text-center text-muted-foreground/50 font-mono font-bold w-12 border-r border-border/10 bg-muted/5 select-none">
                       {idx + 1}
                     </TableCell>
