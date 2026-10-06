@@ -17,7 +17,6 @@ export interface DBAssetCoin {
   is_active: boolean;
   is_delisted: boolean;
   fullname?: string;
-  logo_slug?: string;
 }
 
 interface SelectorProps {
@@ -48,84 +47,42 @@ function getCoinGradient(name: string): string {
     `hsl(${c2}, 80%, 35%))`
   );
 }
-function CoinIcon({
-  symbol,
-  fullname,
-  logo_slug,
-}: {
-  symbol: string;
-  fullname?: string;
-  logo_slug?: string;
-}) {
-  const [imgSrc, setMainSrc] = useState("");
-  const [fallbackStage, setFallbackStage] = useState(0);
+function CoinIcon({ symbol }: { symbol: string }) {
+  const [isLoadFailed, setIsLoadFailed] = useState(false);
   const base = symbol.replace("USDT", "").toUpperCase();
 
   useEffect(() => {
-    setFallbackStage(0);
-    const tvRoot = "https://s3-symbol-logo.tradingview.com/";
-    if (logo_slug) {
-      setMainSrc(`${tvRoot}${logo_slug}.svg`);
-    } else {
-      setMainSrc(`${tvRoot}crypto/XTVC${base}.svg`);
-    }
-  }, [symbol, base, logo_slug]);
+    setIsLoadFailed(false);
+  }, [symbol]);
 
-  const handleIconError = () => {
-    const tvRoot = "https://s3-symbol-logo.tradingview.com/";
-    if (fallbackStage === 0) {
-      setFallbackStage(1);
-      if (fullname && fullname !== "Crypto Asset") {
-        const cleanName = fullname
-          .toLowerCase()
-          .replace(/\s+/g, "-")
-          .replace(/[^a-z0-9\-]/g, "");
-        setMainSrc(`${tvRoot}${cleanName}.svg`);
-      } else {
-        setMainSrc(`${tvRoot}${base.toLowerCase()}.svg`);
-      }
-    } else if (fallbackStage === 1) {
-      setFallbackStage(2);
-      setMainSrc(`${tvRoot}${base.toLowerCase()}.svg`);
-    } else if (fallbackStage === 2) {
-      setFallbackStage(3);
-      setMainSrc(`${tvRoot}crypto/${base}.svg`);
-    } else if (fallbackStage === 3) {
-      setFallbackStage(4);
-      const bybitBase = "https://api.bybit.com";
-      const bybitPath = "/modules/symbols/web/svg/light/";
-      setMainSrc(`${bybitBase}${bybitPath}${base}.svg`);
-    } else if (fallbackStage === 4) {
-      setFallbackStage(5);
-    }
-  };
-
-  if (fallbackStage < 5 && imgSrc) {
+  if (isLoadFailed) {
     return (
-      <img
-        src={imgSrc}
-        alt={base}
-        className="size-4 shrink-0 rounded-full bg-neutral-100 dark:bg-zinc-800"
-        onError={handleIconError}
-      />
+      <div
+        className={cn(
+          "size-4 rounded-full flex items-center text-white justify-center",
+          "font-black text-[8px] uppercase shrink-0 select-none",
+        )}
+        style={{
+          backgroundImage: getCoinGradient(base),
+        }}
+      >
+        {base.slice(0, 2)}
+      </div>
     );
   }
+
+  const envRoot = process.env.NEXT_PUBLIC_TV_LOGOS_URL;
+  const finalBaseUrl =
+    envRoot || "https://s3-symbol-logo.tradingview.com/crypto/XTVC";
+
   return (
-    <div
-      className={cn(
-        "size-4 rounded-full",
-        "flex items-center",
-        "text-white",
-        "justify-center",
-        "font-black text-[8px]",
-        "uppercase shrink-0 select-none",
-      )}
-      style={{
-        backgroundImage: getCoinGradient(base),
-      }}
-    >
-      {base.slice(0, 2)}
-    </div>
+    <img
+      src={`${finalBaseUrl}${base}.svg`}
+      alt={base}
+      loading="lazy"
+      className="size-4 shrink-0 rounded-full bg-neutral-100 dark:bg-zinc-800"
+      onError={() => setIsLoadFailed(true)}
+    />
   );
 }
 export default function CoinSelector({
@@ -159,9 +116,7 @@ export default function CoinSelector({
       setDebouncedSearch(inpValue);
     }, 300);
     return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
+      if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [inpValue]);
 
@@ -281,44 +236,29 @@ export default function CoinSelector({
   });
 
   const sortedLetters = Object.keys(groupedCoins).sort();
-
-  const lblCls = cn(
-    "text-[10px] font-bold sm:text-xs uppercase",
-    "text-muted-foreground tracking-wider block",
-  );
-  const containerCls = cn("space-y-1 w-full min-w-0");
-  const triggerCls = cn(
-    "w-full bg-background pr-3 border border-input pl-2 shadow-none",
-    "text-[11px] sm:text-sm h-9.5!",
-  );
-  const popupCls = cn("w-64! min-w-64! max-w-64! overflow-x-hidden p-1");
-  const searchBoxCls = cn(
-    "p-1 border-b sticky z-30 border-border/40 gap-1.5 top-0",
-    "bg-popover flex items-center",
-  );
-  const inpCls = cn(
-    "w-full text-xs p-0 bg-transparent h-6 outline-none text-foreground",
-  );
-  const scrollCls = cn("max-h-56 mt-1 overflow-y-auto scrollbar-thin");
-
+  const lblCls =
+    "text-[10px] font-bold sm:text-xs uppercase text-muted-foreground tracking-wider block";
+  const containerCls = "space-y-1 w-full min-w-0";
+  const triggerCls =
+    "w-full bg-background pr-3 border border-input pl-2 shadow-none text-[11px] sm:text-sm h-9.5!";
+  const popupCls = "w-64! min-w-64! max-w-64! overflow-x-hidden p-1";
+  const searchBoxCls =
+    "p-1 border-b sticky z-30 border-border/40 gap-1.5 top-0 bg-popover flex items-center";
+  const inpCls =
+    "w-full text-xs p-0 bg-transparent h-6 outline-none text-foreground";
+  const scrollCls = "max-h-56 mt-1 overflow-y-auto scrollbar-thin";
   const btnFavClass = cn(
-    "p-0 border flex bg-transparent items-center shrink-0 justify-center",
-    "h-9.5 w-9.5 border-input rounded-xl outline-none transition-colors",
-    "hover:bg-muted/40 cursor-pointer text-muted-foreground/40 hover:text-foreground",
+    "p-0 border flex bg-transparent items-center shrink-0 justify-center h-9.5 w-9.5 border-input rounded-xl outline-none transition-colors hover:bg-muted/40 cursor-pointer text-muted-foreground/40 hover:text-foreground",
     isCurrentFavorite ? "text-amber-500! hover:text-amber-600!" : "",
   );
-
-  const btnSetClass = cn(
-    "p-0 border flex bg-transparent items-center shrink-0 justify-center",
-    "h-9.5 w-9.5 border-input rounded-xl outline-none transition-colors",
-    "hover:bg-muted/40 cursor-pointer text-muted-foreground hover:text-foreground",
-  );
+  const btnSetClass =
+    "p-0 border flex bg-transparent items-center shrink-0 justify-center h-9.5 w-9.5 border-input rounded-xl outline-none transition-colors hover:bg-muted/40 cursor-pointer text-muted-foreground hover:text-foreground";
 
   return (
-    <div className={cn("space-y-3.5 w-full")}>
+    <div className="space-y-3.5 w-full font-sans">
       <div className="space-y-1 w-full">
         <Label className={lblCls}>Тип ордера</Label>
-        <ButtonGroup className={cn("w-full flex h-9.5")}>
+        <ButtonGroup className="w-full flex h-9.5">
           <Button
             type="button"
             variant={orderType === "MARKET" ? "default" : "outline"}
@@ -346,14 +286,12 @@ export default function CoinSelector({
       <div className={containerCls}>
         <Label
           htmlFor="coin-select"
-          className={cn(
-            "text-[10px] sm:text-xs font-bold truncate text-muted-foreground block uppercase tracking-wider",
-          )}
+          className="text-[10px] sm:text-xs font-bold truncate text-muted-foreground block uppercase tracking-wider"
         >
           Торговая пара
         </Label>
-        <div className={cn("flex items-center gap-1.5 w-full")}>
-          <div className={cn("flex-1 min-w-0")}>
+        <div className="flex items-center gap-1.5 w-full">
+          <div className="flex-1 min-w-0">
             <Select
               value={selectedCoin}
               onValueChange={(val) => {
@@ -377,18 +315,6 @@ export default function CoinSelector({
                 groupedCoins={groupedCoins}
                 selectedCoin={selectedCoin}
                 handleToggleFavInMenu={handleToggleFavInMenu}
-                CoinIcon={(p) => {
-                  const currentMeta = availableCoinsList.find(
-                    (c) => c.coin === p.symbol,
-                  );
-                  return (
-                    <CoinIcon
-                      symbol={p.symbol}
-                      fullname={currentMeta?.fullname}
-                      logo_slug={currentMeta?.logo_slug}
-                    />
-                  );
-                }}
                 popupCls={popupCls}
                 searchBoxCls={searchBoxCls}
                 inpCls={inpCls}

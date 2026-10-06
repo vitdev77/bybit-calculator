@@ -22,14 +22,12 @@ interface DropProps {
   groupedCoins: Record<string, DBAssetCoin[]>;
   selectedCoin: string;
   handleToggleFavInMenu: (e: React.MouseEvent, coinName: string) => void;
-  CoinIcon: React.ComponentType<{
-    symbol: string;
-  }>;
   popupCls: string;
   searchBoxCls: string;
   inpCls: string;
   scrollCls: string;
 }
+
 export function CoinSelectorDrop({
   isSearching,
   inpValue,
@@ -40,7 +38,6 @@ export function CoinSelectorDrop({
   groupedCoins,
   selectedCoin,
   handleToggleFavInMenu,
-  CoinIcon,
   popupCls,
   searchBoxCls,
   inpCls,
@@ -52,11 +49,9 @@ export function CoinSelectorDrop({
     <SelectContent className={popupCls}>
       <div className={searchBoxCls}>
         {isSearching ? (
-          <Spinner className={"text-amber-500"} />
+          <Spinner className="text-amber-500" />
         ) : (
-          <Search
-            className={"size-3 " + "text-muted-foreground/60 " + "ml-1"}
-          />
+          <Search className="size-3 text-muted-foreground/60 ml-1" />
         )}
         <input
           type="text"
@@ -84,27 +79,19 @@ export function CoinSelectorDrop({
       <div className={scrollCls}>
         {hasFavs && (
           <SelectGroup>
-            <SelectLabel
-              className={cn("text-amber-500", "font-black text-[10px]")}
-            >
+            <SelectLabel className="text-amber-500 font-black text-[10px] select-none">
               ★ ИЗБРАННОЕ
             </SelectLabel>
             {favoriteCoins.map((asset) => (
               <SelectItem
                 key={asset.coin}
                 value={asset.coin}
-                className={cn(
-                  "text-xs sm:text-sm",
-                  "flex items-center",
-                  "w-full relative",
-                  "pr-9!",
-                )}
+                className="text-xs sm:text-sm flex items-center w-full relative pr-9!"
               >
                 <CoinSelectorItem
                   asset={asset}
                   selectedCoin={selectedCoin}
                   onToggleFav={handleToggleFavInMenu}
-                  IconComponent={CoinIcon}
                 />
               </SelectItem>
             ))}
@@ -112,32 +99,19 @@ export function CoinSelectorDrop({
         )}
         {sortedLetters.map((char) => (
           <SelectGroup key={char}>
-            <SelectLabel
-              className={cn(
-                "text-muted-foreground",
-                "pb-0.5 font-bold mt-1",
-                "text-[10px] border-b",
-                "border-border/10",
-              )}
-            >
+            <SelectLabel className="text-muted-foreground pb-0.5 font-bold mt-1 text-[10px] border-b border-border/10 select-none">
               {char}
             </SelectLabel>
             {groupedCoins[char].map((asset) => (
               <SelectItem
                 key={asset.coin}
                 value={asset.coin}
-                className={cn(
-                  "text-xs sm:text-sm",
-                  "flex items-center",
-                  "w-full relative",
-                  "pr-9!",
-                )}
+                className="text-xs sm:text-sm flex items-center w-full relative pr-9!"
               >
                 <CoinSelectorItem
                   asset={asset}
                   selectedCoin={selectedCoin}
                   onToggleFav={handleToggleFavInMenu}
-                  IconComponent={CoinIcon}
                 />
               </SelectItem>
             ))}

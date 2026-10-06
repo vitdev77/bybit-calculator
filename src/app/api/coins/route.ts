@@ -19,30 +19,15 @@ const REAL_STABLE_COINS = [
   { coin: "HYPEUSDT", decimals: 2, fullname: "Hyperliquid" },
 ];
 
-const TROUBLESOME_SLUGS: Record<string, string> = {
-  AVGOUSDT: "broadcom",
-  ANETUSDT: "arista-networks",
-  BABAUSDT: "alibaba",
-  AAPLUSDT: "apple",
-  TSLAUSDT: "tesla",
-  NVDAUSDT: "nvidia",
-  AMZNUSDT: "amazon",
-  MSFTUSDT: "microsoft",
-  GOOGLUSDT: "google",
-  METAUSDT: "meta-platforms",
-  COINUSDT: "coinbase",
-  MSTRUSDT: "microstrategy",
-  AMDUSDT: "advanced-micro-devices",
-};
-
 function getDecimalsFromTick(tickStr: string): number {
   if (!tickStr) return 2;
   const dotIdx = tickStr.indexOf(".");
   if (dotIdx === -1) return 0;
   return tickStr.length - dotIdx - 1;
 }
+
 async function fetchAndSyncBybitPairs() {
-  const baseUrl = process.env.BYBIT_API_URL || "https://bytick.com";
+  const baseUrl = "https://api.bytick.com";
   const endpoint = "/v5/market/instruments-info";
 
   let allLiveUsdtPairs: any[] = [];
@@ -131,6 +116,7 @@ fullname = ${officialName};
   }
   return false;
 }
+
 async function ensureCoinsTableExists() {
   if (isCoinsVerified) return;
   try {
@@ -142,31 +128,22 @@ is_favorite BOOLEAN NOT NULL DEFAULT FALSE
 );
 `;
     await sql`
-ALTER TABLE coins 
-ADD COLUMN IF NOT EXISTS is_active BOOLEAN 
-NOT NULL DEFAULT TRUE;
+ALTER TABLE coins ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
 `;
     await sql`
-ALTER TABLE coins 
-ADD COLUMN IF NOT EXISTS is_delisted BOOLEAN 
-NOT NULL DEFAULT FALSE;
+ALTER TABLE coins ADD COLUMN IF NOT EXISTS is_delisted BOOLEAN NOT NULL DEFAULT FALSE;
 `;
     await sql`
-ALTER TABLE coins 
-ADD COLUMN IF NOT EXISTS fullname VARCHAR(100) 
-NOT NULL DEFAULT 'Crypto Asset';
-`;
-    await sql`
-ALTER TABLE coins 
-ADD COLUMN IF NOT EXISTS logo_slug VARCHAR(100);
+ALTER TABLE coins ADD COLUMN IF NOT EXISTS fullname VARCHAR(100) NOT NULL DEFAULT 'Crypto Asset';
 `;
 
     isCoinsVerified = true;
   } catch (err) {
-    console.error(err);
+    error_log: {
+      console.error(err);
+    }
   }
 }
-
 export async function GET(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
@@ -182,16 +159,14 @@ export async function GET(request: Request) {
 
     if (all === "true") {
       coinsResult = await sql`
-SELECT coin, decimals, is_favorite, 
-is_active, is_delisted, fullname, logo_slug 
+SELECT coin, decimals, is_favorite, is_active, is_delisted, fullname 
 FROM coins 
 ORDER BY is_favorite DESC, coin ASC;
 `;
     } else if (search) {
       const cleanSearch = "%" + search.trim().toUpperCase() + "%";
       coinsResult = await sql`
-SELECT coin, decimals, is_favorite, 
-is_active, is_delisted, fullname, logo_slug 
+SELECT coin, decimals, is_favorite, is_active, is_delisted, fullname 
 FROM coins 
 WHERE coin LIKE ${cleanSearch}
 ORDER BY is_favorite DESC, coin ASC 
@@ -199,8 +174,7 @@ LIMIT 30;
 `;
     } else {
       coinsResult = await sql`
-SELECT coin, decimals, is_favorite, 
-is_active, is_delisted, fullname, logo_slug 
+SELECT coin, decimals, is_favorite, is_active, is_delisted, fullname 
 FROM coins 
 WHERE is_favorite = TRUE
 ORDER BY coin ASC;
@@ -216,25 +190,25 @@ ORDER BY coin ASC;
         "XRPUSDT",
       ];
       for (const item of REAL_STABLE_COINS) {
+        const dDec = item.decimals;
+        const fName = item.fullname;
+        const isFav = defaultFavs.includes(item.coin);
+
         await sql`
 INSERT INTO coins (
-coin, decimals, is_favorite, 
-is_active, is_delisted, fullname
+coin, decimals, is_favorite, is_active, is_delisted, fullname
 )
 VALUES (
-${item.coin}, ${item.decimals}, 
-${defaultFavs.includes(item.coin)}, 
-TRUE, FALSE, ${item.fullname}
+${item.coin}, ${dDec}, ${isFav}, TRUE, FALSE, ${fName}
 )
 ON CONFLICT (coin) 
 DO UPDATE SET 
-decimals = EXCLUDED.decimals,
-fullname = EXCLUDED.fullname;
+decimals = ${dDec},
+fullname = ${fName};
 `;
       }
       coinsResult = await sql`
-SELECT coin, decimals, is_favorite, 
-is_active, is_delisted, fullname, logo_slug 
+SELECT coin, decimals, is_favorite, is_active, is_delisted, fullname 
 FROM coins 
 WHERE is_favorite = TRUE
 ORDER BY coin ASC;
@@ -243,21 +217,16 @@ ORDER BY coin ASC;
 
     const registryMap: Record<
       string,
-      {
-        price24hPcnt: number;
-        turnover24h: number;
-      }
+      { price24hPcnt: number; turnover24h: number }
     > = {};
 
     if (all === "true" || search) {
       try {
-        const bybitApiUrl = process.env.BYBIT_API_URL || "https://bytick.com";
+        const baseUrl = "https://api.bytick.com";
         const endpoint = "/v5/market/tickers";
-        const tickersUrl = bybitApiUrl + endpoint + "?category=linear";
+        const tickersUrl = baseUrl + endpoint + "?category=linear";
 
-        const tickersRes = await fetch(tickersUrl, {
-          cache: "no-store",
-        });
+        const tickersRes = await fetch(tickersUrl, { cache: "no-store" });
         if (tickersRes.ok) {
           const bulkJson = await tickersRes.json();
           const list = bulkJson.result?.list || [];
@@ -281,13 +250,14 @@ ORDER BY coin ASC;
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
 export async function PATCH(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
       return NextResponse.json({ error: "DATABASE_URL?" }, { status: 500 });
     }
     const body = await request.json();
-    const { action, coin, logo_slug } = body;
+    const { action, coin } = body;
 
     if (action === "SYNC_BYBIT") {
       const success = await fetchAndSyncBybitPairs();
@@ -300,55 +270,22 @@ export async function PATCH(request: Request) {
       });
     }
 
-    if (action === "SEED_SLUGS") {
-      for (const [targetCoin, slug] of Object.entries(TROUBLESOME_SLUGS)) {
-        await sql`
-UPDATE coins 
-SET logo_slug = ${slug} 
-WHERE coin = ${targetCoin};
-`;
-      }
-      return NextResponse.json({
-        success: true,
-        message: "Слаги логотипов успешно размечены в БД",
-      });
-    }
-
     if (!coin) {
       return NextResponse.json({ error: "No coin" }, { status: 400 });
     }
 
-    if (action === "UPDATE_SLUG") {
+    if (action === "TOGGLE_FAVORITE") {
       await sql`
-UPDATE coins 
-SET logo_slug = ${logo_slug} 
-WHERE coin = ${coin};
+UPDATE coins SET is_favorite = NOT is_favorite WHERE coin = ${coin};
 `;
       return NextResponse.json({ success: true });
     }
 
-    if (action === "TOGGLE_FAVORITE") {
-      await sql`
-UPDATE coins 
-SET is_favorite = 
-NOT is_favorite 
-WHERE coin = ${coin};
-`;
-      return NextResponse.json({
-        success: true,
-      });
-    }
-
     if (action === "TOGGLE_ACTIVE") {
       await sql`
-UPDATE coins 
-SET is_active = 
-NOT is_active 
-WHERE coin = ${coin};
+UPDATE coins SET is_active = NOT is_active WHERE coin = ${coin};
 `;
-      return NextResponse.json({
-        success: true,
-      });
+      return NextResponse.json({ success: true });
     }
 
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });

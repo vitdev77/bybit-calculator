@@ -67,9 +67,7 @@ export default function ListingManagerModal({
 
   const [visibleCount, setVisibleCount] = useState(50);
   const [isIncrementalLoading, setIsIncrementalLoading] = useState(false);
-
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     if (isModalOpen) {
       setIsLoading(true);
@@ -113,6 +111,7 @@ export default function ListingManagerModal({
       });
     }
   };
+
   const handleToggleFav = async (
     e: React.MouseEvent,
     coinName: string,
@@ -155,11 +154,8 @@ export default function ListingManagerModal({
     } catch (err) {
       console.error(err);
     }
-    finalCheck: {
-      setFavLoadingMap((prev) => ({ ...prev, [coinName]: false }));
-    }
+    setFavLoadingMap((prev) => ({ ...prev, [coinName]: false }));
   };
-
   let totalLiqCount = 0;
   let totalMidCount = 0;
   let totalRiskCount = 0;
@@ -232,7 +228,6 @@ export default function ListingManagerModal({
       }
     }
   };
-
   return (
     <AlertDialog open={isModalOpen} onOpenChange={setIsModalOpen}>
       <AlertDialogContent
@@ -336,12 +331,12 @@ export default function ListingManagerModal({
         <div
           ref={scrollContainerRef}
           onScroll={handleScroll}
-          className="max-h-64 pr-1 overflow-y-auto space-y-1.5 scrollbar-thin"
+          className="max-h-64 pr-1 overflow-y-auto space-y-1.5 scrollbar-thin touch-pan-y"
         >
           {isLoading ? (
             <div className="flex p-8 gap-2 items-center justify-center text-muted-foreground">
               <Spinner className="text-amber-500" />
-              <span>Загрузка...</span>
+              <span>Загрузка листинга...</span>
             </div>
           ) : (
             renderedCoins.map((item, idx) => (

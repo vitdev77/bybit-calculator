@@ -13,7 +13,6 @@ interface TickerData {
   fundingRate: number;
   turnover24h: number;
   fullname?: string;
-  logo_slug?: string;
 }
 
 interface FGData {
@@ -72,8 +71,7 @@ export default function MarketTicker({
   const [tickDirection, setTickDirection] = useState<"up" | "down" | "stable">(
     "stable",
   );
-  const [imgSrc, setMainSrc] = useState("");
-  const [fallbackStage, setFallbackStage] = useState(0);
+  const [isLoadFailed, setIsLoadFailed] = useState(false);
   const prevPriceRef = useRef<number | null>(null);
 
   const [fng, setFng] = useState<FGData | null>(null);
@@ -85,43 +83,8 @@ export default function MarketTicker({
   const fullName = data?.fullname || "Crypto Asset";
 
   useEffect(() => {
-    setFallbackStage(0);
-    const tvRoot = "https://s3-symbol-logo.tradingview.com/";
-    if (data?.logo_slug) {
-      setMainSrc(`${tvRoot}${data.logo_slug}.svg`);
-    } else {
-      setMainSrc(`${tvRoot}crypto/XTVC${baseCoin}.svg`);
-    }
-  }, [selectedCoin, baseCoin, data?.logo_slug]);
-
-  const handleIconError = () => {
-    const tvRoot = "https://s3-symbol-logo.tradingview.com/";
-    if (fallbackStage === 0) {
-      setFallbackStage(1);
-      if (data?.fullname && data.fullname !== "Crypto Asset") {
-        const cleanName = data.fullname
-          .toLowerCase()
-          .replace(/\s+/g, "-")
-          .replace(/[^a-z0-9\-]/g, "");
-        setMainSrc(`${tvRoot}${cleanName}.svg`);
-      } else {
-        setMainSrc(`${tvRoot}${baseCoin.toLowerCase()}.svg`);
-      }
-    } else if (fallbackStage === 1) {
-      setFallbackStage(2);
-      setMainSrc(`${tvRoot}${baseCoin.toLowerCase()}.svg`);
-    } else if (fallbackStage === 2) {
-      setFallbackStage(3);
-      setMainSrc(`${tvRoot}crypto/${baseCoin}.svg`);
-    } else if (fallbackStage === 3) {
-      setFallbackStage(4);
-      const bybitBase = "https://api.bybit.com";
-      const bybitPath = "/modules/symbols/web/svg/light/";
-      setMainSrc(`${bybitBase}${bybitPath}${baseCoin}.svg`);
-    } else if (fallbackStage === 4) {
-      setFallbackStage(5);
-    }
-  };
+    setIsLoadFailed(false);
+  }, [selectedCoin]);
 
   useEffect(() => {
     if (data?.lastPrice) {
@@ -135,7 +98,6 @@ export default function MarketTicker({
       prevPriceRef.current = data.lastPrice;
     }
   }, [data?.lastPrice]);
-
   useEffect(() => {
     fetch("/api/fng")
       .then((r) => r.json())
@@ -218,10 +180,13 @@ export default function MarketTicker({
         )}
       >
         <Spinner className="text-amber-500" />
-        <span className="text-muted-foreground text-xs">Загрузка...</span>
+        <span className="text-muted-foreground text-xs">
+          Загрузка данных тикера...
+        </span>
       </div>
     );
   }
+
   const ratio =
     allocatedMarginMax > 0 ? Math.min(marginUsed / allocatedMarginMax, 1) : 0;
   const isHighMargin = ratio > 0.85;
@@ -232,12 +197,9 @@ export default function MarketTicker({
   const strokeDashoffset = circum - (fundProgress / 100) * circum;
 
   let priceColor = "text-foreground font-black";
-  if (tickDirection === "up") {
+  if (tickDirection === "up")
     priceColor = "text-emerald-600 dark:text-emerald-400";
-  }
-  if (tickDirection === "down") {
-    priceColor = "text-rose-600 dark:text-rose-400";
-  }
+  if (tickDirection === "down") priceColor = "text-rose-600 dark:text-rose-400";
 
   const changeValue = data.price24hPcnt;
   const changeColor =
@@ -246,6 +208,9 @@ export default function MarketTicker({
       : changeValue < 0
         ? "text-rose-600 dark:text-rose-400"
         : "text-muted-foreground";
+  const envRoot = process.env.NEXT_PUBLIC_TV_LOGOS_URL;
+  const finalBaseUrl = envRoot || "https://tradingview.com";
+
   return (
     <div
       className={cn(
@@ -263,19 +228,17 @@ export default function MarketTicker({
       >
         <div className="flex items-center gap-3 min-w-0 max-w-[50%] md:max-w-full">
           <div className="relative size-9 shrink-0 flex items-center justify-center">
-            {fallbackStage < 5 && imgSrc ? (
+            {!isLoadFailed ? (
               <img
-                src={imgSrc}
+                src={`${finalBaseUrl}${baseCoin}.svg`}
                 alt={selectedCoin}
                 className="w-full h-full rounded-full bg-neutral-100 dark:bg-zinc-800"
-                onError={handleIconError}
+                onError={() => setIsLoadFailed(true)}
               />
             ) : (
               <div
                 className="w-full h-full flex text-white items-center font-black justify-center text-xs uppercase rounded-full"
-                style={{
-                  backgroundImage: getCoinGradient(baseCoin),
-                }}
+                style={{ backgroundImage: getCoinGradient(baseCoin) }}
               >
                 {baseCoin.slice(0, 2)}
               </div>
@@ -340,7 +303,7 @@ export default function MarketTicker({
             </span>
           </div>
         </div>
-        <div className="grid grid-cols-3 sm:grid-cols-3 gap-2 w-full">
+        <div className="grid grid-cols-3 gap-2 w-full">
           <div className="bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border border-border/10 flex flex-col justify-center min-w-0 relative">
             <span className="text-[8px] opacity-50 uppercase font-bold">
               Fear & Greed
@@ -416,7 +379,7 @@ export default function MarketTicker({
               </span>
               <span
                 className={cn(
-                  "text-shadow-xs text-[9px] font-black",
+                  "text-[9px] font-black",
                   isHighMargin ? "text-rose-500" : "text-amber-500",
                 )}
               >
@@ -433,7 +396,7 @@ export default function MarketTicker({
                     className={cn(
                       "h-1 rounded-xs transition-all duration-300",
                       isBlockActive
-                        ? isHighMargin || i >= 8
+                        ? i >= 8
                           ? "bg-rose-500 shadow-xs"
                           : "bg-amber-500 shadow-xs"
                         : "bg-muted-foreground/10 dark:bg-neutral-800",
