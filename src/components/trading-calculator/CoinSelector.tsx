@@ -184,7 +184,6 @@ export default function CoinSelector({
       setIsStarToggling(false);
     }
   };
-
   const handleToggleFavInMenu = async (
     e: React.MouseEvent,
     coinName: string,
@@ -203,16 +202,26 @@ export default function CoinSelector({
     );
 
     try {
-      await fetch("api/coins", {
+      const res = await fetch("api/coins", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "TOGGLE_FAVORITE", coin: coinName }),
       });
-      window.dispatchEvent(
-        new CustomEvent("refresh-calculator-coins", {
-          detail: { coin: coinName, is_favorite: nextState },
-        }),
-      );
+      if (res.ok) {
+        window.dispatchEvent(
+          new CustomEvent("refresh-calculator-coins", {
+            detail: { coin: coinName, is_favorite: nextState },
+          }),
+        );
+        // ФИКС: Добавлен вызов всплывающего уведомления при клике на звездочку внутри меню
+        toast.add({
+          title: "Избранное",
+          description: nextState
+            ? `Пара ${coinName} добавлена в избранное.`
+            : `Пара ${coinName} удалена из избранного.`,
+          type: nextState ? "success" : "error",
+        });
+      }
     } catch (err) {
       console.error(err);
     }
