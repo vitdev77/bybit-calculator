@@ -17,7 +17,6 @@ function safeParseFloat(val: any): number {
   const parsed = parseFloat(val);
   return isNaN(parsed) ? 0 : parsed;
 }
-
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const symbol = (searchParams.get("symbol") || "BTCUSDT").toUpperCase();
@@ -29,15 +28,15 @@ export async function GET(request: Request) {
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 4000);
+
   try {
-    const protocol = "https:" + "//";
-    const defaultDomain = "://bytick.com";
+    const protocol = "https://";
+    const defaultDomain = "https://api.bytick.com";
     const bybitDomain = process.env.BYBIT_API_URL || defaultDomain;
     const cleanedDomain = bybitDomain.replace(/^https?:\/\//, "");
 
     const baseUrl = protocol + cleanedDomain;
     const endpoint = "/v5/market/tickers";
-
     const queryParams = new URLSearchParams({
       category: "linear",
       symbol: symbol,
@@ -49,7 +48,7 @@ export async function GET(request: Request) {
         cache: "no-store",
         signal: controller.signal,
         headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+          "User-Agent": "BybitCalcAI/1.0",
           Accept: "application/json",
         },
       },
@@ -60,7 +59,7 @@ export async function GET(request: Request) {
     const responseText = await response.text();
     if (!response.ok) {
       return NextResponse.json(
-        { error: `Ошибка Bybit API: ${response.status}` },
+        { error: `Bybit API Error Status: ${response.status}` },
         { status: response.status },
       );
     }
@@ -70,7 +69,7 @@ export async function GET(request: Request) {
       data = JSON.parse(responseText);
     } catch (e) {
       return NextResponse.json(
-        { error: "Блокировка Cloudflare или невалидный JSON" },
+        { error: "Invalid JSON response or Cloudflare block" },
         { status: 403 },
       );
     }
@@ -81,14 +80,14 @@ export async function GET(request: Request) {
       data.result.list.length === 0
     ) {
       return NextResponse.json(
-        { error: data.retMsg || "Пара не найдена" },
+        { error: data.retMsg || "Symbol asset not found" },
         { status: 404 },
       );
     }
 
     const ticker = data.result.list[0];
-
     let dbFullName = "Crypto Asset";
+
     try {
       const dbRes = await sql`
 SELECT fullname FROM coins WHERE coin = ${symbol} LIMIT 1;
@@ -97,7 +96,7 @@ SELECT fullname FROM coins WHERE coin = ${symbol} LIMIT 1;
         dbFullName = dbRes[0].fullname;
       }
     } catch (dbErr) {
-      console.warn("DB Name fetch err", dbErr);
+      console.warn("Database Name Fetch Error", dbErr);
     }
 
     const finalResult = {
@@ -122,12 +121,12 @@ SELECT fullname FROM coins WHERE coin = ${symbol} LIMIT 1;
     clearTimeout(timeoutId);
     if (error.name === "AbortError") {
       return NextResponse.json(
-        { error: "Превышено время ожидания Bybit API" },
+        { error: "Bybit API response timeout exceeded" },
         { status: 504 },
       );
     }
     return NextResponse.json(
-      { error: "Внутренняя ошибка сервера" },
+      { error: "Internal Server Error Route" },
       { status: 500 },
     );
   }
