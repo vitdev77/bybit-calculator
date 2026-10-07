@@ -64,7 +64,6 @@ export default function ListingManagerModal({
   const [favLoadingMap, setFavLoadingMap] = useState<Record<string, boolean>>(
     {},
   );
-
   const [visibleCount, setVisibleCount] = useState(50);
   const [isIncrementalLoading, setIsIncrementalLoading] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -120,23 +119,22 @@ export default function ListingManagerModal({
     e.preventDefault();
     e.stopPropagation();
     if (favLoadingMap[coinName]) return;
-
     setFavLoadingMap((prev) => ({ ...prev, [coinName]: true }));
     const nextState = !currentFav;
-
     setFullCoinsList((prev) =>
       prev.map((c) =>
         c.coin === coinName ? { ...c, is_favorite: nextState } : c,
       ),
     );
-
     try {
       const response = await fetch("/api/coins", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "TOGGLE_FAVORITE", coin: coinName }),
+        body: JSON.stringify({
+          action: "TOGGLE_FAVORITE",
+          coin: coinName,
+        }),
       });
-
       if (response.ok) {
         window.dispatchEvent(
           new CustomEvent("refresh-calculator-coins", {
@@ -156,6 +154,7 @@ export default function ListingManagerModal({
     }
     setFavLoadingMap((prev) => ({ ...prev, [coinName]: false }));
   };
+
   let totalLiqCount = 0;
   let totalMidCount = 0;
   let totalRiskCount = 0;
@@ -172,13 +171,11 @@ export default function ListingManagerModal({
       asset.coin.includes("SHIB") ||
       asset.coin.includes("PEPE") ||
       asset.coin.includes("BONK");
-
     const isLiq = liveStats.turnover24h >= 50000000;
     const isRisk =
       isMem ||
       asset.decimals >= 4 ||
       (liveStats.turnover24h > 0 && liveStats.turnover24h < 10000000);
-
     if (isLiq) totalLiqCount++;
     else if (isRisk) totalRiskCount++;
     else totalMidCount++;
@@ -187,14 +184,12 @@ export default function ListingManagerModal({
   const sortedAndFilteredCoins = fullCoinsList.filter((asset) => {
     const match = asset.coin.toLowerCase().includes(modalSearch.toLowerCase());
     if (!match) return false;
-
     const live = localRegistry[asset.coin] || { turnover24h: 0 };
     const isMem =
       asset.coin.includes("DOGE") ||
       asset.coin.includes("SHIB") ||
       asset.coin.includes("PEPE") ||
       asset.coin.includes("BONK");
-
     const isLiq = !asset.is_delisted && live.turnover24h >= 50000000;
     const isRisk =
       !asset.is_delisted &&
@@ -202,7 +197,6 @@ export default function ListingManagerModal({
         asset.decimals >= 4 ||
         (live.turnover24h > 0 && live.turnover24h < 10000000));
     const isMid = !asset.is_delisted && !isLiq && !isRisk;
-
     if (filterType === "LIQ") return isLiq;
     if (filterType === "MID") return isMid;
     if (filterType === "RISK") return isRisk;
@@ -232,26 +226,30 @@ export default function ListingManagerModal({
     <AlertDialog open={isModalOpen} onOpenChange={setIsModalOpen}>
       <AlertDialogContent
         className={cn(
-          "w-[calc(100%-0.5rem)] md:max-w-2xl! p-4 rounded-2xl text-xs",
-          "border border-border/40 bg-background/90 backdrop-blur-md shadow-2xl",
+          "w-[calc(100%-1rem)] max-w-sm sm:max-w-md md:max-w-2xl!",
+          "p-4 rounded-2xl text-xs border border-border/40",
+          "bg-background/90 backdrop-blur-md shadow-2xl",
+          "mx-auto my-auto fixed left-1/2 top-1/2 -translate-x-1/2",
+          "-translate-y-1/2 max-h-[calc(100dvh-2rem)] flex flex-col",
         )}
       >
-        <AlertDialogHeader className="flex flex-row gap-2 items-center border-b justify-between pb-2">
+        <AlertDialogHeader className="flex flex-row gap-2 items-center border-b justify-between pb-2 shrink-0">
           <AlertDialogTitle className="text-sm font-black uppercase tracking-wider">
             Листинг пар Bybit
           </AlertDialogTitle>
           <AlertDialogCancel
             className={cn(
               "p-1 h-auto w-auto bg-transparent border-none text-muted-foreground",
-              "hover:text-foreground shadow-none rounded-md flex items-center justify-end cursor-pointer sm:self-start",
+              "hover:text-foreground shadow-none rounded-md flex items-center",
+              "justify-end cursor-pointer sm:self-start",
             )}
           >
             <X className="size-4" />
           </AlertDialogCancel>
         </AlertDialogHeader>
 
-        <div className="my-3 flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center">
-          <div className="relative flex-1 flex items-center">
+        <div className="my-3 flex flex-col gap-2 shrink-0">
+          <div className="relative w-full flex items-center">
             <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground/60" />
             <Input
               type="text"
@@ -261,77 +259,91 @@ export default function ListingManagerModal({
               className="pl-8 pr-8 h-8 text-xs bg-muted/20 w-full rounded-lg border-border/40"
             />
           </div>
-          <ButtonGroup className="h-8 border p-0.5 border-border/40 rounded-lg bg-muted/20 w-full sm:w-auto overflow-hidden flex items-center">
-            <Button
-              type="button"
-              variant={filterType === "ALL" ? "default" : "ghost"}
-              className="h-full px-2 rounded-md"
-              onClick={() => setFilterType("ALL")}
-            >
-              <span className="text-[10px] font-bold uppercase">Все</span>
-              <span className="text-[9px] font-semibold opacity-70 ml-0.5">
-                ({fullCoinsList.length})
-              </span>
-            </Button>
-            <Button
-              type="button"
-              variant={filterType === "LIQ" ? "default" : "ghost"}
-              className="h-full px-2 rounded-md"
-              onClick={() => setFilterType("LIQ")}
-            >
-              <span className="text-[10px] font-bold uppercase text-emerald-500">
-                LIQ
-              </span>
-              <span className="text-[9px] font-semibold opacity-70 ml-0.5 text-emerald-500">
-                ({totalLiqCount})
-              </span>
-            </Button>
-            <Button
-              type="button"
-              variant={filterType === "MID" ? "default" : "ghost"}
-              className="h-full px-2 rounded-md"
-              onClick={() => setFilterType("MID")}
-            >
-              <span className="text-[10px] font-bold uppercase text-blue-500">
-                MID
-              </span>
-              <span className="text-[9px] font-semibold opacity-70 ml-0.5 text-blue-500">
-                ({totalMidCount})
-              </span>
-            </Button>
-            <Button
-              type="button"
-              variant={filterType === "RISK" ? "default" : "ghost"}
-              className="h-full px-2 rounded-md"
-              onClick={() => setFilterType("RISK")}
-            >
-              <span className="text-[10px] font-bold uppercase text-amber-500">
-                RISK
-              </span>
-              <span className="text-[9px] font-semibold opacity-70 ml-0.5 text-amber-500">
-                ({totalRiskCount})
-              </span>
-            </Button>
-            <Button
-              type="button"
-              variant={filterType === "DELIS" ? "default" : "ghost"}
-              className="h-full px-2 rounded-md"
-              onClick={() => setFilterType("DELIS")}
-            >
-              <span className="text-[10px] font-bold uppercase text-rose-500">
-                DEL
-              </span>
-              <span className="text-[9px] font-semibold text-rose-500/80 ml-0.5">
-                ({totalDelistedCount})
-              </span>
-            </Button>
-          </ButtonGroup>
+          <div className="w-full pt-0.5">
+            <ButtonGroup className="h-9.5 sm:h-8 border p-0.5 border-border/40 rounded-lg bg-muted/20 w-full grid grid-cols-5 items-center overflow-hidden">
+              <Button
+                type="button"
+                variant={filterType === "ALL" ? "default" : "ghost"}
+                className="h-full px-1 rounded-md flex items-center justify-center gap-1 min-w-0"
+                onClick={() => setFilterType("ALL")}
+                title="Все монеты"
+              >
+                <Coins className="size-3.5 sm:size-3 shrink-0" />
+                <span className="text-[10px] font-bold uppercase hidden sm:inline">
+                  Все
+                </span>
+                <span className="text-[9px] font-semibold opacity-70 sm:ml-0.5">
+                  ({fullCoinsList.length})
+                </span>
+              </Button>
+              <Button
+                type="button"
+                variant={filterType === "LIQ" ? "default" : "ghost"}
+                className="h-full px-1 rounded-md flex items-center justify-center gap-1 min-w-0 text-emerald-500"
+                onClick={() => setFilterType("LIQ")}
+                title="Высокая ликвидность (LIQ)"
+              >
+                <Zap className="size-3.5 sm:size-3 shrink-0" />
+                <span className="text-[10px] font-bold uppercase hidden sm:inline">
+                  LIQ
+                </span>
+                <span className="text-[9px] font-semibold opacity-70 sm:ml-0.5">
+                  ({totalLiqCount})
+                </span>
+              </Button>
+              <Button
+                type="button"
+                variant={filterType === "MID" ? "default" : "ghost"}
+                className="h-full px-1 rounded-md flex items-center justify-center gap-1 min-w-0 text-blue-500"
+                onClick={() => setFilterType("MID")}
+                title="Средняя ликвидность (MID)"
+              >
+                <Activity className="size-3.5 sm:size-3 shrink-0" />
+                <span className="text-[10px] font-bold uppercase hidden sm:inline">
+                  MID
+                </span>
+                <span className="text-[9px] font-semibold opacity-70 sm:ml-0.5">
+                  ({totalMidCount})
+                </span>
+              </Button>
+              <Button
+                type="button"
+                variant={filterType === "RISK" ? "default" : "ghost"}
+                className="h-full px-1 rounded-md flex items-center justify-center gap-1 min-w-0 text-amber-500"
+                onClick={() => setFilterType("RISK")}
+                title="Высокий риск (RISK)"
+              >
+                <AlertTriangle className="size-3.5 sm:size-3 shrink-0" />
+                <span className="text-[10px] font-bold uppercase hidden sm:inline">
+                  RISK
+                </span>
+                <span className="text-[9px] font-semibold opacity-70 sm:ml-0.5">
+                  ({totalRiskCount})
+                </span>
+              </Button>
+              <Button
+                type="button"
+                variant={filterType === "DELIS" ? "default" : "ghost"}
+                className="h-full px-1 rounded-md flex items-center justify-center gap-1 min-w-0 text-rose-500"
+                onClick={() => setFilterType("DELIS")}
+                title="Делистнутые монеты (DEL)"
+              >
+                <Flame className="size-3.5 sm:size-3 shrink-0" />
+                <span className="text-[10px] font-bold uppercase hidden sm:inline">
+                  DEL
+                </span>
+                <span className="text-[9px] font-semibold opacity-70 sm:ml-0.5">
+                  ({totalDelistedCount})
+                </span>
+              </Button>
+            </ButtonGroup>
+          </div>
         </div>
 
         <div
           ref={scrollContainerRef}
           onScroll={handleScroll}
-          className="max-h-64 pr-1 overflow-y-auto space-y-1.5 scrollbar-thin touch-pan-y"
+          className="flex-1 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin touch-pan-y"
         >
           {isLoading ? (
             <div className="flex p-8 gap-2 items-center justify-center text-muted-foreground">
@@ -356,14 +368,12 @@ export default function ListingManagerModal({
               />
             ))
           )}
-
           {isIncrementalLoading && (
             <div className="flex p-3 gap-2 items-center justify-center text-muted-foreground text-[11px]">
               <Spinner className="text-amber-500 size-3" />
               <span>Подгрузка монет...</span>
             </div>
           )}
-
           {!isLoading && sortedAndFilteredCoins.length === 0 && (
             <div className="text-center p-4 text-muted-foreground">
               Ничего не найдено
