@@ -50,10 +50,21 @@ export default function AdminDbPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isClearOpen, setIsClearOpen] = useState(false);
 
+  const getAuthHeaders = () => {
+    const token =
+      process.env.NEXT_PUBLIC_ADMIN_SECRET_KEY || "fallback_default_token_key";
+    return {
+      "Content-Type": "application/json",
+      "X-Admin-Token": token,
+    };
+  };
+
   const loadTableData = async (tableName: "deals" | "coins") => {
     setIsLoading(true);
     try {
-      const res = await fetch(`/api/admin/db?table=${tableName}`);
+      const res = await fetch(`/api/admin/db?table=${tableName}`, {
+        headers: getAuthHeaders(),
+      });
       if (!res.ok) throw new Error("Ошибка загрузки данных СУБД");
       const data = await res.json();
       if (data.success) {
@@ -88,7 +99,7 @@ export default function AdminDbPage() {
     try {
       const res = await fetch("/api/coins", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ action: "SYNC_BYBIT" }),
       });
       const data = await res.json();
@@ -118,6 +129,7 @@ export default function AdminDbPage() {
     try {
       const res = await fetch(`/api/admin/db?table=${activeTable}`, {
         method: "DELETE",
+        headers: getAuthHeaders(),
       });
       if (!res.ok) throw new Error("Не удалось очистить таблицу");
       toast.add({
@@ -201,14 +213,12 @@ export default function AdminDbPage() {
     let openCount = 0;
     let profitCount = 0;
     let lossCount = 0;
-
     rows.forEach((r) => {
       const feeRate = 0.0013;
       const entry = parseFloat(r.entry_price) || 0;
       const vol = parseFloat(r.volume) || 0;
       const marg = parseFloat(r.margin) || 0;
       const status = String(r.status || "").toUpperCase();
-
       if (status === "OPEN") {
         openCount++;
         return;
@@ -220,15 +230,12 @@ export default function AdminDbPage() {
       const cryptoQty = entry > 0 ? vol / entry : 0;
       const diff = r.side === "BUY" ? closedPrice - entry : entry - closedPrice;
       const pnl = diff * cryptoQty - vol * feeRate;
-
       totalPnl += pnl;
       if (status === "PROFIT") profitCount++;
       if (status === "LOSS") lossCount++;
     });
-
     const closedCount = profitCount + lossCount;
     const winRate = closedCount > 0 ? (profitCount / closedCount) * 100 : 0;
-
     return {
       totalPnl,
       totalMargin,
@@ -252,7 +259,6 @@ export default function AdminDbPage() {
   const cm = getCoinsMetrics();
   return (
     <div className="w-full max-w-5xl mx-auto p-2.5 sm:p-6 space-y-4 font-sans selection:bg-violet-500/20">
-      {/* ШАПКА НАВИГАЦИИ И УПРАВЛЕНИЯ ТЕМОЙ */}
       <div className="flex flex-col gap-3 pb-3 border-b border-border/40 select-none">
         <div className="flex items-center justify-between w-full">
           <Link href="/" passHref>
@@ -261,8 +267,7 @@ export default function AdminDbPage() {
               size="sm"
               className="h-8 text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer shadow-none px-2.5"
             >
-              <ArrowLeft className="size-3.5" />
-              Калькулятор
+              <ArrowLeft className="size-3.5" /> Калькулятор
             </Button>
           </Link>
           <ModeToggle />
@@ -295,7 +300,6 @@ export default function AdminDbPage() {
         </div>
       </div>
 
-      {/* СЕТКА СТАТИСТИКИ */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 select-none">
         <Card className="border border-border/30 bg-muted/10 rounded-xl">
           <CardHeader className="py-2 px-3 border-b border-border/10">
@@ -305,17 +309,16 @@ export default function AdminDbPage() {
           </CardHeader>
           <CardContent className="p-3 flex items-center gap-3">
             <Layers className="size-5 text-violet-500 shrink-0" />
-            <div className="flex flex-col">
+            <div>
               <span className="text-xs font-black uppercase text-foreground leading-tight">
-                {activeTable === "deals" ? "table: deals" : "table: coins"}
+                table: {activeTable === "deals" ? "deals" : "coins"}
               </span>
-              <span className="text-[10px] text-muted-foreground/60 font-semibold mt-0.5">
+              <span className="text-[10px] text-muted-foreground/60 font-semibold mt-0.5 block">
                 Строк в таблице: {stats.count}
               </span>
             </div>
           </CardContent>
         </Card>
-
         {activeTable === "deals" ? (
           <>
             <Card className="border border-border/30 bg-muted/10 rounded-xl">
@@ -350,7 +353,6 @@ export default function AdminDbPage() {
                 </div>
               </CardContent>
             </Card>
-
             <Card className="border border-border/30 bg-muted/10 rounded-xl">
               <CardHeader className="py-2 px-3 border-b border-border/10">
                 <CardTitle className="text-[9px] font-black uppercase text-muted-foreground/70 tracking-widest">
@@ -396,7 +398,6 @@ export default function AdminDbPage() {
                 </div>
               </CardContent>
             </Card>
-
             <Card className="border border-border/30 bg-muted/10 rounded-xl">
               <CardHeader className="py-2 px-3 border-b border-border/10">
                 <CardTitle className="text-[9px] font-black uppercase text-muted-foreground/70 tracking-widest">
@@ -421,7 +422,7 @@ export default function AdminDbPage() {
           </>
         )}
       </div>
-      {/* КОМАНДЫ СИСТЕМЫ */}
+
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-muted/30 border border-border/40 rounded-xl select-none">
         <div className="flex items-center gap-2">
           <Wrench className="size-4 text-violet-400 shrink-0" />
@@ -429,18 +430,13 @@ export default function AdminDbPage() {
             Управление базой данных:
           </span>
         </div>
-
-        <ButtonGroup
-          orientation="horizontal"
-          className="h-8.5 rounded-lg border border-input shadow-xs flex flex-row items-stretch bg-background overflow-hidden *:rounded-none w-full sm:w-auto"
-        >
+        <ButtonGroup className="h-8.5 rounded-lg border border-input shadow-xs flex flex-row items-stretch bg-background overflow-hidden *:rounded-none w-full sm:w-auto">
           {activeTable === "coins" && (
             <Button
               type="button"
               disabled={isSyncing}
               onClick={handleSyncBybit}
               className="h-full text-[10px] font-black uppercase tracking-wider bg-transparent hover:bg-muted text-foreground border-r border-input px-3 cursor-pointer flex-1 sm:flex-none flex items-center justify-center rounded-none"
-              title="Принудительная синхронизация листинга фьючерсов Bybit"
             >
               {isSyncing ? (
                 <Spinner className="size-3" />
@@ -452,7 +448,6 @@ export default function AdminDbPage() {
               )}
             </Button>
           )}
-
           <AlertDialog open={isClearOpen} onOpenChange={setIsClearOpen}>
             <AlertDialogTrigger
               render={(triggerProps) => (
@@ -461,10 +456,8 @@ export default function AdminDbPage() {
                   type="button"
                   disabled={isLoading || rows.length === 0}
                   className="h-full text-[10px] font-black uppercase tracking-wider bg-rose-600 hover:bg-rose-700 text-white border-none px-3 cursor-pointer flex-1 sm:flex-none flex items-center justify-center rounded-none"
-                  title="Полная очистка строк текущей таблицы через TRUNCATE CASCADE"
                 >
-                  <Trash2 className="size-3 sm:mr-1.5" />
-                  <span className="hidden sm:inline">Очистить таблицу</span>
+                  Очистить таблицу
                 </Button>
               )}
             />
@@ -493,7 +486,6 @@ export default function AdminDbPage() {
         </ButtonGroup>
       </div>
 
-      {/* СТРУКТУРНАЯ ТАБЛИЦА РЕЗУЛЬТАТОВ БЕЗ ОШИБОК И АРТЕФАКТОВ */}
       <Card className="border border-border/40 shadow-sm bg-background mt-1">
         <div className="overflow-x-auto max-h-140 scrollbar-thin touch-pan-x w-full">
           {isLoading ? (
@@ -511,10 +503,9 @@ export default function AdminDbPage() {
             <Table className="text-[11px] font-medium border-collapse min-w-150 w-full">
               <TableHeader className="bg-muted/30 sticky top-0 z-20 backdrop-blur-md select-none border-b">
                 <TableRow>
-                  <TableHead className="h-9 px-3 text-center font-black uppercase text-muted-foreground tracking-wider whitespace-nowrap w-12 border-r border-border/10">
+                  <TableHead className="h-9 px-3 text-center font-black uppercase text-muted-foreground tracking-wider whitespace-nowrap w-12 border-r border-border/10 bg-muted/5">
                     #
                   </TableHead>
-                  {/* ФИКС: Безопасно парсим ключи строго из первого существующего объекта строк */}
                   {rows[0] &&
                     Object.keys(rows[0]).map((col) => (
                       <TableHead
