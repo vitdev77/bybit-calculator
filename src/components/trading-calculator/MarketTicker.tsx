@@ -208,7 +208,7 @@ export default function MarketTicker({
       : changeValue < 0
         ? "text-rose-600 dark:text-rose-400"
         : "text-muted-foreground";
-  const envRoot = process.env.NEXT_PUBLIC_TV_LOGOS_URL;
+  const envRoot = process.env.NEXT_PUBLIC_TRADINGVIEW_LOGOS_URL;
   const finalBaseUrl =
     envRoot || "https://s3-symbol-logo.tradingview.com/crypto/XTVC";
 
