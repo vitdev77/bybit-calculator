@@ -98,6 +98,7 @@ export default function MarketTicker({
       prevPriceRef.current = data.lastPrice;
     }
   }, [data?.lastPrice]);
+
   useEffect(() => {
     fetch("/api/fng")
       .then((r) => r.json())
@@ -125,7 +126,12 @@ export default function MarketTicker({
           col = "text-emerald-500";
           rCol = "#10b981";
         }
-        setFng({ value: val, sentiment: sent, color: col, rawColor: rCol });
+        setFng({
+          value: val,
+          sentiment: sent,
+          color: col,
+          rawColor: rCol,
+        });
       })
       .catch((e) => console.error(e))
       .finally(() => setFngLoading(false));
@@ -170,13 +176,12 @@ export default function MarketTicker({
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
   }, []);
-
   if (!data || data.lastPrice <= 0) {
     return (
       <div
         className={cn(
-          "p-4 border w-full rounded-xl bg-muted/30 border-border/40 h-20",
-          "flex items-center justify-center gap-2",
+          "p-4 border w-full rounded-xl bg-muted/30 border-border/40",
+          "h-20 flex items-center justify-center gap-2",
         )}
       >
         <Spinner className="text-amber-500" />
@@ -187,8 +192,7 @@ export default function MarketTicker({
     );
   }
 
-  const ratio =
-    allocatedMarginMax > 0 ? Math.min(marginUsed / allocatedMarginMax, 1) : 0;
+  const ratio = allocatedMarginMax > 0 ? marginUsed / allocatedMarginMax : 0;
   const isHighMargin = ratio > 0.85;
   const isFundingHigh = Math.abs(data.fundingRate) >= 0.01;
   const radius = 8;
@@ -381,7 +385,7 @@ export default function MarketTicker({
               <span
                 className={cn(
                   "text-[9px] font-black",
-                  isHighMargin ? "text-rose-500" : "text-amber-500",
+                  ratio > 1.0 ? "text-rose-500" : "text-amber-500",
                 )}
               >
                 {(ratio * 100).toFixed(0)}%
@@ -390,16 +394,19 @@ export default function MarketTicker({
             <div className="grid grid-cols-10 gap-0.5 mt-1 w-full">
               {Array.from({ length: 10 }).map((_, i) => {
                 const blockRatio = (i + 1) * 0.1;
-                const isBlockActive = ratio >= blockRatio - 0.05;
+                const cappedRatio = Math.min(ratio, 1);
+                const isBlockActive = cappedRatio >= blockRatio - 0.05;
                 return (
                   <div
                     key={`led-${i}`}
                     className={cn(
                       "h-1 rounded-xs transition-all duration-300",
                       isBlockActive
-                        ? i >= 8
-                          ? "bg-rose-500 shadow-xs"
-                          : "bg-amber-500 shadow-xs"
+                        ? ratio > 1.05
+                          ? "bg-rose-600 shadow-xs animate-pulse"
+                          : i >= 8
+                            ? "bg-rose-500 shadow-xs"
+                            : "bg-amber-500 shadow-xs"
                         : "bg-muted-foreground/10 dark:bg-neutral-800",
                     )}
                   />

@@ -110,6 +110,7 @@ export default function TradingCalculator({
   const currentCoinMeta = availableCoinsList.find(
     (c) => c.coin === selectedCoin,
   );
+
   const getAutoDecimals = () => {
     if (entryPrice > 0) {
       const fixedStr = entryPrice.toFixed(8);
@@ -145,6 +146,7 @@ export default function TradingCalculator({
     netProfitUsdt: 0,
     riskRewardRatio: 3,
     liquidationPrice: 0,
+    rawIdealMargin: 0,
   });
 
   useTabTicker(tickerData?.lastPrice, selectedCoin, currentDecimals);
@@ -155,6 +157,7 @@ export default function TradingCalculator({
   useEffect(() => {
     entryPriceRef.current = entryPrice;
   }, [entryPrice]);
+
   const loadDatabaseCoins = useCallback(
     async (event?: Event) => {
       try {
@@ -219,7 +222,6 @@ export default function TradingCalculator({
       window.removeEventListener("refresh-calculator-coins", handleRefresh);
     };
   }, [loadDatabaseCoins]);
-
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedState = localStorage.getItem(STORAGE_KEY);
@@ -254,6 +256,7 @@ export default function TradingCalculator({
       onBalanceChange?.(balance);
     }
   }, [balance, isLoaded, onBalanceChange]);
+
   const getCalculatedIdealLeverage = useCallback(() => {
     const baseRiskAmount = (balance * riskPercent) / 100;
     const allocatedMarginMax = balance / partsCount;
@@ -349,6 +352,7 @@ export default function TradingCalculator({
   const handleCoinChange = (newCoin: string) => {
     setSelectedCoin(newCoin);
   };
+
   const handleReset = () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem(STORAGE_KEY);
@@ -429,7 +433,10 @@ export default function TradingCalculator({
     const totalFeeRate = 0.0013;
     const priceLossFactor = stopLossPercent / 100;
     let positionSizeUsdt = baseRiskAmount / (priceLossFactor + totalFeeRate);
-    let marginUsed = positionSizeUsdt / (leverage || 1);
+
+    const idealMargin = positionSizeUsdt / (leverage || 1);
+
+    let marginUsed = idealMargin;
     if (marginUsed > allocatedMarginMax) {
       marginUsed = allocatedMarginMax;
       positionSizeUsdt = marginUsed * leverage;
@@ -467,6 +474,7 @@ export default function TradingCalculator({
       netProfitUsdt,
       riskRewardRatio,
       liquidationPrice,
+      rawIdealMargin: idealMargin,
     });
   }, [
     balance,
@@ -483,7 +491,6 @@ export default function TradingCalculator({
     maxSafeLeverage,
     partsCount,
   ]);
-
   const cardCls = cn(
     "shadow-sm border flex flex-col border-border/40",
     "bg-background rounded-xl sm:rounded-2xl",
@@ -507,7 +514,7 @@ export default function TradingCalculator({
           selectedCoin={selectedCoin}
           onCoinChange={handleCoinChange}
           availableCoinsList={availableCoinsList}
-          marginUsed={results.marginUsed}
+          marginUsed={results.rawIdealMargin || results.marginUsed}
           allocatedMarginMax={results.allocatedMarginMax}
         />
 
