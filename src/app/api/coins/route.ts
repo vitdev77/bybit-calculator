@@ -27,42 +27,58 @@ function getDecimalsFromTick(tickStr: string): number {
 }
 
 async function fetchAndSyncBybitPairs() {
-  const baseUrl = "https://api.bytick.com";
+  const defaultDomain = "https://api.bytick.com";
+  const bybitDomain = process.env.BYBIT_API_URL || defaultDomain;
+  const cleanedDomain = bybitDomain.replace(/^https?:\/\//, "");
+  const baseUrl = "https://" + cleanedDomain;
   const endpoint = "/v5/market/instruments-info";
 
-  let allLiveUsdtPairs: any[] = [];
-  let currentCursor = "";
-  let hasNextPage = true;
-  let loopSafetyCounter = 0;
+  let livePairs: any[] = [];
+  let closedPairs: any[] = [];
+  const statuses = ["Trading", "Closed"];
 
   try {
-    while (hasNextPage && loopSafetyCounter < 15) {
-      loopSafetyCounter++;
-      let targetUrl = baseUrl + endpoint + "?category=linear&limit=1000";
-      if (currentCursor) {
-        targetUrl += "&cursor=" + currentCursor;
-      }
+    for (const currentStatus of statuses) {
+      let currentCursor = "";
+      let hasNextPage = true;
+      let loopCounter = 0;
 
-      const response = await fetch(targetUrl, {
-        cache: "no-store",
-        headers: { Accept: "application/json" },
-      });
+      while (hasNextPage && loopCounter < 15) {
+        loopCounter++;
+        let targetUrl =
+          baseUrl +
+          endpoint +
+          "?category=linear&limit=1000&status=" +
+          currentStatus;
+        if (currentCursor) {
+          targetUrl += "&cursor=" + currentCursor;
+        }
 
-      if (response.ok) {
-        const json = await response.json();
-        const list = json.result?.list || [];
+        const response = await fetch(targetUrl, {
+          cache: "no-store",
+          headers: { Accept: "application/json" },
+        });
 
-        const filtered = list.filter(
-          (item: any) => item.status === "Trading" && item.quoteCoin === "USDT",
-        );
+        if (response.ok) {
+          const json = await response.json();
+          const list = json.result?.list || [];
+          const filtered = list.filter(
+            (item: any) => item.quoteCoin === "USDT",
+          );
 
-        allLiveUsdtPairs = [...allLiveUsdtPairs, ...filtered];
-        currentCursor = json.result?.nextPageCursor || "";
-        if (!currentCursor || list.length === 0) {
+          if (currentStatus === "Trading") {
+            livePairs = [...livePairs, ...filtered];
+          } else {
+            closedPairs = [...closedPairs, ...filtered];
+          }
+
+          currentCursor = json.result?.nextPageCursor || "";
+          if (!currentCursor || list.length === 0) {
+            hasNextPage = false;
+          }
+        } else {
           hasNextPage = false;
         }
-      } else {
-        hasNextPage = false;
       }
     }
   } catch (bybitErr) {
@@ -70,53 +86,62 @@ async function fetchAndSyncBybitPairs() {
     return false;
   }
 
-  if (allLiveUsdtPairs.length > 0) {
-    const names = allLiveUsdtPairs.map((i: any) => i.symbol);
+  const totalCoinsFound = livePairs.length + closedPairs.length;
+  if (totalCoinsFound > 0) {
+    const liveNames = livePairs.map((i: any) => i.symbol);
+    const closedNames = closedPairs.map((i: any) => i.symbol);
+    const allNames = [...liveNames, ...closedNames];
 
     await sql`
 UPDATE coins 
-SET is_active = FALSE, 
-is_delisted = TRUE 
-WHERE NOT (coin = ANY(${names}));
+SET is_active = FALSE, is_delisted = TRUE 
+WHERE NOT (coin = ANY(${allNames}));
 `;
 
-    for (const item of allLiveUsdtPairs) {
+    const defaultFavs = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "SUIUSDT", "XRPUSDT"];
+
+    for (const item of livePairs) {
       const coinName = item.symbol;
       const tick = item.priceFilter?.tickSize || "0.01";
       const decimals = getDecimalsFromTick(tick);
       const officialName = item.fullName || item.baseCoin || "Crypto Asset";
 
-      const defaultFavs = [
-        "BTCUSDT",
-        "ETHUSDT",
-        "SOLUSDT",
-        "SUIUSDT",
-        "XRPUSDT",
-      ];
+      await sql`
+INSERT INTO coins (
+coin, decimals, is_favorite, is_active, is_delisted, fullname
+)
+VALUES (
+${coinName}, ${decimals}, ${defaultFavs.includes(coinName)}, 
+TRUE, FALSE, ${officialName}
+)
+ON CONFLICT (coin) DO UPDATE SET 
+decimals = ${decimals}, is_active = TRUE, 
+is_delisted = FALSE, fullname = ${officialName};
+`;
+    }
+
+    for (const item of closedPairs) {
+      const coinName = item.symbol;
+      const tick = item.priceFilter?.tickSize || "0.01";
+      const decimals = getDecimalsFromTick(tick);
+      const officialName = item.fullName || item.baseCoin || "Crypto Asset";
 
       await sql`
 INSERT INTO coins (
-coin, decimals, is_favorite, 
-is_active, is_delisted, fullname
+coin, decimals, is_favorite, is_active, is_delisted, fullname
 )
 VALUES (
-${coinName}, ${decimals}, 
-${defaultFavs.includes(coinName)}, 
-TRUE, FALSE, ${officialName}
+${coinName}, ${decimals}, FALSE, FALSE, TRUE, ${officialName}
 )
-ON CONFLICT (coin) 
-DO UPDATE SET 
-decimals = ${decimals}, 
-is_active = TRUE,
-is_delisted = FALSE,
-fullname = ${officialName};
+ON CONFLICT (coin) DO UPDATE SET 
+decimals = ${decimals}, is_active = FALSE, 
+is_delisted = TRUE, fullname = ${officialName};
 `;
     }
     return true;
   }
   return false;
 }
-
 async function ensureCoinsTableExists() {
   if (isCoinsVerified) return;
   try {
@@ -128,22 +153,24 @@ is_favorite BOOLEAN NOT NULL DEFAULT FALSE
 );
 `;
     await sql`
-ALTER TABLE coins ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE coins 
+ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
 `;
     await sql`
-ALTER TABLE coins ADD COLUMN IF NOT EXISTS is_delisted BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE coins 
+ADD COLUMN IF NOT EXISTS is_delisted BOOLEAN NOT NULL DEFAULT FALSE;
 `;
     await sql`
-ALTER TABLE coins ADD COLUMN IF NOT EXISTS fullname VARCHAR(100) NOT NULL DEFAULT 'Crypto Asset';
+ALTER TABLE coins 
+ADD COLUMN IF NOT EXISTS fullname VARCHAR(100) NOT NULL 
+DEFAULT 'Crypto Asset';
 `;
-
     isCoinsVerified = true;
   } catch (err) {
-    error_log: {
-      console.error(err);
-    }
+    console.error("Database Migration Error:", err);
   }
 }
+
 export async function GET(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
@@ -201,10 +228,8 @@ coin, decimals, is_favorite, is_active, is_delisted, fullname
 VALUES (
 ${item.coin}, ${dDec}, ${isFav}, TRUE, FALSE, ${fName}
 )
-ON CONFLICT (coin) 
-DO UPDATE SET 
-decimals = ${dDec},
-fullname = ${fName};
+ON CONFLICT (coin) DO UPDATE SET 
+decimals = ${dDec}, fullname = ${fName};
 `;
       }
       coinsResult = await sql`
@@ -214,7 +239,6 @@ WHERE is_favorite = TRUE
 ORDER BY coin ASC;
 `;
     }
-
     const registryMap: Record<
       string,
       { price24hPcnt: number; turnover24h: number }
@@ -222,7 +246,10 @@ ORDER BY coin ASC;
 
     if (all === "true" || search) {
       try {
-        const baseUrl = "https://api.bytick.com";
+        const defaultDomain = "https://api.bytick.com";
+        const bybitDomain = process.env.BYBIT_API_URL || defaultDomain;
+        const cleanedDomain = bybitDomain.replace(/^https?:\/\//, "");
+        const baseUrl = "https://" + cleanedDomain;
         const endpoint = "/v5/market/tickers";
         const tickersUrl = baseUrl + endpoint + "?category=linear";
 

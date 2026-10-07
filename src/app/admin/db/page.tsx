@@ -14,6 +14,10 @@ import {
   Star,
   AlertOctagon,
   Wrench,
+  Coins,
+  Zap,
+  AlertTriangle,
+  Flame,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
@@ -44,6 +48,9 @@ import {
 
 export default function AdminDbPage() {
   const [activeTable, setActiveTable] = useState<"deals" | "coins">("deals");
+  const [filterType, setFilterType] = useState<
+    "ALL" | "LIQ" | "MID" | "RISK" | "DELIS"
+  >("ALL");
   const [rows, setRows] = useState<any[]>([]);
   const [stats, setStats] = useState<any>({ count: 0 });
   const [isLoading, setIsLoading] = useState(true);
@@ -89,6 +96,7 @@ export default function AdminDbPage() {
 
   useEffect(() => {
     loadTableData(activeTable);
+    setFilterType("ALL");
   }, [activeTable]);
   const handleSyncBybit = async () => {
     if (isSyncing) return;
@@ -152,9 +160,11 @@ export default function AdminDbPage() {
   const formatValue = (val: any, col: string, decimals: number = 2) => {
     if (val === null || val === undefined) return "--";
     const c = col.toLowerCase();
+
     if (c === "created_at") {
       return new Date(val).toLocaleString("ru-RU");
     }
+
     if (
       [
         "price",
@@ -167,6 +177,7 @@ export default function AdminDbPage() {
       const num = parseFloat(val);
       return isNaN(num) ? val : num.toFixed(decimals);
     }
+
     if (typeof val === "boolean") {
       return val ? (
         <Check className="size-3.5 text-emerald-500 mx-auto" />
@@ -174,6 +185,7 @@ export default function AdminDbPage() {
         <span className="text-muted-foreground/30 font-medium">-</span>
       );
     }
+
     return String(val);
   };
 
@@ -206,7 +218,6 @@ export default function AdminDbPage() {
       "precision",
     ].includes(c);
   };
-
   const getDealsMetrics = () => {
     let totalPnl = 0;
     let totalMargin = 0;
@@ -255,8 +266,61 @@ export default function AdminDbPage() {
     return { favCount, delistedCount, activeCount };
   };
 
+  const getCoinsCounts = () => {
+    let allC = 0,
+      liqC = 0,
+      midC = 0,
+      riskC = 0,
+      delisC = 0;
+    if (activeTable !== "coins") {
+      return { allC, liqC, midC, riskC, delisC };
+    }
+    allC = rows.length;
+    rows.forEach((row) => {
+      if (row.is_delisted) {
+        delisC++;
+        return;
+      }
+      const isMem =
+        row.coin?.includes("DOGE") ||
+        row.coin?.includes("SHIB") ||
+        row.coin?.includes("PEPE") ||
+        row.coin?.includes("BONK");
+      const isRisk = isMem || (row.decimals && row.decimals >= 4);
+      if (isRisk) {
+        riskC++;
+      } else if (row.is_favorite) {
+        midC++;
+      } else {
+        liqC++;
+      }
+    });
+    return { allC, liqC, midC, riskC, delisC };
+  };
+
+  const getFilteredCoinsRows = () => {
+    if (activeTable !== "coins") return rows;
+    return rows.filter((row) => {
+      if (row.is_delisted)
+        return filterType === "DELIS" || filterType === "ALL";
+      const isMem =
+        row.coin?.includes("DOGE") ||
+        row.coin?.includes("SHIB") ||
+        row.coin?.includes("PEPE") ||
+        row.coin?.includes("BONK");
+      const isRisk = isMem || (row.decimals && row.decimals >= 4);
+      if (filterType === "LIQ") return !isRisk && !row.is_favorite;
+      if (filterType === "MID") return row.is_favorite && !row.is_delisted;
+      if (filterType === "RISK") return isRisk && !row.is_delisted;
+      if (filterType === "DELIS") return row.is_delisted;
+      return true;
+    });
+  };
+
   const dm = getDealsMetrics();
   const cm = getCoinsMetrics();
+  const counts = getCoinsCounts();
+  const displayedRows = getFilteredCoinsRows();
   return (
     <div className="w-full max-w-5xl mx-auto p-2.5 sm:p-6 space-y-4 font-sans selection:bg-violet-500/20">
       <div className="flex flex-col gap-3 pb-3 border-b border-border/40 select-none">
@@ -299,7 +363,6 @@ export default function AdminDbPage() {
           </div>
         </div>
       </div>
-
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 select-none">
         <Card className="border border-border/30 bg-muted/10 rounded-xl">
           <CardHeader className="py-2 px-3 border-b border-border/10">
@@ -314,7 +377,7 @@ export default function AdminDbPage() {
                 table: {activeTable === "deals" ? "deals" : "coins"}
               </span>
               <span className="text-[10px] text-muted-foreground/60 font-semibold mt-0.5 block">
-                Строк в таблице: {stats.count}
+                Строк на экране: {displayedRows.length} из {stats.count}
               </span>
             </div>
           </CardContent>
@@ -422,70 +485,121 @@ export default function AdminDbPage() {
           </>
         )}
       </div>
-
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-muted/30 border border-border/40 rounded-xl select-none">
-        <div className="flex items-center gap-2">
-          <Wrench className="size-4 text-violet-400 shrink-0" />
-          <span className="text-[11px] font-bold text-muted-foreground">
-            Управление базой данных:
-          </span>
+      <div className="flex flex-col gap-2 p-3 bg-muted/30 border border-border/40 rounded-xl select-none">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 w-full">
+          <div className="flex items-center gap-2">
+            <Wrench className="size-4 text-violet-400 shrink-0" />
+            <span className="text-[11px] font-bold text-muted-foreground">
+              Управление базой данных:
+            </span>
+          </div>
+          <ButtonGroup className="h-8.5 rounded-lg border border-input shadow-xs flex flex-row items-stretch bg-background overflow-hidden *:rounded-none w-full sm:w-auto">
+            {activeTable === "coins" && (
+              <Button
+                type="button"
+                disabled={isSyncing}
+                onClick={handleSyncBybit}
+                className="h-full text-[10px] font-black uppercase tracking-wider bg-transparent hover:bg-muted text-foreground border-r border-input px-3 cursor-pointer flex-1 sm:flex-none flex items-center justify-center rounded-none"
+              >
+                {isSyncing ? (
+                  <Spinner className="size-3" />
+                ) : (
+                  <>
+                    <RefreshCw className="size-3 md:mr-1.5" />
+                    <span className="hidden md:inline">Синхронизация</span>
+                  </>
+                )}
+              </Button>
+            )}
+            <AlertDialog open={isClearOpen} onOpenChange={setIsClearOpen}>
+              <AlertDialogTrigger
+                render={(triggerProps) => (
+                  <Button
+                    {...triggerProps}
+                    type="button"
+                    disabled={isLoading || rows.length === 0}
+                    className="h-full text-[10px] font-black uppercase tracking-wider bg-rose-600 hover:bg-rose-700 text-white border-none px-3 cursor-pointer flex-1 sm:flex-none flex items-center justify-center rounded-none"
+                  >
+                    Очистить таблицу
+                  </Button>
+                )}
+              />
+              <AlertDialogContent className="rounded-2xl max-w-sm w-[calc(100%-1rem)]">
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="text-sm">
+                    Очистить данные в {activeTable}?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription className="text-xs">
+                    Строки будут безвозвратно удалены командой TRUNCATE CASCADE.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="gap-1.5">
+                  <AlertDialogCancel className="rounded-xl text-xs h-9 cursor-pointer">
+                    Отмена
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleTruncateTable}
+                    className="rounded-xl text-xs h-9 bg-rose-600 hover:bg-rose-700 border-none cursor-pointer text-white font-bold"
+                  >
+                    Стереть всё
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </ButtonGroup>
         </div>
-        <ButtonGroup className="h-8.5 rounded-lg border border-input shadow-xs flex flex-row items-stretch bg-background overflow-hidden *:rounded-none w-full sm:w-auto">
-          {activeTable === "coins" && (
-            <Button
-              type="button"
-              disabled={isSyncing}
-              onClick={handleSyncBybit}
-              className="h-full text-[10px] font-black uppercase tracking-wider bg-transparent hover:bg-muted text-foreground border-r border-input px-3 cursor-pointer flex-1 sm:flex-none flex items-center justify-center rounded-none"
-            >
-              {isSyncing ? (
-                <Spinner className="size-3" />
-              ) : (
-                <>
-                  <RefreshCw className="size-3 md:mr-1.5" />
-                  <span className="hidden md:inline">Синхронизация</span>
-                </>
-              )}
-            </Button>
-          )}
-          <AlertDialog open={isClearOpen} onOpenChange={setIsClearOpen}>
-            <AlertDialogTrigger
-              render={(triggerProps) => (
-                <Button
-                  {...triggerProps}
-                  type="button"
-                  disabled={isLoading || rows.length === 0}
-                  className="h-full text-[10px] font-black uppercase tracking-wider bg-rose-600 hover:bg-rose-700 text-white border-none px-3 cursor-pointer flex-1 sm:flex-none flex items-center justify-center rounded-none"
-                >
-                  Очистить таблицу
-                </Button>
-              )}
-            />
-            <AlertDialogContent className="rounded-2xl max-w-sm w-[calc(100%-1rem)]">
-              <AlertDialogHeader>
-                <AlertDialogTitle className="text-sm">
-                  Очистить данные в {activeTable}?
-                </AlertDialogTitle>
-                <AlertDialogDescription className="text-xs">
-                  Строки будут безвозвратно удалены командой TRUNCATE CASCADE.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter className="gap-1.5">
-                <AlertDialogCancel className="rounded-xl text-xs h-9 cursor-pointer">
-                  Отмена
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleTruncateTable}
-                  className="rounded-xl text-xs h-9 bg-rose-600 hover:bg-rose-700 border-none cursor-pointer text-white font-bold"
-                >
-                  Стереть всё
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </ButtonGroup>
+        {activeTable === "coins" && (
+          <div className="w-full pt-1.5 border-t border-border/10">
+            <div className="grid grid-cols-5 gap-1 w-full bg-background border border-input p-0.5 rounded-lg overflow-hidden">
+              <Button
+                type="button"
+                variant={filterType === "ALL" ? "default" : "ghost"}
+                className="h-7 rounded-md flex items-center justify-center gap-1 text-[10px] font-black uppercase shadow-none border-none"
+                onClick={() => setFilterType("ALL")}
+              >
+                <Coins className="size-3 shrink-0" />
+                Все ({counts.allC})
+              </Button>
+              <Button
+                type="button"
+                variant={filterType === "LIQ" ? "default" : "ghost"}
+                className="h-7 rounded-md flex items-center justify-center gap-1 text-[10px] font-black uppercase shadow-none border-none text-emerald-500"
+                onClick={() => setFilterType("LIQ")}
+              >
+                <Zap className="size-3 shrink-0" />
+                LIQ ({counts.liqC})
+              </Button>
+              <Button
+                type="button"
+                variant={filterType === "MID" ? "default" : "ghost"}
+                className="h-7 rounded-md flex items-center justify-center gap-1 text-[10px] font-black uppercase shadow-none border-none text-blue-500"
+                onClick={() => setFilterType("MID")}
+              >
+                <Activity className="size-3 shrink-0" />
+                MID ({counts.midC})
+              </Button>
+              <Button
+                type="button"
+                variant={filterType === "RISK" ? "default" : "ghost"}
+                className="h-7 rounded-md flex items-center justify-center gap-1 text-[10px] font-black uppercase shadow-none border-none text-amber-500"
+                onClick={() => setFilterType("RISK")}
+              >
+                <AlertTriangle className="size-3 shrink-0" />
+                RISK ({counts.riskC})
+              </Button>
+              <Button
+                type="button"
+                variant={filterType === "DELIS" ? "default" : "ghost"}
+                className="h-7 rounded-md flex items-center justify-center gap-1 text-[10px] font-black uppercase shadow-none border-none text-rose-500"
+                onClick={() => setFilterType("DELIS")}
+              >
+                <Flame className="size-3 shrink-0" />
+                DEL ({counts.delisC})
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
-
       <Card className="border border-border/40 shadow-sm bg-background mt-1">
         <div className="overflow-x-auto max-h-140 scrollbar-thin touch-pan-x w-full">
           {isLoading ? (
@@ -495,30 +609,29 @@ export default function AdminDbPage() {
                 Загрузка структуры СУБД...
               </span>
             </div>
-          ) : rows.length === 0 ? (
+          ) : displayedRows.length === 0 ? (
             <div className="p-12 text-center text-xs text-muted-foreground select-none">
-              Таблица пуста. Нет доступных данных для отображения.
+              Таблица пуста. Нет данных для отображения.
             </div>
           ) : (
             <Table className="text-[11px] font-medium border-collapse min-w-150 w-full">
               <TableHeader className="bg-muted/30 sticky top-0 z-20 backdrop-blur-md select-none border-b">
                 <TableRow>
-                  <TableHead className="h-9 px-3 text-center font-black uppercase text-muted-foreground tracking-wider whitespace-nowrap w-12 border-r border-border/10 bg-muted/5">
+                  <TableHead className="h-10 px-3 text-center font-black uppercase text-muted-foreground tracking-wider whitespace-nowrap w-12 border-r border-border/10 bg-muted/5">
                     #
                   </TableHead>
-                  {rows[0] &&
-                    Object.keys(rows[0]).map((col) => (
-                      <TableHead
-                        key={col}
-                        className="h-9 px-3 text-left font-black uppercase text-muted-foreground tracking-wider whitespace-nowrap"
-                      >
-                        {col}
-                      </TableHead>
-                    ))}
+                  {Object.keys(displayedRows[0] || {}).map((col) => (
+                    <TableHead
+                      key={col}
+                      className="h-10 px-3 text-left font-black uppercase text-muted-foreground tracking-wider whitespace-nowrap"
+                    >
+                      {col}
+                    </TableHead>
+                  ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.map((row, idx) => (
+                {displayedRows.map((row, idx) => (
                   <TableRow
                     key={row.id || row.coin || idx}
                     className={cn(
