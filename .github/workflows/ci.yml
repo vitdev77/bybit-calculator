@@ -37,4 +37,4 @@ jobs:
           # Передаем заглушки переменных окружения, чтобы локальный компилятор прошел билд успешно
           DATABASE_URL: "postgresql://mock_user:mock_pass@localhost:5432/mock_db"
           BYBIT_API_URL: "https://api.bytick.com"
-          NEXT_PUBLIC_TRADINGVIEW_SCRIPT_URL: "https://s3.tradingview.com/tv.js"
+          TRADINGVIEW_SCRIPT_URL: "https://s3.tradingview.com/tv.js"

@@ -77,7 +77,7 @@ DATABASE_URL="postgres://user:password@ep-endpoint-pool.us-east-2.aws.neon.tech/
 BYBIT_API_URL="https://api.bytick.com"
 
 # (Опционально) Кастомный скрипт TradingView виджета
-NEXT_PUBLIC_TRADINGVIEW_SCRIPT_URL="https://s3.tradingview.com/tv.js"
+TRADINGVIEW_SCRIPT_URL="https://s3.tradingview.com/tv.js"
 ```
 
 ## 🚀 Быстрый старт

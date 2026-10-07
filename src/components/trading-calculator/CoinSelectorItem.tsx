@@ -45,7 +45,7 @@ export function CoinSelectorItem({
   };
 
   // Считываем корень из env, если его нет — берем жесткий фолбэк по умолчанию
-  const envRoot = process.env.NEXT_PUBLIC_TRADINGVIEW_LOGOS_URL;
+  const envRoot = process.env.TRADINGVIEW_LOGOS_URL;
   const finalBaseUrl =
     envRoot || "https://s3-symbol-logo.tradingview.com/crypto/XTVC";
 

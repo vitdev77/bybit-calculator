@@ -24,8 +24,7 @@ export default function TradingViewChart({ coin }: TradingViewChartProps) {
     let script = document.getElementById(scriptId) as HTMLScriptElement;
 
     const tvScriptUrl =
-      process.env.NEXT_PUBLIC_TRADINGVIEW_SCRIPT_URL ||
-      "https://s3.tradingview.com/tv.js";
+      process.env.TRADINGVIEW_SCRIPT_URL || "https://s3.tradingview.com/tv.js";
 
     if (!script) {
       script = document.createElement("script");

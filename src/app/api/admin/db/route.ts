@@ -3,13 +3,10 @@ import { neon } from "@neondatabase/serverless";
 
 export const dynamic = "force-dynamic";
 
-const sql = neon(process.env.DATABASE_URL || "fallback_default_token_key");
+const sql = neon(process.env.DATABASE_URL || "");
 
 function checkAuth(req: Request): boolean {
-  const secret =
-    process.env.ADMIN_SECRET_KEY ||
-    process.env.NEXT_PUBLIC_ADMIN_SECRET_KEY ||
-    "fallback_default_token_key";
+  const secret = process.env.ADMIN_SECRET_KEY || "fallback_default_token_key";
   const token = req.headers.get("X-Admin-Token");
   return token === secret;
 }
