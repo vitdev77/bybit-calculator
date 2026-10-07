@@ -12,8 +12,7 @@ async function ensureTableExists() {
     await sql`
 CREATE TABLE IF NOT EXISTS deals (
 id SERIAL PRIMARY KEY,
-created_at TIMESTAMP WITH TIME ZONE 
-DEFAULT CURRENT_TIMESTAMP,
+created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 coin VARCHAR(50) NOT NULL,
 side VARCHAR(10) NOT NULL,
 order_type VARCHAR(10) NOT NULL,
@@ -48,7 +47,6 @@ ON deals (status, coin);
     console.error("Database Deals Migration Error:", err);
   }
 }
-
 export async function GET(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
@@ -78,50 +76,6 @@ CASE WHEN d.status = 'OPEN' THEN 0 ELSE 1 END ASC,
 d.created_at DESC;
 `;
 
-    let activeOpenDeal = null;
-    let lastManualClosedDeal = null;
-
-    if (activeCoin) {
-      const openResult = await sql`
-SELECT d.id, d.created_at, d.coin, d.side, d.order_type, 
-d.entry_price::TEXT as entry_price, 
-d.stop_loss::TEXT as stop_loss, 
-d.take_profit::TEXT as take_profit, 
-d.volume, d.margin, d.leverage, d.status, 
-d.closed_at_price::TEXT as closed_at_price, 
-d.tp_touched, d.sl_touched,
-COALESCE(c.decimals, 2) as precision
-FROM deals d
-LEFT JOIN coins c ON d.coin = c.coin
-WHERE d.coin = ${activeCoin} AND d.status = 'OPEN' 
-LIMIT 1;
-`;
-      if (openResult && openResult.length > 0) {
-        activeOpenDeal = openResult[0];
-      }
-
-      if (!activeOpenDeal) {
-        const closedResult = await sql`
-SELECT d.id, d.created_at, d.coin, d.side, d.order_type, 
-d.entry_price::TEXT as entry_price, 
-d.stop_loss::TEXT as stop_loss, 
-d.take_profit::TEXT as take_profit, 
-d.volume, d.margin, d.leverage, d.status, 
-d.closed_at_price::TEXT as closed_at_price, 
-d.tp_touched, d.sl_touched,
-COALESCE(c.decimals, 2) as precision
-FROM deals d
-LEFT JOIN coins c ON d.coin = c.coin
-WHERE d.coin = ${activeCoin} AND d.status = 'CLOSED' 
-ORDER BY d.created_at DESC 
-LIMIT 1;
-`;
-        if (closedResult && closedResult.length > 0) {
-          lastManualClosedDeal = closedResult[0];
-        }
-      }
-    }
-
     const parsedDeals = rawDeals.map((d: any) => ({
       ...d,
       entry_price: parseFloat(d.entry_price) || 0,
@@ -131,35 +85,26 @@ LIMIT 1;
       precision: parseInt(d.precision, 10) || 2,
     }));
 
+    let activeOpenDeal = null;
+    let lastManualClosedDeal = null;
+
+    if (activeCoin) {
+      activeOpenDeal =
+        parsedDeals.find((d) => d.coin === activeCoin && d.status === "OPEN") ||
+        null;
+
+      if (!activeOpenDeal) {
+        lastManualClosedDeal =
+          parsedDeals.find(
+            (d) => d.coin === activeCoin && d.status === "CLOSED",
+          ) || null;
+      }
+    }
+
     return NextResponse.json({
-      deals: parsedDeals || [],
-      activeOpenDeal: activeOpenDeal
-        ? {
-            ...activeOpenDeal,
-            entry_price: parseFloat((activeOpenDeal as any).entry_price) || 0,
-            stop_loss: parseFloat((activeOpenDeal as any).stop_loss) || 0,
-            take_profit: parseFloat((activeOpenDeal as any).take_profit) || 0,
-            closed_at_price: (activeOpenDeal as any).closed_at_price
-              ? parseFloat((activeOpenDeal as any).closed_at_price)
-              : null,
-            precision: parseInt((activeOpenDeal as any).precision, 10) || 2,
-          }
-        : null,
-      lastManualClosedDeal: lastManualClosedDeal
-        ? {
-            ...lastManualClosedDeal,
-            entry_price:
-              parseFloat((lastManualClosedDeal as any).entry_price) || 0,
-            stop_loss: parseFloat((lastManualClosedDeal as any).stop_loss) || 0,
-            take_profit:
-              parseFloat((lastManualClosedDeal as any).take_profit) || 0,
-            closed_at_price: (lastManualClosedDeal as any).closed_at_price
-              ? parseFloat((lastManualClosedDeal as any).closed_at_price)
-              : null,
-            precision:
-              parseInt((lastManualClosedDeal as any).precision, 10) || 2,
-          }
-        : null,
+      deals: parsedDeals,
+      activeOpenDeal,
+      lastManualClosedDeal,
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -195,8 +140,7 @@ export async function POST(request: Request) {
     const leverage = parseInt(body.leverage, 10);
 
     const coinData = await sql`
-SELECT decimals FROM coins 
-WHERE coin = ${coin} LIMIT 1;
+SELECT decimals FROM coins WHERE coin = ${coin} LIMIT 1;
 `;
 
     const decimals = (coinData && coinData[0]?.decimals) ?? 2;
@@ -206,9 +150,9 @@ WHERE coin = ${coin} LIMIT 1;
 SELECT id FROM deals
 WHERE coin = ${coin} AND side = ${side} 
 AND status = 'OPEN'
-AND ABS(entry_price::DOUBLE PRECISION - ${entry_price}) < ${priceEpsilon}
-AND ABS(stop_loss::DOUBLE PRECISION - ${stop_loss}) < ${priceEpsilon}
-AND ABS(take_profit::DOUBLE PRECISION - ${take_profit}) < ${priceEpsilon};
+AND ABS(entry_price - ${entry_price}) < ${priceEpsilon}
+AND ABS(stop_loss - ${stop_loss}) < ${priceEpsilon}
+AND ABS(take_profit - ${take_profit}) < ${priceEpsilon};
 `;
 
     if (existingDuplicates && existingDuplicates.length > 0) {
@@ -240,7 +184,6 @@ RETURNING *;
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
-
 export async function PATCH(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
@@ -261,15 +204,11 @@ export async function PATCH(request: Request) {
     if (body.action === "MOVE_TO_BREAKEVEN" && body.stop_loss !== undefined) {
       const nextSl = Number(body.stop_loss);
       const result = await sql`
-UPDATE deals 
-SET stop_loss = ${nextSl} 
+UPDATE deals SET stop_loss = ${nextSl} 
 WHERE id = ${targetId} AND status = 'OPEN'
 RETURNING *;
 `;
-      return NextResponse.json({
-        success: true,
-        data: result,
-      });
+      return NextResponse.json({ success: true, data: result });
     }
 
     if (body.action === "TOUCH_TP") {
@@ -278,10 +217,7 @@ UPDATE deals SET tp_touched = TRUE
 WHERE id = ${targetId} AND status = 'OPEN' 
 RETURNING *;
 `;
-      return NextResponse.json({
-        success: true,
-        data: result,
-      });
+      return NextResponse.json({ success: true, data: result });
     }
 
     if (body.action === "TOUCH_SL") {
@@ -290,10 +226,7 @@ UPDATE deals SET sl_touched = TRUE
 WHERE id = ${targetId} AND status = 'OPEN' 
 RETURNING *;
 `;
-      return NextResponse.json({
-        success: true,
-        data: result,
-      });
+      return NextResponse.json({ success: true, data: result });
     }
 
     if (!body.status) {
@@ -310,23 +243,17 @@ RETURNING *;
     if (closedAtPrice !== null) {
       result = await sql`
 UPDATE deals 
-SET status = ${targetStatus}, 
-closed_at_price = ${closedAtPrice} 
-WHERE id = ${targetId} 
-RETURNING *;
+SET status = ${targetStatus}, closed_at_price = ${closedAtPrice} 
+WHERE id = ${targetId} RETURNING *;
 `;
     } else {
       result = await sql`
 UPDATE deals SET status = ${targetStatus} 
-WHERE id = ${targetId} 
-RETURNING *;
+WHERE id = ${targetId} RETURNING *;
 `;
     }
 
-    return NextResponse.json({
-      success: true,
-      data: result,
-    });
+    return NextResponse.json({ success: true, data: result });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

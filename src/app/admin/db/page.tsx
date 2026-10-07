@@ -46,33 +46,35 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+const STORAGE_KEY_TABLE = "bybit_calc_admin_table_v1";
 export default function AdminDbPage() {
-  const [activeTable, setActiveTable] = useState<"deals" | "coins">("deals");
-  const [filterType, setFilterType] = useState<
-    "ALL" | "LIQ" | "MID" | "RISK" | "DELIS"
-  >("ALL");
+  const [activeTable, setActiveTable] = useState<"deals" | "coins" | any>(
+    "deals",
+  );
+  const [filterType, setFilterType] = useState<any>("ALL");
   const [rows, setRows] = useState<any[]>([]);
   const [stats, setStats] = useState<any>({ count: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isClearOpen, setIsClearOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   const getAuthHeaders = () => {
     const token =
       process.env.NEXT_PUBLIC_ADMIN_SECRET_KEY || "fallback_default_token_key";
     return {
-      "Content-Type": "application/json",
       "X-Admin-Token": token,
+      "Content-Type": "application/json",
     };
   };
 
-  const loadTableData = async (tableName: "deals" | "coins") => {
+  const loadTableData = async (tableName: any) => {
     setIsLoading(true);
     try {
       const res = await fetch(`/api/admin/db?table=${tableName}`, {
         headers: getAuthHeaders(),
       });
-      if (!res.ok) throw new Error("Ошибка загрузки данных СУБД");
+      if (!res.ok) throw new Error("Ошибка СУБД");
       const data = await res.json();
       if (data.success) {
         const rawRows = data.data || [];
@@ -80,12 +82,12 @@ export default function AdminDbPage() {
           const { logo_slug, ...rest } = row;
           return rest;
         });
-        setRows(Array.isArray(cleanedRows) ? cleanedRows : []);
+        setRows(cleanedRows);
         setStats(data.stats || { count: 0 });
       }
     } catch (err: any) {
       toast.add({
-        title: "Сбой СУБД",
+        title: "Сбой",
         description: err.message,
         type: "error",
       });
@@ -95,14 +97,31 @@ export default function AdminDbPage() {
   };
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(STORAGE_KEY_TABLE);
+      if (saved === "coins" || saved === "deals") {
+        setActiveTable(saved);
+      }
+      setIsMounted(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isMounted) return;
     loadTableData(activeTable);
     setFilterType("ALL");
-  }, [activeTable]);
+  }, [activeTable, isMounted]);
+
+  const handleTableChange = (tableName: any) => {
+    setActiveTable(tableName);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY_TABLE, tableName);
+    }
+  };
   const handleSyncBybit = async () => {
     if (isSyncing) return;
     setIsSyncing(true);
     setRows([]);
-    setStats({ count: 0 });
     setIsLoading(true);
     try {
       const res = await fetch("/api/coins", {
@@ -114,7 +133,7 @@ export default function AdminDbPage() {
       if (res.ok && data.success) {
         toast.add({
           title: "Синхронизация",
-          description: "Листинг фьючерсов Bybit успешно обновлен.",
+          description: "Листинг фьючерсов Bybit обновлен.",
           type: "success",
         });
         loadTableData(activeTable);
@@ -123,7 +142,7 @@ export default function AdminDbPage() {
       }
     } catch (err: any) {
       toast.add({
-        title: "Ошибка синхронизации",
+        title: "Ошибка",
         description: err.message,
         type: "error",
       });
@@ -139,18 +158,17 @@ export default function AdminDbPage() {
         method: "DELETE",
         headers: getAuthHeaders(),
       });
-      if (!res.ok) throw new Error("Не удалось очистить таблицу");
+      if (!res.ok) throw new Error("Ошибка очистки");
       toast.add({
-        title: "Очистка завершена",
-        description: `Таблица ${activeTable} полностью очищена.`,
+        title: "Очищено",
+        description: `Таблица ${activeTable} очищена.`,
         type: "success",
       });
       setRows([]);
-      setStats({ count: 0 });
       setIsClearOpen(false);
     } catch (err: any) {
       toast.add({
-        title: "Ошибка удаления",
+        title: "Ошибка",
         description: err.message,
         type: "error",
       });
@@ -160,11 +178,9 @@ export default function AdminDbPage() {
   const formatValue = (val: any, col: string, decimals: number = 2) => {
     if (val === null || val === undefined) return "--";
     const c = col.toLowerCase();
-
     if (c === "created_at") {
       return new Date(val).toLocaleString("ru-RU");
     }
-
     if (
       [
         "price",
@@ -177,7 +193,6 @@ export default function AdminDbPage() {
       const num = parseFloat(val);
       return isNaN(num) ? val : num.toFixed(decimals);
     }
-
     if (typeof val === "boolean") {
       return val ? (
         <Check className="size-3.5 text-emerald-500 mx-auto" />
@@ -185,10 +200,8 @@ export default function AdminDbPage() {
         <span className="text-muted-foreground/30 font-medium">-</span>
       );
     }
-
     return String(val);
   };
-
   const getRowStyles = (row: any) => {
     if (activeTable === "deals") {
       const s = String(row.status || "").toUpperCase();
@@ -218,12 +231,13 @@ export default function AdminDbPage() {
       "precision",
     ].includes(c);
   };
+
   const getDealsMetrics = () => {
-    let totalPnl = 0;
-    let totalMargin = 0;
-    let openCount = 0;
-    let profitCount = 0;
-    let lossCount = 0;
+    let totalPnl = 0,
+      totalMargin = 0,
+      openCount = 0;
+    let profitCount = 0,
+      lossCount = 0;
     rows.forEach((r) => {
       const feeRate = 0.0013;
       const entry = parseFloat(r.entry_price) || 0;
@@ -235,13 +249,10 @@ export default function AdminDbPage() {
         return;
       }
       totalMargin += marg;
-      const closedPrice = r.closed_at_price
-        ? parseFloat(r.closed_at_price)
-        : entry;
+      const clPrice = r.closed_at_price ? parseFloat(r.closed_at_price) : entry;
       const cryptoQty = entry > 0 ? vol / entry : 0;
-      const diff = r.side === "BUY" ? closedPrice - entry : entry - closedPrice;
-      const pnl = diff * cryptoQty - vol * feeRate;
-      totalPnl += pnl;
+      const diff = r.side === "BUY" ? clPrice - entry : entry - clPrice;
+      totalPnl += diff * cryptoQty - vol * feeRate;
       if (status === "PROFIT") profitCount++;
       if (status === "LOSS") lossCount++;
     });
@@ -272,9 +283,7 @@ export default function AdminDbPage() {
       midC = 0,
       riskC = 0,
       delisC = 0;
-    if (activeTable !== "coins") {
-      return { allC, liqC, midC, riskC, delisC };
-    }
+    if (activeTable !== "coins") return { allC, liqC, midC, riskC, delisC };
     allC = rows.length;
     rows.forEach((row) => {
       if (row.is_delisted) {
@@ -287,17 +296,12 @@ export default function AdminDbPage() {
         row.coin?.includes("PEPE") ||
         row.coin?.includes("BONK");
       const isRisk = isMem || (row.decimals && row.decimals >= 4);
-      if (isRisk) {
-        riskC++;
-      } else if (row.is_favorite) {
-        midC++;
-      } else {
-        liqC++;
-      }
+      if (isRisk) riskC++;
+      else if (row.is_favorite) midC++;
+      else liqC++;
     });
     return { allC, liqC, midC, riskC, delisC };
   };
-
   const getFilteredCoinsRows = () => {
     if (activeTable !== "coins") return rows;
     return rows.filter((row) => {
@@ -317,10 +321,46 @@ export default function AdminDbPage() {
     });
   };
 
+  if (!isMounted) {
+    return (
+      <div className="w-full h-screen flex items-center justify-center">
+        <Spinner className="text-violet-500 size-6" />
+      </div>
+    );
+  }
+
   const dm = getDealsMetrics();
   const cm = getCoinsMetrics();
   const counts = getCoinsCounts();
   const displayedRows = getFilteredCoinsRows();
+
+  const dealsHeaders = [
+    "id",
+    "created_at",
+    "coin",
+    "side",
+    "order_type",
+    "entry_price",
+    "stop_loss",
+    "take_profit",
+    "volume",
+    "margin",
+    "leverage",
+    "status",
+    "closed_at_price",
+    "tp_touched",
+    "sl_touched",
+  ];
+  const coinsHeaders = [
+    "coin",
+    "decimals",
+    "is_favorite",
+    "is_active",
+    "is_delisted",
+    "fullname",
+  ];
+  const activeHeaders = activeTable === "deals" ? dealsHeaders : coinsHeaders;
+
   return (
     <div className="w-full max-w-5xl mx-auto p-2.5 sm:p-6 space-y-4 font-sans selection:bg-violet-500/20">
       <div className="flex flex-col gap-3 pb-3 border-b border-border/40 select-none">
@@ -348,7 +388,7 @@ export default function AdminDbPage() {
               type="button"
               variant={activeTable === "deals" ? "default" : "ghost"}
               className="h-7 text-[10px] rounded-md font-black uppercase tracking-wider px-3 shadow-none border-none flex-1 sm:flex-none"
-              onClick={() => setActiveTable("deals")}
+              onClick={() => handleTableChange("deals")}
             >
               Журнал
             </Button>
@@ -356,13 +396,14 @@ export default function AdminDbPage() {
               type="button"
               variant={activeTable === "coins" ? "default" : "ghost"}
               className="h-7 text-[10px] rounded-md font-black uppercase tracking-wider px-3 shadow-none border-none flex-1 sm:flex-none"
-              onClick={() => setActiveTable("coins")}
+              onClick={() => handleTableChange("coins")}
             >
               Листинг
             </Button>
           </div>
         </div>
       </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 select-none">
         <Card className="border border-border/30 bg-muted/10 rounded-xl">
           <CardHeader className="py-2 px-3 border-b border-border/10">
@@ -374,10 +415,10 @@ export default function AdminDbPage() {
             <Layers className="size-5 text-violet-500 shrink-0" />
             <div>
               <span className="text-xs font-black uppercase text-foreground leading-tight">
-                table: {activeTable === "deals" ? "deals" : "coins"}
+                table: {activeTable}
               </span>
               <span className="text-[10px] text-muted-foreground/60 font-semibold mt-0.5 block">
-                Строк на экране: {displayedRows.length} из {stats.count}
+                Строк: {displayedRows.length} из {stats.count}
               </span>
             </div>
           </CardContent>
@@ -387,7 +428,7 @@ export default function AdminDbPage() {
             <Card className="border border-border/30 bg-muted/10 rounded-xl">
               <CardHeader className="py-2 px-3 border-b border-border/10">
                 <CardTitle className="text-[9px] font-black uppercase text-muted-foreground/70 tracking-widest">
-                  Эффективность & Net PnL
+                  Net PnL
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-3 flex items-center gap-3">
@@ -410,8 +451,7 @@ export default function AdminDbPage() {
                     </span>
                   </span>
                   <span className="text-[10px] text-muted-foreground/70 font-semibold mt-0.5">
-                    Винрейт: {dm.winRate.toFixed(1)}% ({dm.profitCount}/
-                    {dm.profitCount + dm.lossCount})
+                    Винрейт: {dm.winRate.toFixed(1)}%
                   </span>
                 </div>
               </CardContent>
@@ -419,7 +459,7 @@ export default function AdminDbPage() {
             <Card className="border border-border/30 bg-muted/10 rounded-xl">
               <CardHeader className="py-2 px-3 border-b border-border/10">
                 <CardTitle className="text-[9px] font-black uppercase text-muted-foreground/70 tracking-widest">
-                  Состояние Позиций
+                  Позиции
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-3 flex items-center gap-3">
@@ -432,7 +472,7 @@ export default function AdminDbPage() {
                     </span>
                   </span>
                   <span className="text-[10px] text-muted-foreground/70 font-semibold mt-0.5">
-                    Маржа ордеров: {dm.totalMargin.toFixed(1)} USDT
+                    Маржа: {dm.totalMargin.toFixed(1)} USDT
                   </span>
                 </div>
               </CardContent>
@@ -443,20 +483,17 @@ export default function AdminDbPage() {
             <Card className="border border-border/30 bg-muted/10 rounded-xl">
               <CardHeader className="py-2 px-3 border-b border-border/10">
                 <CardTitle className="text-[9px] font-black uppercase text-muted-foreground/70 tracking-widest">
-                  Пользовательский Трекинг
+                  Трекинг
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-3 flex items-center gap-3">
                 <Star className="size-5 text-amber-400 shrink-0 fill-amber-400" />
-                <div className="flex flex-col leading-tight">
+                <div>
                   <span className="text-sm font-black text-foreground">
                     {cm.favCount}{" "}
                     <span className="text-[10px] text-muted-foreground/60 font-bold">
-                      в избранном
+                      избранное
                     </span>
-                  </span>
-                  <span className="text-[10px] text-muted-foreground/70 font-semibold mt-0.5">
-                    Приоритетный листинг пар
                   </span>
                 </div>
               </CardContent>
@@ -464,12 +501,12 @@ export default function AdminDbPage() {
             <Card className="border border-border/30 bg-muted/10 rounded-xl">
               <CardHeader className="py-2 px-3 border-b border-border/10">
                 <CardTitle className="text-[9px] font-black uppercase text-muted-foreground/70 tracking-widest">
-                  Биржевой Статус
+                  Статус
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-3 flex items-center gap-3">
                 <AlertOctagon className="size-5 text-rose-500 shrink-0" />
-                <div className="flex flex-col leading-tight">
+                <div>
                   <span className="text-sm font-black text-rose-500">
                     {cm.delistedCount}{" "}
                     <span className="text-[10px] text-muted-foreground/60 font-bold">
@@ -477,7 +514,7 @@ export default function AdminDbPage() {
                     </span>
                   </span>
                   <span className="text-[10px] text-muted-foreground/70 font-semibold mt-0.5">
-                    Доступно в торгах: {cm.activeCount}
+                    Активно: {cm.activeCount}
                   </span>
                 </div>
               </CardContent>
@@ -490,7 +527,7 @@ export default function AdminDbPage() {
           <div className="flex items-center gap-2">
             <Wrench className="size-4 text-violet-400 shrink-0" />
             <span className="text-[11px] font-bold text-muted-foreground">
-              Управление базой данных:
+              Управление:
             </span>
           </div>
           <ButtonGroup className="h-8.5 rounded-lg border border-input shadow-xs flex flex-row items-stretch bg-background overflow-hidden *:rounded-none w-full sm:w-auto">
@@ -520,17 +557,17 @@ export default function AdminDbPage() {
                     disabled={isLoading || rows.length === 0}
                     className="h-full text-[10px] font-black uppercase tracking-wider bg-rose-600 hover:bg-rose-700 text-white border-none px-3 cursor-pointer flex-1 sm:flex-none flex items-center justify-center rounded-none"
                   >
-                    Очистить таблицу
+                    Очистить
                   </Button>
                 )}
               />
               <AlertDialogContent className="rounded-2xl max-w-sm w-[calc(100%-1rem)]">
                 <AlertDialogHeader>
                   <AlertDialogTitle className="text-sm">
-                    Очистить данные в {activeTable}?
+                    Очистить {activeTable}?
                   </AlertDialogTitle>
                   <AlertDialogDescription className="text-xs">
-                    Строки будут безвозвратно удалены командой TRUNCATE CASCADE.
+                    Строки будут безвозвратно удалены.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter className="gap-1.5">
@@ -541,7 +578,7 @@ export default function AdminDbPage() {
                     onClick={handleTruncateTable}
                     className="rounded-xl text-xs h-9 bg-rose-600 hover:bg-rose-700 border-none cursor-pointer text-white font-bold"
                   >
-                    Стереть всё
+                    Стереть
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -605,13 +642,11 @@ export default function AdminDbPage() {
           {isLoading ? (
             <div className="p-16 flex flex-col gap-2 items-center justify-center text-muted-foreground select-none">
               <Spinner className="text-violet-500" />
-              <span className="text-xs font-medium">
-                Загрузка структуры СУБД...
-              </span>
+              <span className="text-xs font-medium">Загрузка структуры...</span>
             </div>
           ) : displayedRows.length === 0 ? (
             <div className="p-12 text-center text-xs text-muted-foreground select-none">
-              Таблица пуста. Нет данных для отображения.
+              Нет данных.
             </div>
           ) : (
             <Table className="text-[11px] font-medium border-collapse min-w-150 w-full">
@@ -620,7 +655,7 @@ export default function AdminDbPage() {
                   <TableHead className="h-10 px-3 text-center font-black uppercase text-muted-foreground tracking-wider whitespace-nowrap w-12 border-r border-border/10 bg-muted/5">
                     #
                   </TableHead>
-                  {Object.keys(displayedRows[0] || {}).map((col) => (
+                  {activeHeaders.map((col) => (
                     <TableHead
                       key={col}
                       className="h-10 px-3 text-left font-black uppercase text-muted-foreground tracking-wider whitespace-nowrap"
@@ -642,7 +677,7 @@ export default function AdminDbPage() {
                     <TableCell className="p-3 text-center text-muted-foreground/50 font-mono font-bold w-12 border-r border-border/10 bg-muted/5 select-none">
                       {idx + 1}
                     </TableCell>
-                    {Object.keys(row).map((col) => (
+                    {activeHeaders.map((col) => (
                       <TableCell
                         key={col}
                         className={cn(
