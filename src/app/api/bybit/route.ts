@@ -17,6 +17,7 @@ function safeParseFloat(val: any): number {
   const parsed = parseFloat(val);
   return isNaN(parsed) ? 0 : parsed;
 }
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const symbol = (searchParams.get("symbol") || "BTCUSDT").toUpperCase();
@@ -87,13 +88,21 @@ export async function GET(request: Request) {
 
     const ticker = data.result.list[0];
     let dbFullName = "Crypto Asset";
+    let dbLogoSlug = symbol.replace("USDT", "").toUpperCase();
 
     try {
       const dbRes = await sql`
-SELECT fullname FROM coins WHERE coin = ${symbol} LIMIT 1;
+SELECT fullname, logo_slug 
+FROM coins 
+WHERE coin = ${symbol} LIMIT 1;
 `;
-      if (dbRes && dbRes.length > 0 && dbRes[0].fullname) {
-        dbFullName = dbRes[0].fullname;
+      if (dbRes && dbRes.length > 0) {
+        if (dbRes[0].fullname) {
+          dbFullName = dbRes[0].fullname;
+        }
+        if (dbRes[0].logo_slug) {
+          dbLogoSlug = dbRes[0].logo_slug;
+        }
       }
     } catch (dbErr) {
       console.warn("Database Name Fetch Error", dbErr);
@@ -109,6 +118,7 @@ SELECT fullname FROM coins WHERE coin = ${symbol} LIMIT 1;
       volume24h: safeParseFloat(ticker.volume24h),
       turnover24h: safeParseFloat(ticker.turnover24h),
       fullname: dbFullName,
+      logo_slug: dbLogoSlug,
     };
 
     memoryCache.set(symbol, {

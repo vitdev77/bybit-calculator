@@ -17,6 +17,7 @@ export interface DBAssetCoin {
   is_active: boolean;
   is_delisted: boolean;
   fullname?: string;
+  logo_slug?: string;
 }
 
 interface SelectorProps {
@@ -40,31 +41,26 @@ function getCoinGradient(name: string): string {
   }
   const c1 = Math.abs((hash & 0xff0000) >> 16) % 360;
   const c2 = (c1 + 40) % 360;
-  return (
-    "linear-gradient(" +
-    "135deg, " +
-    `hsl(${c1}, 70%, 45%), ` +
-    `hsl(${c2}, 80%, 35%))`
-  );
+  return `linear-gradient(135deg, hsl(${c1}, 70%, 45%), hsl(${c2}, 80%, 35%))`;
 }
-function CoinIcon({ symbol }: { symbol: string }) {
+
+function CoinIcon({ symbol, logoSlug }: { symbol: string; logoSlug?: string }) {
   const [isLoadFailed, setIsLoadFailed] = useState(false);
-  const base = symbol.replace("USDT", "").toUpperCase();
+  const base = (logoSlug || symbol.replace("USDT", "")).toUpperCase();
 
   useEffect(() => {
     setIsLoadFailed(false);
-  }, [symbol]);
+  }, [symbol, logoSlug]);
 
   if (isLoadFailed) {
     return (
       <div
         className={cn(
-          "size-4 rounded-full flex items-center text-white justify-center",
-          "font-black text-[8px] uppercase shrink-0 select-none",
+          "size-4 rounded-full flex items-center text-white",
+          "justify-center font-black text-[8px] uppercase shrink-0",
+          "select-none",
         )}
-        style={{
-          backgroundImage: getCoinGradient(base),
-        }}
+        style={{ backgroundImage: getCoinGradient(base) }}
       >
         {base.slice(0, 2)}
       </div>
@@ -85,6 +81,7 @@ function CoinIcon({ symbol }: { symbol: string }) {
     />
   );
 }
+
 export default function CoinSelector({
   selectedCoin,
   onCoinChange,
@@ -107,6 +104,8 @@ export default function CoinSelector({
   const isCurrentFavorite = currentCoinData
     ? currentCoinData.is_favorite
     : false;
+
+  const currentLogoSlug = currentCoinData?.logo_slug;
 
   useEffect(() => {
     if (debounceRef.current) {
@@ -184,6 +183,7 @@ export default function CoinSelector({
       setIsStarToggling(false);
     }
   };
+
   const handleToggleFavInMenu = async (
     e: React.MouseEvent,
     coinName: string,
@@ -213,7 +213,6 @@ export default function CoinSelector({
             detail: { coin: coinName, is_favorite: nextState },
           }),
         );
-        // ФИКС: Добавлен вызов всплывающего уведомления при клике на звездочку внутри меню
         toast.add({
           title: "Избранное",
           description: nextState
@@ -245,23 +244,26 @@ export default function CoinSelector({
   });
 
   const sortedLetters = Object.keys(groupedCoins).sort();
-  const lblCls =
-    "text-[10px] font-bold sm:text-xs uppercase text-muted-foreground tracking-wider block";
-  const containerCls = "space-y-1 w-full min-w-0";
-  const triggerCls =
-    "w-full bg-background pr-3 border border-input pl-2 shadow-none text-[11px] sm:text-sm h-9.5!";
-  const popupCls = "w-64! min-w-64! max-w-64! overflow-x-hidden p-1";
-  const searchBoxCls =
-    "p-1 border-b sticky z-30 border-border/40 gap-1.5 top-0 bg-popover flex items-center";
-  const inpCls =
-    "w-full text-xs p-0 bg-transparent h-6 outline-none text-foreground";
-  const scrollCls = "max-h-56 mt-1 overflow-y-auto scrollbar-thin";
+
+  const lblCls = cn(
+    "text-[10px] font-bold sm:text-xs uppercase",
+    "text-muted-foreground tracking-wider block",
+  );
+
   const btnFavClass = cn(
-    "p-0 border flex bg-transparent items-center shrink-0 justify-center h-9.5 w-9.5 border-input rounded-xl outline-none transition-colors hover:bg-muted/40 cursor-pointer text-muted-foreground/40 hover:text-foreground",
+    "p-0 border flex bg-transparent items-center shrink-0",
+    "justify-center h-9.5 w-9.5 border-input rounded-xl",
+    "outline-none transition-colors hover:bg-muted/40 cursor-pointer",
+    "text-muted-foreground/40 hover:text-foreground",
     isCurrentFavorite ? "text-amber-500! hover:text-amber-600!" : "",
   );
-  const btnSetClass =
-    "p-0 border flex bg-transparent items-center shrink-0 justify-center h-9.5 w-9.5 border-input rounded-xl outline-none transition-colors hover:bg-muted/40 cursor-pointer text-muted-foreground hover:text-foreground";
+
+  const btnSetClass = cn(
+    "p-0 border flex bg-transparent items-center shrink-0",
+    "justify-center h-9.5 w-9.5 border-input rounded-xl",
+    "outline-none transition-colors hover:bg-muted/40 cursor-pointer",
+    "text-muted-foreground hover:text-foreground",
+  );
 
   return (
     <div className="space-y-3.5 w-full font-sans">
@@ -272,7 +274,8 @@ export default function CoinSelector({
             type="button"
             variant={orderType === "MARKET" ? "default" : "outline"}
             className={cn(
-              "flex-1 h-full px-1 font-semibold text-[11px] sm:text-xs shadow-none border border-input",
+              "flex-1 h-full px-1 font-semibold text-[11px] sm:text-xs",
+              "shadow-none border border-input",
               orderType === "MARKET" ? "font-bold" : "",
             )}
             onClick={() => setOrderType("MARKET")}
@@ -283,7 +286,8 @@ export default function CoinSelector({
             type="button"
             variant={orderType === "LIMIT" ? "default" : "outline"}
             className={cn(
-              "flex-1 h-full px-1 font-semibold text-[11px] sm:text-xs shadow-none border border-input",
+              "flex-1 h-full px-1 font-semibold text-[11px] sm:text-xs",
+              "shadow-none border border-input",
               orderType === "LIMIT" ? "font-bold" : "",
             )}
             onClick={() => setOrderType("LIMIT")}
@@ -292,10 +296,13 @@ export default function CoinSelector({
           </Button>
         </ButtonGroup>
       </div>
-      <div className={containerCls}>
+      <div className="space-y-1 w-full min-w-0">
         <Label
           htmlFor="coin-select"
-          className="text-[10px] sm:text-xs font-bold truncate text-muted-foreground block uppercase tracking-wider"
+          className={cn(
+            "text-[10px] sm:text-xs font-bold truncate",
+            "text-muted-foreground block uppercase tracking-wider",
+          )}
         >
           Торговая пара
         </Label>
@@ -311,8 +318,17 @@ export default function CoinSelector({
                 }
               }}
             >
-              <SelectTrigger id="coin-select" className={triggerCls}>
-                <SelectValue placeholder="Монета" />
+              <SelectTrigger
+                id="coin-select"
+                className={cn(
+                  "w-full bg-background pr-3 border border-input pl-2",
+                  "shadow-none text-[11px] sm:text-sm h-9.5!",
+                )}
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <CoinIcon symbol={selectedCoin} logoSlug={currentLogoSlug} />
+                  <SelectValue placeholder="Монета" />
+                </div>
               </SelectTrigger>
               <CoinSelectorDrop
                 isSearching={isSearching}
@@ -324,10 +340,16 @@ export default function CoinSelector({
                 groupedCoins={groupedCoins}
                 selectedCoin={selectedCoin}
                 handleToggleFavInMenu={handleToggleFavInMenu}
-                popupCls={popupCls}
-                searchBoxCls={searchBoxCls}
-                inpCls={inpCls}
-                scrollCls={scrollCls}
+                popupCls="w-64! min-w-64! max-w-64! overflow-x-hidden p-1"
+                searchBoxCls={cn(
+                  "p-1 border-b sticky z-30 border-border/40 gap-1.5",
+                  "top-0 bg-popover flex items-center",
+                )}
+                inpCls={cn(
+                  "w-full text-xs p-0 bg-transparent h-6",
+                  "outline-none text-foreground",
+                )}
+                scrollCls="max-h-56 mt-1 overflow-y-auto scrollbar-thin"
               />
             </Select>
           </div>

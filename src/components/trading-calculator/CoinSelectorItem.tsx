@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { DBAssetCoin } from "./TradingCalculator";
 
 interface ItemProps {
-  asset: DBAssetCoin;
+  asset: DBAssetCoin & { logo_slug?: string };
   selectedCoin: string;
   onToggleFav: (e: React.MouseEvent, coin: string) => void;
 }
@@ -16,11 +16,14 @@ export function CoinSelectorItem({
   onToggleFav,
 }: ItemProps) {
   const [isLoadFailed, setIsLoadFailed] = useState(false);
-  const base = asset.coin.replace("USDT", "").toUpperCase();
+
+  const baseSlug = (
+    asset.logo_slug || asset.coin.replace("USDT", "")
+  ).toUpperCase();
 
   useEffect(() => {
     setIsLoadFailed(false);
-  }, [asset.coin]);
+  }, [asset.coin, asset.logo_slug]);
 
   const textClass = cn(
     "truncate",
@@ -41,10 +44,11 @@ export function CoinSelectorItem({
     }
     const c1 = Math.abs((hash & 0xff0000) >> 16) % 360;
     const c2 = (c1 + 40) % 360;
-    return `linear-gradient(135deg, hsl(${c1}, 70%, 45%), hsl(${c2}, 80%, 35%))`;
+    return (
+      `linear-gradient(135deg, hsl(${c1}, 70%, 45%), ` + `hsl(${c2}, 80%, 35%))`
+    );
   };
 
-  // Считываем корень из env, если его нет — берем жесткий фолбэк по умолчанию
   const envRoot = process.env.TRADINGVIEW_LOGOS_URL;
   const finalBaseUrl =
     envRoot || "https://s3-symbol-logo.tradingview.com/crypto/XTVC";
@@ -54,18 +58,22 @@ export function CoinSelectorItem({
       <div className="flex flex-1 items-center gap-2 truncate">
         {!isLoadFailed ? (
           <img
-            src={`${finalBaseUrl}${base}.svg`}
-            alt={base}
+            src={`${finalBaseUrl}${baseSlug}.svg`}
+            alt={baseSlug}
             loading="lazy"
             className="size-4 shrink-0 rounded-full bg-neutral-100 dark:bg-zinc-800"
             onError={() => setIsLoadFailed(true)}
           />
         ) : (
           <div
-            className="size-4 rounded-full flex items-center text-white justify-center font-black text-[8px] uppercase shrink-0 select-none"
-            style={{ backgroundImage: getCoinGradient(base) }}
+            className={cn(
+              "size-4 rounded-full flex items-center text-white",
+              "justify-center font-black text-[8px] uppercase",
+              "shrink-0 select-none",
+            )}
+            style={{ backgroundImage: getCoinGradient(baseSlug) }}
           >
-            {base.slice(0, 2)}
+            {baseSlug.slice(0, 2)}
           </div>
         )}
         <span className={textClass}>{asset.coin}</span>

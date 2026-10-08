@@ -13,6 +13,7 @@ interface TickerData {
   fundingRate: number;
   turnover24h: number;
   fullname?: string;
+  logo_slug?: string;
 }
 
 interface FGData {
@@ -54,12 +55,9 @@ function getCoinGradient(name: string): string {
   }
   const c1 = Math.abs((hash & 0xff0000) >> 16) % 360;
   const c2 = (c1 + 40) % 360;
-  return (
-    "linear-gradient(135deg, " +
-    `hsl(${c1}, 70%, 45%), ` +
-    `hsl(${c2}, 80%, 35%))`
-  );
+  return `linear-gradient(135deg, hsl(${c1}, 70%, 45%), hsl(${c2}, 80%, 35%))`;
 }
+
 export default function MarketTicker({
   data,
   decimals,
@@ -79,12 +77,15 @@ export default function MarketTicker({
   const [timeLeft, setTimeLeft] = useState("00:00:00");
   const [fundProgress, setFundProgress] = useState(100);
 
-  const baseCoin = selectedCoin.replace("USDT", "").toUpperCase();
+  const baseSlug = (
+    data?.logo_slug || selectedCoin.replace("USDT", "")
+  ).toUpperCase();
+
   const fullName = data?.fullname || "Crypto Asset";
 
   useEffect(() => {
     setIsLoadFailed(false);
-  }, [selectedCoin]);
+  }, [selectedCoin, data?.logo_slug]);
 
   useEffect(() => {
     if (data?.lastPrice) {
@@ -98,7 +99,6 @@ export default function MarketTicker({
       prevPriceRef.current = data.lastPrice;
     }
   }, [data?.lastPrice]);
-
   useEffect(() => {
     fetch("/api/fng")
       .then((r) => r.json())
@@ -176,6 +176,7 @@ export default function MarketTicker({
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
   }, []);
+
   if (!data || data.lastPrice <= 0) {
     return (
       <div
@@ -193,7 +194,6 @@ export default function MarketTicker({
   }
 
   const ratio = allocatedMarginMax > 0 ? marginUsed / allocatedMarginMax : 0;
-  const isHighMargin = ratio > 0.85;
   const isFundingHigh = Math.abs(data.fundingRate) >= 0.01;
   const radius = 8;
   const stroke = 4;
@@ -212,6 +212,7 @@ export default function MarketTicker({
       : changeValue < 0
         ? "text-rose-600 dark:text-rose-400"
         : "text-muted-foreground";
+
   const envRoot = process.env.TRADINGVIEW_LOGOS_URL;
   const finalBaseUrl =
     envRoot || "https://s3-symbol-logo.tradingview.com/crypto/XTVC";
@@ -235,22 +236,30 @@ export default function MarketTicker({
           <div className="relative size-9 shrink-0 flex items-center justify-center">
             {!isLoadFailed ? (
               <img
-                src={`${finalBaseUrl}${baseCoin}.svg`}
+                src={`${finalBaseUrl}${baseSlug}.svg`}
                 alt={selectedCoin}
                 className="w-full h-full rounded-full bg-neutral-100 dark:bg-zinc-800"
                 onError={() => setIsLoadFailed(true)}
               />
             ) : (
               <div
-                className="w-full h-full flex text-white items-center font-black justify-center text-xs uppercase rounded-full"
-                style={{ backgroundImage: getCoinGradient(baseCoin) }}
+                className={cn(
+                  "w-full h-full flex text-white items-center",
+                  "font-black justify-center text-xs uppercase rounded-full",
+                )}
+                style={{ backgroundImage: getCoinGradient(baseSlug) }}
               >
-                {baseCoin.slice(0, 2)}
+                {baseSlug.slice(0, 2)}
               </div>
             )}
           </div>
           <div className="flex flex-col min-w-0 flex-1 leading-tight">
-            <span className="text-sm sm:text-base font-black text-foreground truncate block max-w-30 xs:max-w-none">
+            <span
+              className={cn(
+                "text-sm sm:text-base font-black text-foreground truncate block",
+                "max-w-30 xs:max-w-none",
+              )}
+            >
               {selectedCoin}
             </span>
             <span className="text-[9px] font-bold opacity-30 truncate mt-0.5">
@@ -265,7 +274,8 @@ export default function MarketTicker({
         >
           <span
             className={cn(
-              "text-3xl font-black tracking-tight whitespace-nowrap inline-block leading-none",
+              "text-3xl font-black tracking-tight whitespace-nowrap",
+              "inline-block leading-none",
               priceColor,
             )}
           >
@@ -280,7 +290,12 @@ export default function MarketTicker({
       </div>
       <div className="md:col-span-7 flex flex-col gap-2 justify-center w-full min-w-0">
         <div className="grid grid-cols-3 gap-2 w-full">
-          <div className="bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border border-border/10 flex flex-col justify-center min-w-0">
+          <div
+            className={cn(
+              "bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border",
+              "border-border/10 flex flex-col justify-center min-w-0",
+            )}
+          >
             <span className="text-[8px] opacity-50 uppercase font-bold">
               24h Изменение
             </span>
@@ -291,7 +306,12 @@ export default function MarketTicker({
               {changeValue.toFixed(2)}%
             </span>
           </div>
-          <div className="bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border border-border/10 flex flex-col justify-center min-w-0">
+          <div
+            className={cn(
+              "bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border",
+              "border-border/10 flex flex-col justify-center min-w-0",
+            )}
+          >
             <span className="text-[8px] opacity-50 uppercase font-bold">
               Суточный Оборот
             </span>
@@ -299,7 +319,12 @@ export default function MarketTicker({
               {formatCompactNumber(data.turnover24h)}
             </span>
           </div>
-          <div className="bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border border-border/10 flex flex-col justify-center min-w-0">
+          <div
+            className={cn(
+              "bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border",
+              "border-border/10 flex flex-col justify-center min-w-0",
+            )}
+          >
             <span className="text-[8px] opacity-50 uppercase font-bold">
               Ставка Bybit
             </span>
@@ -309,7 +334,12 @@ export default function MarketTicker({
           </div>
         </div>
         <div className="grid grid-cols-3 gap-2 w-full">
-          <div className="bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border border-border/10 flex flex-col justify-center min-w-0 relative">
+          <div
+            className={cn(
+              "bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border",
+              "border-border/10 flex flex-col justify-center min-w-0 relative",
+            )}
+          >
             <span className="text-[8px] opacity-50 uppercase font-bold">
               Fear & Greed
             </span>
@@ -335,7 +365,12 @@ export default function MarketTicker({
               </span>
             )}
           </div>
-          <div className="bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border border-border/10 flex items-center justify-between min-w-0 gap-1">
+          <div
+            className={cn(
+              "bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border",
+              "border-border/10 flex items-center justify-between min-w-0 gap-1",
+            )}
+          >
             <div className="flex flex-col min-w-0">
               <span className="text-[8px] opacity-50 uppercase font-bold">
                 Countdown
@@ -377,7 +412,12 @@ export default function MarketTicker({
               />
             </svg>
           </div>
-          <div className="bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border border-border/10 flex flex-col justify-center min-w-0">
+          <div
+            className={cn(
+              "bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border",
+              "border-border/10 flex flex-col justify-center min-w-0",
+            )}
+          >
             <div className="flex justify-between items-center w-full">
               <span className="text-[8px] opacity-50 uppercase font-bold">
                 Margin Load

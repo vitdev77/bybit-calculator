@@ -21,6 +21,7 @@ export interface DBAssetCoin {
   is_active: boolean;
   is_delisted: boolean;
   fullname?: string;
+  logo_slug?: string;
 }
 
 interface TickerData {
@@ -30,6 +31,8 @@ interface TickerData {
   lowPrice24h: number;
   fundingRate: number;
   turnover24h: number;
+  fullname?: string;
+  logo_slug?: string;
 }
 
 function useTabTicker(
@@ -157,7 +160,6 @@ export default function TradingCalculator({
   useEffect(() => {
     entryPriceRef.current = entryPrice;
   }, [entryPrice]);
-
   const loadDatabaseCoins = useCallback(
     async (event?: Event) => {
       try {
@@ -197,6 +199,7 @@ export default function TradingCalculator({
               is_favorite: false,
               is_active: true,
               is_delisted: false,
+              logo_slug: prevMeta?.logo_slug,
             });
           }
           return merged;
@@ -222,6 +225,7 @@ export default function TradingCalculator({
       window.removeEventListener("refresh-calculator-coins", handleRefresh);
     };
   }, [loadDatabaseCoins]);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedState = localStorage.getItem(STORAGE_KEY);
@@ -386,7 +390,6 @@ export default function TradingCalculator({
       clearInterval(interval);
     };
   }, [selectedCoin, isLoaded, fetchLiveTicker]);
-
   useEffect(() => {
     if (isLoaded && typeof window !== "undefined") {
       const state = {
@@ -491,6 +494,7 @@ export default function TradingCalculator({
     maxSafeLeverage,
     partsCount,
   ]);
+
   const cardCls = cn(
     "shadow-sm border flex flex-col border-border/40",
     "bg-background rounded-xl sm:rounded-2xl",
