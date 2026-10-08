@@ -129,10 +129,7 @@ export default function TradingViewChart({ coin }: TradingViewChartProps) {
             </div>
             <div className="flex items-center gap-1.5">
               <Activity
-                className={cn(
-                  "size-3.5 text-muted-foreground/30",
-                  "animate-spin mr-1",
-                )}
+                className={cn("size-3.5 text-muted-foreground/30", "mr-1")}
               />
               <Skeleton className="h-5 w-24 bg-muted/50" />
             </div>

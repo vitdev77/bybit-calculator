@@ -3,9 +3,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Database,
-  Trash2,
   RefreshCw,
-  Check,
   ArrowLeft,
   TrendingUp,
   TrendingDown,
@@ -18,6 +16,7 @@ import {
   Zap,
   AlertTriangle,
   Flame,
+  SquareCheckBig,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
@@ -195,7 +194,7 @@ export default function AdminDbPage() {
     }
     if (typeof val === "boolean") {
       return val ? (
-        <Check className="size-3.5 text-emerald-500 mx-auto" />
+        <SquareCheckBig className="text-emerald-500 size-5" />
       ) : (
         <span className="text-muted-foreground/30 font-medium">-</span>
       );
@@ -203,14 +202,8 @@ export default function AdminDbPage() {
     return String(val);
   };
   const getRowStyles = (row: any) => {
-    if (activeTable === "deals") {
-      const s = String(row.status || "").toUpperCase();
-      if (s === "PROFIT") return "bg-emerald-500/5 hover:bg-emerald-500/10";
-      if (s === "LOSS") return "bg-rose-500/5 hover:bg-rose-500/10";
-      if (s === "OPEN") return "bg-amber-500/5 hover:bg-amber-500/10";
-    }
     if (activeTable === "coins" && row.is_delisted) {
-      return "bg-rose-950/10 opacity-50 cursor-not-allowed";
+      return "opacity-50 cursor-not-allowed";
     }
     return "hover:bg-muted/10";
   };
@@ -408,7 +401,7 @@ export default function AdminDbPage() {
         <Card className="border border-border/30 bg-muted/10 rounded-xl">
           <CardHeader className="py-2 px-3 border-b border-border/10">
             <CardTitle className="text-[9px] font-black uppercase text-muted-foreground/70 tracking-widest">
-              Structure СУБД
+              Струуктура СУБД
             </CardTitle>
           </CardHeader>
           <CardContent className="p-3 flex items-center gap-3">
@@ -506,17 +499,12 @@ export default function AdminDbPage() {
               </CardHeader>
               <CardContent className="p-3 flex items-center gap-3">
                 <AlertOctagon className="size-5 text-rose-500 shrink-0" />
-                <div>
-                  <span className="text-sm font-black text-rose-500">
-                    {cm.delistedCount}{" "}
-                    <span className="text-[10px] text-muted-foreground/60 font-bold">
-                      архив
-                    </span>
+                <span className="text-sm font-black text-rose-500">
+                  {cm.delistedCount}{" "}
+                  <span className="text-[10px] text-muted-foreground/60 font-bold">
+                    архив (Активно: {cm.activeCount})
                   </span>
-                  <span className="text-[10px] text-muted-foreground/70 font-semibold mt-0.5">
-                    Активно: {cm.activeCount}
-                  </span>
-                </div>
+                </span>
               </CardContent>
             </Card>
           </>
@@ -670,11 +658,11 @@ export default function AdminDbPage() {
                   <TableRow
                     key={row.id || row.coin || idx}
                     className={cn(
-                      "transition-colors border-b border-border/20 odd:bg-muted/5",
+                      "transition-colors border-b border-border/20",
                       getRowStyles(row),
                     )}
                   >
-                    <TableCell className="p-3 text-center text-muted-foreground/50 font-mono font-bold w-12 border-r border-border/10 bg-muted/5 select-none">
+                    <TableCell className="p-3 text-center text-muted-foreground/50 font-mono font-bold w-12 border-r border-border/10 select-none">
                       {idx + 1}
                     </TableCell>
                     {activeHeaders.map((col) => (
