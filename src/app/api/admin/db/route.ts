@@ -29,11 +29,38 @@ export async function GET(request: Request) {
 
     let rows = [];
     let stats: any = { count: 0 };
+    const registryMap: Record<
+      string,
+      { price24hPcnt: number; turnover24h: number }
+    > = {};
 
     if (table === "coins") {
       rows = await sql`SELECT * FROM coins ORDER BY coin ASC;`;
       const cRes: any = await sql`SELECT COUNT(*) as count FROM coins;`;
       stats.count = parseInt(cRes[0]?.count || "0", 10);
+
+      try {
+        const defaultDomain = "https://api.bytick.com";
+        const bybitDomain = process.env.BYBIT_API_URL || defaultDomain;
+        const cleanedDomain = bybitDomain.replace(/^https?:\/\//, "");
+        const baseUrl = "https://" + cleanedDomain;
+        const endpoint = "/v5/market/tickers";
+        const tickersUrl = baseUrl + endpoint + "?category=linear";
+
+        const tickersRes = await fetch(tickersUrl, { cache: "no-store" });
+        if (tickersRes.ok) {
+          const bulkJson = await tickersRes.json();
+          const list = bulkJson.result?.list || [];
+          list.forEach((item: any) => {
+            registryMap[item.symbol] = {
+              price24hPcnt: parseFloat(item.price24hPcnt || "0"),
+              turnover24h: parseFloat(item.turnover24h || "0"),
+            };
+          });
+        }
+      } catch (e) {
+        console.warn("⚠️ Admin DB Sync Tickers Error:", e);
+      }
     } else if (table === "deals") {
       rows = await sql`SELECT * FROM deals ORDER BY created_at DESC;`;
       const dRes: any = await sql`SELECT COUNT(*) as count FROM deals;`;
@@ -50,11 +77,13 @@ export async function GET(request: Request) {
       table,
       stats,
       data: rows,
+      tickerRegistry: registryMap,
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
 export async function DELETE(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {

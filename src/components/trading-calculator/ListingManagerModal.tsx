@@ -28,13 +28,7 @@ import { CoinListingRow } from "./CoinListingRow";
 interface ListingManagerModalProps {
   availableCoinsList: DBAssetCoin[];
   setAvailableCoinsList?: React.Dispatch<React.SetStateAction<DBAssetCoin[]>>;
-  tickerRegistry: Record<
-    string,
-    {
-      price24hPcnt: number;
-      turnover24h: number;
-    }
-  >;
+  tickerRegistry: Record<string, { price24hPcnt: number; turnover24h: number }>;
   isModalOpen: boolean;
   setIsModalOpen: (open: boolean) => void;
   handleToggleActive: (coin: string) => void;
@@ -51,8 +45,6 @@ export default function ListingManagerModal({
   setIsModalOpen,
   setAvailableCoinsList,
   onCoinSelect,
-  tickerRegistry,
-  availableCoinsList,
 }: ListingManagerModalProps) {
   const [modalSearch, setModalSearch] = useState("");
   const [filterType, setFilterType] = useState<
@@ -67,6 +59,7 @@ export default function ListingManagerModal({
   const [visibleCount, setVisibleCount] = useState(50);
   const [isIncrementalLoading, setIsIncrementalLoading] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (isModalOpen) {
       setIsLoading(true);
@@ -78,12 +71,8 @@ export default function ListingManagerModal({
         })
         .then((data) => {
           if (data) {
-            if (Array.isArray(data.coins)) {
-              setFullCoinsList(data.coins);
-            }
-            if (data.tickerRegistry) {
-              setLocalRegistry(data.tickerRegistry);
-            }
+            if (Array.isArray(data.coins)) setFullCoinsList(data.coins);
+            if (data.tickerRegistry) setLocalRegistry(data.tickerRegistry);
           }
         })
         .catch((err) => console.error(err))
@@ -93,9 +82,7 @@ export default function ListingManagerModal({
 
   useEffect(() => {
     setVisibleCount(50);
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTop = 0;
-    }
+    if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
   }, [modalSearch, filterType]);
 
   const handleSelectCoinRow = (coinName: string, isDelisted: boolean) => {
@@ -130,10 +117,7 @@ export default function ListingManagerModal({
       const response = await fetch("/api/coins", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "TOGGLE_FAVORITE",
-          coin: coinName,
-        }),
+        body: JSON.stringify({ action: "TOGGLE_FAVORITE", coin: coinName }),
       });
       if (response.ok) {
         window.dispatchEvent(
@@ -154,66 +138,65 @@ export default function ListingManagerModal({
     }
     setFavLoadingMap((prev) => ({ ...prev, [coinName]: false }));
   };
+  const processDistribution = () => {
+    const liqRows: DBAssetCoin[] = [];
+    const midRows: DBAssetCoin[] = [];
+    const riskRows: DBAssetCoin[] = [];
+    const delisRows: DBAssetCoin[] = [];
+    const allRows: DBAssetCoin[] = [];
 
-  let totalLiqCount = 0;
-  let totalMidCount = 0;
-  let totalRiskCount = 0;
-  let totalDelistedCount = 0;
+    fullCoinsList.forEach((asset) => {
+      const match = asset.coin
+        .toLowerCase()
+        .includes(modalSearch.toLowerCase());
+      if (!match) return;
 
-  fullCoinsList.forEach((asset) => {
-    if (asset.is_delisted) {
-      totalDelistedCount++;
-      return;
-    }
-    const liveStats = localRegistry[asset.coin] || { turnover24h: 0 };
-    const isMem =
-      asset.coin.includes("DOGE") ||
-      asset.coin.includes("SHIB") ||
-      asset.coin.includes("PEPE") ||
-      asset.coin.includes("BONK");
-    const isLiq = liveStats.turnover24h >= 50000000;
-    const isRisk =
-      isMem ||
-      asset.decimals >= 4 ||
-      (liveStats.turnover24h > 0 && liveStats.turnover24h < 10000000);
-    if (isLiq) totalLiqCount++;
-    else if (isRisk) totalRiskCount++;
-    else totalMidCount++;
-  });
+      allRows.push(asset);
 
-  const sortedAndFilteredCoins = fullCoinsList.filter((asset) => {
-    const match = asset.coin.toLowerCase().includes(modalSearch.toLowerCase());
-    if (!match) return false;
-    const live = localRegistry[asset.coin] || { turnover24h: 0 };
-    const isMem =
-      asset.coin.includes("DOGE") ||
-      asset.coin.includes("SHIB") ||
-      asset.coin.includes("PEPE") ||
-      asset.coin.includes("BONK");
-    const isLiq = !asset.is_delisted && live.turnover24h >= 50000000;
-    const isRisk =
-      !asset.is_delisted &&
-      (isMem ||
-        asset.decimals >= 4 ||
-        (live.turnover24h > 0 && live.turnover24h < 10000000));
-    const isMid = !asset.is_delisted && !isLiq && !isRisk;
-    if (filterType === "LIQ") return isLiq;
-    if (filterType === "MID") return isMid;
-    if (filterType === "RISK") return isRisk;
-    if (filterType === "DELIS") return asset.is_delisted;
-    return true;
-  });
+      if (asset.is_delisted) {
+        delisRows.push(asset);
+        return;
+      }
 
-  const renderedCoins = sortedAndFilteredCoins.slice(0, visibleCount);
+      const live = localRegistry[asset.coin] || { turnover24h: 0 };
+      const isMem =
+        asset.coin.includes("DOGE") ||
+        asset.coin.includes("SHIB") ||
+        asset.coin.includes("PEPE") ||
+        asset.coin.includes("BONK");
+      const isLiq = live.turnover24h >= 50000000;
+      const isRisk = isMem || live.turnover24h < 10000000;
+
+      if (isLiq) liqRows.push(asset);
+      else if (isRisk) riskRows.push(asset);
+      else midRows.push(asset);
+    });
+
+    let filtered = allRows;
+    if (filterType === "LIQ") filtered = liqRows;
+    else if (filterType === "MID") filtered = midRows;
+    else if (filterType === "RISK") filtered = riskRows;
+    else if (filterType === "DELIS") filtered = delisRows;
+
+    return { liqRows, midRows, riskRows, delisRows, allRows, filtered };
+  };
+
+  const {
+    liqRows,
+    midRows,
+    riskRows,
+    delisRows,
+    allRows,
+    filtered: filteredCoins,
+  } = processDistribution();
+
+  const renderedCoins = filteredCoins.slice(0, visibleCount);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const container = e.currentTarget;
     const { scrollTop, scrollHeight, clientHeight } = container;
     if (scrollHeight - scrollTop - clientHeight < 45) {
-      if (
-        visibleCount < sortedAndFilteredCoins.length &&
-        !isIncrementalLoading
-      ) {
+      if (visibleCount < filteredCoins.length && !isIncrementalLoading) {
         setIsIncrementalLoading(true);
         setTimeout(() => {
           setVisibleCount((prev) => prev + 50);
@@ -222,6 +205,7 @@ export default function ListingManagerModal({
       }
     }
   };
+
   return (
     <AlertDialog open={isModalOpen} onOpenChange={setIsModalOpen}>
       <AlertDialogContent
@@ -233,7 +217,12 @@ export default function ListingManagerModal({
           "-translate-y-1/2 max-h-[calc(100dvh-2rem)] flex flex-col",
         )}
       >
-        <AlertDialogHeader className="flex flex-row gap-2 items-center border-b justify-between pb-2 shrink-0">
+        <AlertDialogHeader
+          className={cn(
+            "flex flex-row gap-2 items-center border-b justify-between",
+            "pb-2 shrink-0",
+          )}
+        >
           <AlertDialogTitle className="text-sm font-black uppercase tracking-wider">
             Листинг пар Bybit
           </AlertDialogTitle>
@@ -260,80 +249,92 @@ export default function ListingManagerModal({
             />
           </div>
           <div className="w-full pt-0.5">
-            <ButtonGroup className="h-9.5 sm:h-8 border p-0.5 border-border/40 rounded-lg bg-muted/20 w-full grid grid-cols-5 items-center overflow-hidden">
+            <ButtonGroup
+              className={cn(
+                "h-9.5 sm:h-8 border p-0.5 border-border/40 rounded-lg",
+                "bg-muted/20 w-full grid grid-cols-5 items-center overflow-hidden",
+              )}
+            >
               <Button
                 type="button"
                 variant={filterType === "ALL" ? "default" : "ghost"}
                 className="h-full px-1 rounded-md flex items-center justify-center gap-1 min-w-0"
                 onClick={() => setFilterType("ALL")}
-                title="Все монеты"
               >
                 <Coins className="size-3.5 sm:size-3 shrink-0" />
                 <span className="text-[10px] font-bold uppercase hidden sm:inline">
                   Все
                 </span>
-                <span className="text-[9px] font-semibold opacity-70 sm:ml-0.5">
-                  ({fullCoinsList.length})
+                <span className="text-[9px] font-semibold opacity-70">
+                  ({allRows.length})
                 </span>
               </Button>
               <Button
                 type="button"
                 variant={filterType === "LIQ" ? "default" : "ghost"}
-                className="h-full px-1 rounded-md flex items-center justify-center gap-1 min-w-0 text-emerald-500"
+                className={cn(
+                  "h-full px-1 rounded-md flex items-center justify-center gap-1",
+                  "min-w-0 text-emerald-500",
+                )}
                 onClick={() => setFilterType("LIQ")}
-                title="Высокая ликвидность (LIQ)"
               >
                 <Zap className="size-3.5 sm:size-3 shrink-0" />
                 <span className="text-[10px] font-bold uppercase hidden sm:inline">
                   LIQ
                 </span>
-                <span className="text-[9px] font-semibold opacity-70 sm:ml-0.5">
-                  ({totalLiqCount})
+                <span className="text-[9px] font-semibold opacity-70">
+                  ({liqRows.length})
                 </span>
               </Button>
               <Button
                 type="button"
                 variant={filterType === "MID" ? "default" : "ghost"}
-                className="h-full px-1 rounded-md flex items-center justify-center gap-1 min-w-0 text-blue-500"
+                className={cn(
+                  "h-full px-1 rounded-md flex items-center justify-center gap-1",
+                  "min-w-0 text-blue-500",
+                )}
                 onClick={() => setFilterType("MID")}
-                title="Средняя ликвидность (MID)"
               >
                 <Activity className="size-3.5 sm:size-3 shrink-0" />
                 <span className="text-[10px] font-bold uppercase hidden sm:inline">
                   MID
                 </span>
-                <span className="text-[9px] font-semibold opacity-70 sm:ml-0.5">
-                  ({totalMidCount})
+                <span className="text-[9px] font-semibold opacity-70">
+                  ({midRows.length})
                 </span>
               </Button>
               <Button
                 type="button"
                 variant={filterType === "RISK" ? "default" : "ghost"}
-                className="h-full px-1 rounded-md flex items-center justify-center gap-1 min-w-0 text-amber-500"
+                className={cn(
+                  "h-full px-1 rounded-md flex items-center justify-center gap-1",
+                  "min-w-0 text-amber-500",
+                )}
                 onClick={() => setFilterType("RISK")}
-                title="Высокий риск (RISK)"
               >
                 <AlertTriangle className="size-3.5 sm:size-3 shrink-0" />
                 <span className="text-[10px] font-bold uppercase hidden sm:inline">
                   RISK
                 </span>
-                <span className="text-[9px] font-semibold opacity-70 sm:ml-0.5">
-                  ({totalRiskCount})
+                <span className="text-[9px] font-semibold opacity-70">
+                  ({riskRows.length})
                 </span>
               </Button>
               <Button
                 type="button"
                 variant={filterType === "DELIS" ? "default" : "ghost"}
-                className="h-full px-1 rounded-md flex items-center justify-center gap-1 min-w-0 text-rose-500"
+                className={cn(
+                  "h-full px-1 rounded-md flex items-center justify-center gap-1",
+                  "min-w-0 text-rose-500",
+                )}
                 onClick={() => setFilterType("DELIS")}
-                title="Делистнутые монеты (DEL)"
               >
                 <Flame className="size-3.5 sm:size-3 shrink-0" />
                 <span className="text-[10px] font-bold uppercase hidden sm:inline">
                   DEL
                 </span>
-                <span className="text-[9px] font-semibold opacity-70 sm:ml-0.5">
-                  ({totalDelistedCount})
+                <span className="text-[9px] font-semibold opacity-70">
+                  ({delisRows.length})
                 </span>
               </Button>
             </ButtonGroup>
@@ -374,7 +375,7 @@ export default function ListingManagerModal({
               <span>Подгрузка монет...</span>
             </div>
           )}
-          {!isLoading && sortedAndFilteredCoins.length === 0 && (
+          {!isLoading && filteredCoins.length === 0 && (
             <div className="text-center p-4 text-muted-foreground">
               Ничего не найдено
             </div>

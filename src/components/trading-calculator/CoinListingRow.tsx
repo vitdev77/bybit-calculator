@@ -25,7 +25,6 @@ export function CoinListingRow({
   onToggleFav,
 }: RowProps) {
   const isUp = liveStats.price24hPcnt > 0;
-  const isDown = liveStats.price24hPcnt < 0;
 
   const isMem =
     item.coin.includes("DOGE") ||
@@ -36,9 +35,8 @@ export function CoinListingRow({
   const isHighLiq = !item.is_delisted && liveStats.turnover24h >= 50000000;
   const isRisk =
     !item.is_delisted &&
-    (isMem ||
-      item.decimals >= 4 ||
-      (liveStats.turnover24h > 0 && liveStats.turnover24h < 10000000));
+    !isHighLiq &&
+    (isMem || liveStats.turnover24h < 10000000);
   const isMid = !item.is_delisted && !isHighLiq && !isRisk;
 
   function formatCompact(num: number): string {
@@ -75,7 +73,7 @@ export function CoinListingRow({
     <div
       onClick={() => onSelect(item.coin, item.is_delisted)}
       className={cn(
-        "grid grid-cols-12 p-2 gap-2 items-center rounded-xl border transition-all font-sans",
+        "grid grid-cols-12 p-2 gap-2 items-center rounded-xl border transition-all",
         item.is_delisted
           ? "border-rose-500/10 opacity-56 bg-rose-500/2 cursor-not-allowed"
           : "border-border/30 cursor-pointer hover:bg-muted/30 hover:border-amber-500/30",
@@ -141,7 +139,12 @@ export function CoinListingRow({
             </span>
           </div>
         ) : (
-          <span className="px-2 py-0.5 font-black text-[9px] uppercase tracking-wider bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded font-sans">
+          <span
+            className={cn(
+              "px-2 py-0.5 font-black text-[9px] uppercase tracking-wider",
+              "bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded font-sans",
+            )}
+          >
             DELISTED
           </span>
         )}
