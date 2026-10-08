@@ -12,7 +12,8 @@ async function ensureTableExists() {
     await sql`
 CREATE TABLE IF NOT EXISTS deals (
 id SERIAL PRIMARY KEY,
-created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+created_at TIMESTAMP WITH TIME ZONE 
+DEFAULT CURRENT_TIMESTAMP,
 coin VARCHAR(50) NOT NULL,
 side VARCHAR(10) NOT NULL,
 order_type VARCHAR(10) NOT NULL,
@@ -62,14 +63,16 @@ export async function GET(request: Request) {
     const activeCoin = searchParams.get("activeCoin");
 
     const rawDeals = await sql`
-SELECT d.id, d.created_at, d.coin, d.side, d.order_type, 
+SELECT d.id, d.created_at, d.coin, d.side, 
+d.order_type, 
 d.entry_price::TEXT as entry_price, 
 d.stop_loss::TEXT as stop_loss, 
 d.take_profit::TEXT as take_profit, 
 d.volume, d.margin, d.leverage, d.status, 
 d.closed_at_price::TEXT as closed_at_price, 
 d.tp_touched, d.sl_touched,
-c.decimals as coin_decimals
+c.decimals as coin_decimals,
+c.logo_slug
 FROM deals d
 LEFT JOIN coins c ON d.coin = c.coin
 ORDER BY 
@@ -101,6 +104,7 @@ d.created_at DESC;
           ? parseFloat(d.closed_at_price)
           : null,
         precision: calculatedPrecision,
+        logo_slug: d.logo_slug || d.coin.replace("USDT", ""),
       };
     });
 
@@ -129,6 +133,7 @@ d.created_at DESC;
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
 export async function POST(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
@@ -188,9 +193,9 @@ take_profit, volume, margin, leverage, status,
 tp_touched, sl_touched
 )
 VALUES (
-${coin}, ${side}, ${order_type}, ${entry_price}, ${stop_loss}, 
-${take_profit}, ${volume}, ${margin}, ${leverage}, 'OPEN', 
-FALSE, FALSE
+${coin}, ${side}, ${order_type}, ${entry_price}, 
+${stop_loss}, ${take_profit}, ${volume}, ${margin}, 
+${leverage}, 'OPEN', FALSE, FALSE
 )
 RETURNING *;
 `;
@@ -203,7 +208,6 @@ RETURNING *;
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
-
 export async function PATCH(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
@@ -263,7 +267,8 @@ RETURNING *;
     if (closedAtPrice !== null) {
       result = await sql`
 UPDATE deals 
-SET status = ${targetStatus}, closed_at_price = ${closedAtPrice} 
+SET status = ${targetStatus}, 
+closed_at_price = ${closedAtPrice} 
 WHERE id = ${targetId} RETURNING *;
 `;
     } else {

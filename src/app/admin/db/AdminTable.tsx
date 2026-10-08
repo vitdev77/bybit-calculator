@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import {
   Table,
   TableBody,
@@ -8,13 +8,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  SquareCheckBig,
-  Star,
-  ArrowUpRight,
-  ArrowDownRight,
-} from "lucide-react";
+import { SquareCheckBig, Star, Check, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "@/components/ui/toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface TableProps {
   activeTable: "deals" | "coins";
@@ -24,6 +30,129 @@ interface TableProps {
   isNumericColumn: (col: string) => boolean;
 }
 
+function LogoSlugCell({
+  coin,
+  initialValue,
+  isDelisted,
+}: {
+  coin: string;
+  initialValue: string;
+  isDelisted: boolean;
+}) {
+  const [val, setVal] = useState(initialValue || "");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
+
+  const handleTriggerSave = () => {
+    if (isDelisted) return;
+    if (val.trim() === (initialValue || "")) return;
+    setIsAlertOpen(true);
+  };
+
+  const handleConfirmSave = async () => {
+    setIsAlertOpen(false);
+    setIsSaving(true);
+    try {
+      const res = await fetch("/api/coins", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "UPDATE_LOGO_SLUG",
+          coin: coin,
+          logo_slug: val.trim(),
+        }),
+      });
+      if (res.ok) {
+        setIsSuccess(true);
+        toast.add({
+          title: "Слаг сохранен",
+          description: `Для ${coin} задан слаг ${val}`,
+          type: "success",
+        });
+        setTimeout(() => setIsSuccess(false), 2000);
+      } else {
+        throw new Error();
+      }
+    } catch (e) {
+      toast.add({
+        title: "Ошибка",
+        description: "Не удалось сохранить слаг",
+        type: "error",
+      });
+      setVal(initialValue || "");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancelSave = () => {
+    setIsAlertOpen(false);
+    setVal(initialValue || "");
+  };
+
+  return (
+    <div className="flex items-center gap-1 w-full max-w-32">
+      <input
+        id={`slug-input-${coin}`}
+        name={`logo_slug_${coin}`}
+        type="text"
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onBlur={handleTriggerSave}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.currentTarget.blur();
+          }
+        }}
+        disabled={isSaving || isDelisted}
+        className={cn(
+          "w-full h-7 text-[11px] font-mono bg-muted/40",
+          "border border-border/40 rounded px-1.5 outline-hidden",
+          "focus:bg-background focus:border-amber-500/50",
+          "transition-all",
+          isDelisted ? "opacity-40 cursor-not-allowed select-none" : "",
+        )}
+        placeholder={isDelisted ? "НЕДОСТУПНО" : "Напр. BTC"}
+      />
+      {isSaving && (
+        <Loader2 className="size-3 animate-spin text-amber-500 shrink-0" />
+      )}
+      {isSuccess && <Check className="size-3 text-emerald-500 shrink-0" />}
+
+      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialogContent className="rounded-2xl max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-sm">
+              Изменить слаг иконки?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs">
+              Вы действительно хотите перезаписать слаг логотипа для пары{" "}
+              <b>{coin}</b> на значение <b>{val}</b>?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-1.5">
+            <AlertDialogCancel
+              onClick={handleCancelSave}
+              className="rounded-xl text-xs h-9 cursor-pointer"
+            >
+              Отмена
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmSave}
+              className={cn(
+                "rounded-xl text-xs h-9 bg-amber-500 border-none",
+                "text-white font-bold cursor-pointer",
+              )}
+            >
+              Подтвердить
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
 export function AdminTable({
   activeTable,
   activeHeaders,
@@ -64,11 +193,20 @@ export function AdminTable({
     const c = col.toLowerCase();
     const val = row[col];
 
-    // Рассчитываем точную разрядность: приоритет у бэкенда, иначе системный фолбэк
     const currentPrecision = row.precision !== undefined ? row.precision : 2;
 
     if (c === "coin") {
       return <span className="font-bold text-foreground font-mono">{val}</span>;
+    }
+
+    if (c === "logo_slug" && activeTable === "coins") {
+      return (
+        <LogoSlugCell
+          coin={row.coin}
+          initialValue={val}
+          isDelisted={!!row.is_delisted}
+        />
+      );
     }
 
     if (c === "side") {
@@ -150,7 +288,7 @@ export function AdminTable({
           <TableRow>
             <TableHead
               className={cn(
-                "h-10 px-3 text-center font-black uppercase text-muted-foreground tracking-wider",
+                "h-10 px-3 text-center font-black uppercase text-muted-foreground",
                 "whitespace-nowrap w-12 border-r border-border/10 bg-muted/5",
               )}
             >
@@ -159,7 +297,7 @@ export function AdminTable({
             {activeHeaders.map((col) => (
               <TableHead
                 key={col}
-                className="h-10 px-3 text-left font-black uppercase text-muted-foreground tracking-wider whitespace-nowrap"
+                className="h-10 px-3 text-left font-black uppercase tracking-wider"
               >
                 {col}
               </TableHead>
@@ -175,7 +313,7 @@ export function AdminTable({
                 getRowStyles(row),
               )}
             >
-              <TableCell className="p-3 text-center text-muted-foreground/50 font-mono font-bold w-12 border-r border-border/10">
+              <TableCell className="p-3 text-center text-muted-foreground/55 w-12 border-r">
                 {idx + 1}
               </TableCell>
               {activeHeaders.map((col) => (

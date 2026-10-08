@@ -44,6 +44,7 @@ export default function AdminDbPage() {
       "Content-Type": "application/json",
     };
   };
+
   const loadTableData = async (tableName: "deals" | "coins") => {
     setIsLoading(true);
     try {
@@ -75,7 +76,6 @@ export default function AdminDbPage() {
       setIsMounted(true);
     }
   }, []);
-
   useEffect(() => {
     if (!isMounted) return;
     loadTableData(activeTable);
@@ -84,7 +84,7 @@ export default function AdminDbPage() {
   }, [activeTable, isMounted]);
 
   const handleTableChange = (tableName: "deals" | "coins") => {
-    if (tableName === activeTable) return; // ЗАЩИТА ОТ ПОВТОРНОГО НАЖАТИЯ НА АКТИВНЫЙ ТАБ
+    if (tableName === activeTable) return;
     setRows([]);
     setActiveTable(tableName);
     if (typeof window !== "undefined") {
@@ -213,9 +213,7 @@ export default function AdminDbPage() {
         ?.toLowerCase()
         .includes(searchQuery.toLowerCase());
       if (!isMatch) return;
-
       allRows.push(row);
-
       if (row.is_delisted) {
         delisRows.push(row);
         return;
@@ -228,7 +226,6 @@ export default function AdminDbPage() {
         row.coin?.includes("BONK");
       const isLiq = live.turnover24h >= 50000000;
       const isRisk = !isLiq && (isMem || live.turnover24h < 10000000);
-
       if (isLiq) liqRows.push(row);
       else if (isRisk) riskRows.push(row);
       else midRows.push(row);
@@ -239,7 +236,6 @@ export default function AdminDbPage() {
     else if (filterType === "MID") filtered = midRows;
     else if (filterType === "RISK") filtered = riskRows;
     else if (filterType === "DELIS") filtered = delisRows;
-
     return { liqRows, midRows, riskRows, delisRows, allRows, filtered };
   };
   if (!isMounted) {
@@ -277,14 +273,17 @@ export default function AdminDbPage() {
     "tp_touched",
     "sl_touched",
   ];
+
   const coinsHeaders = [
     "coin",
+    "logo_slug",
     "decimals",
     "is_favorite",
     "is_active",
     "is_delisted",
     "fullname",
   ];
+
   const activeHeaders = activeTable === "deals" ? dealsHeaders : coinsHeaders;
 
   return (
@@ -328,9 +327,10 @@ export default function AdminDbPage() {
                 disabled={isSyncing}
                 onClick={handleSyncBybit}
                 className={cn(
-                  "h-full text-[10px] font-black uppercase tracking-wider bg-transparent",
-                  "text-foreground border-r border-input px-3 flex flex-1 sm:flex-none",
-                  "items-center justify-center rounded-none",
+                  "h-full text-[10px] font-black uppercase tracking-wider",
+                  "bg-transparent text-foreground border-r border-input",
+                  "px-3 flex flex-1 sm:flex-none items-center justify-center",
+                  "rounded-none",
                 )}
               >
                 {isSyncing ? (
@@ -375,7 +375,10 @@ export default function AdminDbPage() {
                   </AlertDialogCancel>
                   <AlertDialogAction
                     onClick={handleTruncateTable}
-                    className="rounded-xl text-xs h-9 bg-rose-600 border-none text-white font-bold"
+                    className={cn(
+                      "rounded-xl text-xs h-9 bg-rose-600 border-none",
+                      "text-white font-bold",
+                    )}
                   >
                     Стереть
                   </AlertDialogAction>
@@ -392,7 +395,12 @@ export default function AdminDbPage() {
             )}
           >
             <div className="relative w-full md:w-64 flex items-center group shrink-0">
-              <span className="absolute left-2.5 flex items-center h-full pointer-events-none">
+              <span
+                className={cn(
+                  "absolute left-2.5 flex items-center h-full",
+                  "pointer-events-none",
+                )}
+              >
                 <svg
                   className="size-3.5 text-muted-foreground/60"
                   fill="none"
@@ -412,12 +420,18 @@ export default function AdminDbPage() {
                 placeholder="Поиск пары..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 pr-8 h-8 text-xs bg-background/50 border-border/40 rounded-lg w-full"
+                className={cn(
+                  "pl-8 pr-8 h-8 text-xs bg-background/50 border-border/40",
+                  "rounded-lg w-full",
+                )}
               />
               {searchQuery.length > 0 && (
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-2.5 text-muted-foreground/60 hover:text-foreground bg-transparent border-none p-0 cursor-pointer"
+                  className={cn(
+                    "absolute right-2.5 text-muted-foreground/60 hover:text-foreground",
+                    "bg-transparent border-none p-0 cursor-pointer",
+                  )}
                 >
                   <X className="size-3.5" />
                 </button>
@@ -476,7 +490,12 @@ export default function AdminDbPage() {
 
       <Card className="border border-border/40 bg-background mt-1">
         {rows.length === 0 && isLoading ? (
-          <div className="p-16 flex flex-col gap-2 items-center justify-center text-muted-foreground">
+          <div
+            className={cn(
+              "p-16 flex flex-col gap-2 items-center justify-center",
+              "text-muted-foreground",
+            )}
+          >
             <Spinner className="text-violet-500" />
             <span className="text-xs font-medium">Загрузка структуры...</span>
           </div>

@@ -105,18 +105,22 @@ WHERE NOT (coin = ANY(${allNames}));
       const tick = item.priceFilter?.tickSize || "0.01";
       const decimals = getDecimalsFromTick(tick);
       const officialName = item.fullName || item.baseCoin || "Crypto Asset";
+      const defaultSlug = coinName.replace("USDT", "");
 
       await sql`
 INSERT INTO coins (
-coin, decimals, is_favorite, is_active, is_delisted, fullname
+coin, decimals, is_favorite, is_active, 
+is_delisted, fullname, logo_slug
 )
 VALUES (
-${coinName}, ${decimals}, ${defaultFavs.includes(coinName)}, 
-TRUE, FALSE, ${officialName}
+${coinName}, ${decimals}, 
+${defaultFavs.includes(coinName)}, 
+TRUE, FALSE, ${officialName}, ${defaultSlug}
 )
 ON CONFLICT (coin) DO UPDATE SET 
 decimals = ${decimals}, is_active = TRUE, 
-is_delisted = FALSE, fullname = ${officialName};
+is_delisted = FALSE, fullname = ${officialName},
+logo_slug = COALESCE(coins.logo_slug, ${defaultSlug});
 `;
     }
 
@@ -125,23 +129,28 @@ is_delisted = FALSE, fullname = ${officialName};
       const tick = item.priceFilter?.tickSize || "0.01";
       const decimals = getDecimalsFromTick(tick);
       const officialName = item.fullName || item.baseCoin || "Crypto Asset";
+      const defaultSlug = coinName.replace("USDT", "");
 
       await sql`
 INSERT INTO coins (
-coin, decimals, is_favorite, is_active, is_delisted, fullname
+coin, decimals, is_favorite, is_active, 
+is_delisted, fullname, logo_slug
 )
 VALUES (
-${coinName}, ${decimals}, FALSE, FALSE, TRUE, ${officialName}
+${coinName}, ${decimals}, FALSE, FALSE, TRUE, 
+${officialName}, ${defaultSlug}
 )
 ON CONFLICT (coin) DO UPDATE SET 
 decimals = ${decimals}, is_active = FALSE, 
-is_delisted = TRUE, fullname = ${officialName};
+is_delisted = TRUE, fullname = ${officialName},
+logo_slug = COALESCE(coins.logo_slug, ${defaultSlug});
 `;
     }
     return true;
   }
   return false;
 }
+
 async function ensureCoinsTableExists() {
   if (isCoinsVerified) return;
   try {
@@ -154,23 +163,29 @@ is_favorite BOOLEAN NOT NULL DEFAULT FALSE
 `;
     await sql`
 ALTER TABLE coins 
-ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
+ADD COLUMN IF NOT EXISTS is_active 
+BOOLEAN NOT NULL DEFAULT TRUE;
 `;
     await sql`
 ALTER TABLE coins 
-ADD COLUMN IF NOT EXISTS is_delisted BOOLEAN NOT NULL DEFAULT FALSE;
+ADD COLUMN IF NOT EXISTS is_delisted 
+BOOLEAN NOT NULL DEFAULT FALSE;
 `;
     await sql`
 ALTER TABLE coins 
-ADD COLUMN IF NOT EXISTS fullname VARCHAR(100) NOT NULL 
-DEFAULT 'Crypto Asset';
+ADD COLUMN IF NOT EXISTS fullname 
+VARCHAR(100) NOT NULL DEFAULT 'Crypto Asset';
+`;
+    await sql`
+ALTER TABLE coins 
+ADD COLUMN IF NOT EXISTS logo_slug 
+VARCHAR(50);
 `;
     isCoinsVerified = true;
   } catch (err) {
     console.error("Database Migration Error:", err);
   }
 }
-
 export async function GET(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
@@ -186,14 +201,16 @@ export async function GET(request: Request) {
 
     if (all === "true") {
       coinsResult = await sql`
-SELECT coin, decimals, is_favorite, is_active, is_delisted, fullname 
+SELECT coin, decimals, is_favorite, is_active, 
+is_delisted, fullname, logo_slug 
 FROM coins 
 ORDER BY is_favorite DESC, coin ASC;
 `;
     } else if (search) {
       const cleanSearch = "%" + search.trim().toUpperCase() + "%";
       coinsResult = await sql`
-SELECT coin, decimals, is_favorite, is_active, is_delisted, fullname 
+SELECT coin, decimals, is_favorite, is_active, 
+is_delisted, fullname, logo_slug 
 FROM coins 
 WHERE coin LIKE ${cleanSearch}
 ORDER BY is_favorite DESC, coin ASC 
@@ -201,7 +218,8 @@ LIMIT 30;
 `;
     } else {
       coinsResult = await sql`
-SELECT coin, decimals, is_favorite, is_active, is_delisted, fullname 
+SELECT coin, decimals, is_favorite, is_active, 
+is_delisted, fullname, logo_slug 
 FROM coins 
 WHERE is_favorite = TRUE
 ORDER BY coin ASC;
@@ -220,20 +238,25 @@ ORDER BY coin ASC;
         const dDec = item.decimals;
         const fName = item.fullname;
         const isFav = defaultFavs.includes(item.coin);
+        const dSlug = item.coin.replace("USDT", "");
 
         await sql`
 INSERT INTO coins (
-coin, decimals, is_favorite, is_active, is_delisted, fullname
+coin, decimals, is_favorite, is_active, 
+is_delisted, fullname, logo_slug
 )
 VALUES (
-${item.coin}, ${dDec}, ${isFav}, TRUE, FALSE, ${fName}
+${item.coin}, ${dDec}, ${isFav}, TRUE, FALSE, 
+${fName}, ${dSlug}
 )
 ON CONFLICT (coin) DO UPDATE SET 
-decimals = ${dDec}, fullname = ${fName};
+decimals = ${dDec}, fullname = ${fName},
+logo_slug = COALESCE(coins.logo_slug, ${dSlug});
 `;
       }
       coinsResult = await sql`
-SELECT coin, decimals, is_favorite, is_active, is_delisted, fullname 
+SELECT coin, decimals, is_favorite, is_active, 
+is_delisted, fullname, logo_slug 
 FROM coins 
 WHERE is_favorite = TRUE
 ORDER BY coin ASC;
@@ -277,14 +300,13 @@ ORDER BY coin ASC;
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
-
 export async function PATCH(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
       return NextResponse.json({ error: "DATABASE_URL?" }, { status: 500 });
     }
     const body = await request.json();
-    const { action, coin } = body;
+    const { action, coin, logo_slug } = body;
 
     if (action === "SYNC_BYBIT") {
       const success = await fetchAndSyncBybitPairs();
@@ -301,16 +323,36 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "No coin" }, { status: 400 });
     }
 
+    if (action === "UPDATE_LOGO_SLUG") {
+      if (logo_slug === undefined) {
+        return NextResponse.json(
+          { error: "No logo_slug provided" },
+          { status: 400 },
+        );
+      }
+      const cleanSlug = String(logo_slug).trim();
+      await sql`
+UPDATE coins 
+SET logo_slug = ${cleanSlug} 
+WHERE coin = ${coin};
+`;
+      return NextResponse.json({ success: true });
+    }
+
     if (action === "TOGGLE_FAVORITE") {
       await sql`
-UPDATE coins SET is_favorite = NOT is_favorite WHERE coin = ${coin};
+UPDATE coins 
+SET is_favorite = NOT is_favorite 
+WHERE coin = ${coin};
 `;
       return NextResponse.json({ success: true });
     }
 
     if (action === "TOGGLE_ACTIVE") {
       await sql`
-UPDATE coins SET is_active = NOT is_active WHERE coin = ${coin};
+UPDATE coins 
+SET is_active = NOT is_active 
+WHERE coin = ${coin};
 `;
       return NextResponse.json({ success: true });
     }
