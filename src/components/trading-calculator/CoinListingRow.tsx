@@ -59,8 +59,8 @@ export function CoinListingRow({
     return (
       <span
         className={cn(
-          "flex px-1 text-center py-0.5 shrink-0 font-black tracking-wider",
-          "rounded border text-[9px] font-sans",
+          "flex px-1 py-0.5 text-center shrink-0 font-black tracking-wider",
+          "rounded border text-[9px] font-sans w-9 justify-center",
           colorCls,
         )}
       >
@@ -98,25 +98,18 @@ export function CoinListingRow({
           />
         </button>
 
-        <div className="flex flex-col min-w-0 flex-1">
-          <div className="flex gap-2 items-center min-w-0 flex-nowrap">
-            <span className="text-[10px] font-bold min-w-4 text-muted-foreground/40 font-mono">
-              {idx + 1}.
-            </span>
-            <span className="font-bold text-xs text-foreground leading-none truncate">
-              {item.coin}
-            </span>
-            <div className="hidden sm:flex gap-1 items-center">
-              {isHighLiq && renderBadge("LIQ")}
-              {isMid && renderBadge("MID")}
-              {isRisk && renderBadge("RISK")}
-            </div>
-          </div>
-          <div className="flex sm:hidden gap-1 items-center mt-1 pl-6">
+        <div className="flex items-center gap-2 min-w-0 flex-1 leading-none">
+          <span className="text-[10px] font-bold min-w-4 text-muted-foreground/40 font-mono">
+            {idx + 1}.
+          </span>
+          <div className="shrink-0 flex items-center">
             {isHighLiq && renderBadge("LIQ")}
             {isMid && renderBadge("MID")}
             {isRisk && renderBadge("RISK")}
           </div>
+          <span className="font-bold text-xs text-foreground truncate pl-0.5">
+            {item.coin}
+          </span>
         </div>
       </div>
 

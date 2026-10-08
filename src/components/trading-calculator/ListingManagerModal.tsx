@@ -14,7 +14,6 @@ import { DBAssetCoin } from "./TradingCalculator";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ButtonGroup } from "@/components/ui/button-group";
 import { toast } from "@/components/ui/toast";
 import {
   AlertDialog,
@@ -165,7 +164,7 @@ export default function ListingManagerModal({
         asset.coin.includes("PEPE") ||
         asset.coin.includes("BONK");
       const isLiq = live.turnover24h >= 50000000;
-      const isRisk = isMem || live.turnover24h < 10000000;
+      const isRisk = !isLiq && (isMem || live.turnover24h < 10000000);
 
       if (isLiq) liqRows.push(asset);
       else if (isRisk) riskRows.push(asset);
@@ -237,8 +236,13 @@ export default function ListingManagerModal({
           </AlertDialogCancel>
         </AlertDialogHeader>
 
-        <div className="my-3 flex flex-col gap-2 shrink-0">
-          <div className="relative w-full flex items-center">
+        <div
+          className={cn(
+            "my-3 flex flex-col md:flex-row md:items-center justify-between gap-3",
+            "shrink-0",
+          )}
+        >
+          <div className="relative w-full md:w-64 flex items-center group shrink-0">
             <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground/60" />
             <Input
               type="text"
@@ -247,97 +251,76 @@ export default function ListingManagerModal({
               onChange={(e) => setModalSearch(e.target.value)}
               className="pl-8 pr-8 h-8 text-xs bg-muted/20 w-full rounded-lg border-border/40"
             />
+            {modalSearch.length > 0 && (
+              <button
+                onClick={() => setModalSearch("")}
+                className="absolute right-2.5 text-muted-foreground/60 hover:text-foreground bg-transparent border-none p-0 cursor-pointer"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
           </div>
-          <div className="w-full pt-0.5">
-            <ButtonGroup
-              className={cn(
-                "h-9.5 sm:h-8 border p-0.5 border-border/40 rounded-lg",
-                "bg-muted/20 w-full grid grid-cols-5 items-center overflow-hidden",
-              )}
+          <div
+            className={cn(
+              "grid grid-cols-5 gap-1 w-full bg-background border border-input",
+              "p-0.5 rounded-lg overflow-hidden flex-1",
+              "*:h-7 *:text-[10px] *:font-black *:rounded-md *:flex-1",
+            )}
+          >
+            <Button
+              type="button"
+              variant={filterType === "ALL" ? "default" : "ghost"}
+              onClick={() => setFilterType("ALL")}
             >
-              <Button
-                type="button"
-                variant={filterType === "ALL" ? "default" : "ghost"}
-                className="h-full px-1 rounded-md flex items-center justify-center gap-1 min-w-0"
-                onClick={() => setFilterType("ALL")}
-              >
-                <Coins className="size-3.5 sm:size-3 shrink-0" />
-                <span className="text-[10px] font-bold uppercase hidden sm:inline">
-                  Все
-                </span>
-                <span className="text-[9px] font-semibold opacity-70">
-                  ({allRows.length})
-                </span>
-              </Button>
-              <Button
-                type="button"
-                variant={filterType === "LIQ" ? "default" : "ghost"}
-                className={cn(
-                  "h-full px-1 rounded-md flex items-center justify-center gap-1",
-                  "min-w-0 text-emerald-500",
-                )}
-                onClick={() => setFilterType("LIQ")}
-              >
-                <Zap className="size-3.5 sm:size-3 shrink-0" />
-                <span className="text-[10px] font-bold uppercase hidden sm:inline">
-                  LIQ
-                </span>
-                <span className="text-[9px] font-semibold opacity-70">
-                  ({liqRows.length})
-                </span>
-              </Button>
-              <Button
-                type="button"
-                variant={filterType === "MID" ? "default" : "ghost"}
-                className={cn(
-                  "h-full px-1 rounded-md flex items-center justify-center gap-1",
-                  "min-w-0 text-blue-500",
-                )}
-                onClick={() => setFilterType("MID")}
-              >
-                <Activity className="size-3.5 sm:size-3 shrink-0" />
-                <span className="text-[10px] font-bold uppercase hidden sm:inline">
-                  MID
-                </span>
-                <span className="text-[9px] font-semibold opacity-70">
-                  ({midRows.length})
-                </span>
-              </Button>
-              <Button
-                type="button"
-                variant={filterType === "RISK" ? "default" : "ghost"}
-                className={cn(
-                  "h-full px-1 rounded-md flex items-center justify-center gap-1",
-                  "min-w-0 text-amber-500",
-                )}
-                onClick={() => setFilterType("RISK")}
-              >
-                <AlertTriangle className="size-3.5 sm:size-3 shrink-0" />
-                <span className="text-[10px] font-bold uppercase hidden sm:inline">
-                  RISK
-                </span>
-                <span className="text-[9px] font-semibold opacity-70">
-                  ({riskRows.length})
-                </span>
-              </Button>
-              <Button
-                type="button"
-                variant={filterType === "DELIS" ? "default" : "ghost"}
-                className={cn(
-                  "h-full px-1 rounded-md flex items-center justify-center gap-1",
-                  "min-w-0 text-rose-500",
-                )}
-                onClick={() => setFilterType("DELIS")}
-              >
-                <Flame className="size-3.5 sm:size-3 shrink-0" />
-                <span className="text-[10px] font-bold uppercase hidden sm:inline">
-                  DEL
-                </span>
-                <span className="text-[9px] font-semibold opacity-70">
-                  ({delisRows.length})
-                </span>
-              </Button>
-            </ButtonGroup>
+              <span className="md:hidden flex items-center gap-0.5">
+                <Coins className="size-3" />({allRows.length})
+              </span>
+              <span className="hidden md:inline">Все ({allRows.length})</span>
+            </Button>
+            <Button
+              type="button"
+              variant={filterType === "LIQ" ? "default" : "ghost"}
+              className="text-emerald-500"
+              onClick={() => setFilterType("LIQ")}
+            >
+              <span className="md:hidden flex items-center gap-0.5">
+                <Zap className="size-3" />({liqRows.length})
+              </span>
+              <span className="hidden md:inline">LIQ ({liqRows.length})</span>
+            </Button>
+            <Button
+              type="button"
+              variant={filterType === "MID" ? "default" : "ghost"}
+              className="text-blue-500"
+              onClick={() => setFilterType("MID")}
+            >
+              <span className="md:hidden flex items-center gap-0.5">
+                <Activity className="size-3" />({midRows.length})
+              </span>
+              <span className="hidden md:inline">MID ({midRows.length})</span>
+            </Button>
+            <Button
+              type="button"
+              variant={filterType === "RISK" ? "default" : "ghost"}
+              className="text-amber-500"
+              onClick={() => setFilterType("RISK")}
+            >
+              <span className="md:hidden flex items-center gap-0.5">
+                <AlertTriangle className="size-3" />({riskRows.length})
+              </span>
+              <span className="hidden md:inline">RISK ({riskRows.length})</span>
+            </Button>
+            <Button
+              type="button"
+              variant={filterType === "DELIS" ? "default" : "ghost"}
+              className="text-rose-500"
+              onClick={() => setFilterType("DELIS")}
+            >
+              <span className="md:hidden flex items-center gap-0.5">
+                <Flame className="size-3" />({delisRows.length})
+              </span>
+              <span className="hidden md:inline">DEL ({delisRows.length})</span>
+            </Button>
           </div>
         </div>
 

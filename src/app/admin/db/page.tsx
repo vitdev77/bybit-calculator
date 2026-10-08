@@ -1,9 +1,10 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Wrench, RefreshCw } from "lucide-react";
+import { Wrench, Search, X, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,7 @@ const STORAGE_KEY_TABLE = "bybit_calc_admin_table_v1";
 export default function AdminDbPage() {
   const [activeTable, setActiveTable] = useState<"deals" | "coins">("deals");
   const [filterType, setFilterType] = useState<string>("ALL");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [rows, setRows] = useState<any[]>([]);
   const [tickerRegistry, setTickerRegistry] = useState<Record<string, any>>({});
   const [stats, setStats] = useState<any>({ count: 0 });
@@ -79,6 +81,7 @@ export default function AdminDbPage() {
     if (!isMounted) return;
     loadTableData(activeTable);
     setFilterType("ALL");
+    setSearchQuery("");
   }, [activeTable, isMounted]);
 
   const handleTableChange = (tableName: "deals" | "coins") => {
@@ -201,12 +204,16 @@ export default function AdminDbPage() {
     const midRows: any[] = [];
     const riskRows: any[] = [];
     const delisRows: any[] = [];
-
-    if (activeTable !== "coins") {
-      return { liqRows, midRows, riskRows, delisRows, filtered: rows };
-    }
+    const allRows: any[] = [];
 
     rows.forEach((row) => {
+      const isMatch = row.coin
+        ?.toLowerCase()
+        .includes(searchQuery.toLowerCase());
+      if (!isMatch) return;
+
+      allRows.push(row);
+
       if (row.is_delisted) {
         delisRows.push(row);
         return;
@@ -218,20 +225,20 @@ export default function AdminDbPage() {
         row.coin?.includes("PEPE") ||
         row.coin?.includes("BONK");
       const isLiq = live.turnover24h >= 50000000;
-      const isRisk = isMem || live.turnover24h < 10000000;
+      const isRisk = !isLiq && (isMem || live.turnover24h < 10000000);
 
       if (isLiq) liqRows.push(row);
       else if (isRisk) riskRows.push(row);
       else midRows.push(row);
     });
 
-    let filtered = rows;
+    let filtered = allRows;
     if (filterType === "LIQ") filtered = liqRows;
     else if (filterType === "MID") filtered = midRows;
     else if (filterType === "RISK") filtered = riskRows;
     else if (filterType === "DELIS") filtered = delisRows;
 
-    return { liqRows, midRows, riskRows, delisRows, filtered };
+    return { liqRows, midRows, riskRows, delisRows, allRows, filtered };
   };
 
   if (!isMounted) {
@@ -248,6 +255,7 @@ export default function AdminDbPage() {
     midRows,
     riskRows,
     delisRows,
+    allRows,
     filtered: displayedRows,
   } = processCoinsDistribution();
 
@@ -376,25 +384,48 @@ export default function AdminDbPage() {
           </ButtonGroup>
         </div>
         {activeTable === "coins" && (
-          <div className="w-full pt-1.5 border-t border-border/10">
+          <div
+            className={cn(
+              "w-full pt-1.5 border-t border-border/10 flex flex-col md:flex-row",
+              "md:items-center justify-between gap-3",
+            )}
+          >
+            <div className="relative w-full md:w-64 flex items-center group shrink-0">
+              <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground/60" />
+              <Input
+                type="text"
+                placeholder="Поиск пары..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8 pr-8 h-8 text-xs bg-background/50 border-border/40 rounded-lg w-full"
+              />
+              {searchQuery.length > 0 && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 text-muted-foreground/60 hover:text-foreground bg-transparent border-none p-0 cursor-pointer"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
             <div
               className={cn(
-                "grid grid-cols-5 gap-1 w-full bg-background border border-input p-0.5",
-                "rounded-lg overflow-hidden",
+                "grid grid-cols-5 gap-1 w-full bg-background border border-input",
+                "p-0.5 rounded-lg overflow-hidden flex-1",
+                "*:h-7 *:text-[10px] *:font-black *:rounded-md *:flex-1 *:w-full",
               )}
             >
               <Button
                 type="button"
                 variant={filterType === "ALL" ? "default" : "ghost"}
-                className="h-7 rounded-md flex items-center justify-center gap-1 text-[10px] font-black"
                 onClick={() => setFilterType("ALL")}
               >
-                Все ({rows.length})
+                Все ({allRows.length})
               </Button>
               <Button
                 type="button"
                 variant={filterType === "LIQ" ? "default" : "ghost"}
-                className="h-7 rounded-md flex items-center justify-center gap-1 text-[10px] font-black text-emerald-500"
+                className="text-emerald-500"
                 onClick={() => setFilterType("LIQ")}
               >
                 LIQ ({liqRows.length})
@@ -402,7 +433,7 @@ export default function AdminDbPage() {
               <Button
                 type="button"
                 variant={filterType === "MID" ? "default" : "ghost"}
-                className="h-7 rounded-md flex items-center justify-center gap-1 text-[10px] font-black text-blue-500"
+                className="text-blue-500"
                 onClick={() => setFilterType("MID")}
               >
                 MID ({midRows.length})
@@ -410,7 +441,7 @@ export default function AdminDbPage() {
               <Button
                 type="button"
                 variant={filterType === "RISK" ? "default" : "ghost"}
-                className="h-7 rounded-md flex items-center justify-center gap-1 text-[10px] font-black text-amber-500"
+                className="text-amber-500"
                 onClick={() => setFilterType("RISK")}
               >
                 RISK ({riskRows.length})
@@ -418,7 +449,7 @@ export default function AdminDbPage() {
               <Button
                 type="button"
                 variant={filterType === "DELIS" ? "default" : "ghost"}
-                className="h-7 rounded-md flex items-center justify-center gap-1 text-[10px] font-black text-rose-500"
+                className="text-rose-500"
                 onClick={() => setFilterType("DELIS")}
               >
                 DEL ({delisRows.length})
