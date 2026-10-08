@@ -54,6 +54,8 @@ export function CoinSelectorDrop({
           <Search className="size-3 text-muted-foreground/60 ml-1" />
         )}
         <input
+          id="coin-search-input"
+          name="coin_search"
           type="text"
           placeholder="Поиск..."
           value={inpValue}
@@ -70,7 +72,10 @@ export function CoinSelectorDrop({
               setInpValue("");
               setDebouncedSearch("");
             }}
-            className="p-0.5 border-none bg-transparent text-muted-foreground"
+            className={cn(
+              "p-0.5 border-none bg-transparent",
+              "text-muted-foreground cursor-pointer",
+            )}
           >
             <X className="size-3" />
           </button>
@@ -79,14 +84,22 @@ export function CoinSelectorDrop({
       <div className={scrollCls}>
         {hasFavs && (
           <SelectGroup>
-            <SelectLabel className="text-amber-500 font-black text-[10px] select-none">
+            <SelectLabel
+              className={cn(
+                "text-amber-500 font-black text-[10px]",
+                "select-none",
+              )}
+            >
               ★ ИЗБРАННОЕ
             </SelectLabel>
             {favoriteCoins.map((asset) => (
               <SelectItem
                 key={asset.coin}
                 value={asset.coin}
-                className="text-xs sm:text-sm flex items-center w-full relative pr-9!"
+                className={cn(
+                  "text-xs sm:text-sm flex items-center",
+                  "w-full relative pr-9!",
+                )}
               >
                 <CoinSelectorItem
                   asset={asset}
@@ -99,14 +112,23 @@ export function CoinSelectorDrop({
         )}
         {sortedLetters.map((char) => (
           <SelectGroup key={char}>
-            <SelectLabel className="text-muted-foreground pb-0.5 font-bold mt-1 text-[10px] border-b border-border/10 select-none">
+            <SelectLabel
+              className={cn(
+                "text-muted-foreground pb-0.5 font-bold",
+                "mt-1 text-[10px] border-b border-border/10",
+                "select-none",
+              )}
+            >
               {char}
             </SelectLabel>
             {groupedCoins[char].map((asset) => (
               <SelectItem
                 key={asset.coin}
                 value={asset.coin}
-                className="text-xs sm:text-sm flex items-center w-full relative pr-9!"
+                className={cn(
+                  "text-xs sm:text-sm flex items-center",
+                  "w-full relative pr-9!",
+                )}
               >
                 <CoinSelectorItem
                   asset={asset}

@@ -55,7 +55,9 @@ function getCoinGradient(name: string): string {
   }
   const c1 = Math.abs((hash & 0xff0000) >> 16) % 360;
   const c2 = (c1 + 40) % 360;
-  return `linear-gradient(135deg, hsl(${c1}, 70%, 45%), hsl(${c2}, 80%, 35%))`;
+  return (
+    `linear-gradient(135deg, hsl(${c1}, 70%, 45%), ` + `hsl(${c2}, 80%, 35%))`
+  );
 }
 
 export default function MarketTicker({
@@ -77,11 +79,24 @@ export default function MarketTicker({
   const [timeLeft, setTimeLeft] = useState("00:00:00");
   const [fundProgress, setFundProgress] = useState(100);
 
-  const baseSlug = (
-    data?.logo_slug || selectedCoin.replace("USDT", "")
-  ).toUpperCase();
+  const dbSlug = data?.logo_slug || "";
+  const fallbackTicker = selectedCoin.replace("USDT", "");
 
-  const fullName = data?.fullname || "Crypto Asset";
+  let finalImgUrl = "";
+  const envRoot = process.env.TRADINGVIEW_LOGOS_URL;
+  const defaultCryptoBase =
+    envRoot || "https://s3-symbol-logo.tradingview.com/crypto/XTVC";
+
+  if (dbSlug.startsWith("http://") || dbSlug.startsWith("https://")) {
+    finalImgUrl = dbSlug;
+  } else if (dbSlug.startsWith("/")) {
+    finalImgUrl = `https://s3-symbol-logo.tradingview.com${dbSlug}`;
+  } else {
+    const activeSlug = (dbSlug || fallbackTicker).toUpperCase();
+    finalImgUrl = `${defaultCryptoBase}${activeSlug}.svg`;
+  }
+
+  const displaySeed = (dbSlug || fallbackTicker).toUpperCase();
 
   useEffect(() => {
     setIsLoadFailed(false);
@@ -213,9 +228,7 @@ export default function MarketTicker({
         ? "text-rose-600 dark:text-rose-400"
         : "text-muted-foreground";
 
-  const envRoot = process.env.TRADINGVIEW_LOGOS_URL;
-  const finalBaseUrl =
-    envRoot || "https://s3-symbol-logo.tradingview.com/crypto/XTVC";
+  const fullName = data?.fullname || "Crypto Asset";
 
   return (
     <div
@@ -236,8 +249,8 @@ export default function MarketTicker({
           <div className="relative size-9 shrink-0 flex items-center justify-center">
             {!isLoadFailed ? (
               <img
-                src={`${finalBaseUrl}${baseSlug}.svg`}
-                alt={selectedCoin}
+                src={finalImgUrl}
+                alt={displaySeed}
                 className="w-full h-full rounded-full bg-neutral-100 dark:bg-zinc-800"
                 onError={() => setIsLoadFailed(true)}
               />
@@ -247,9 +260,9 @@ export default function MarketTicker({
                   "w-full h-full flex text-white items-center",
                   "font-black justify-center text-xs uppercase rounded-full",
                 )}
-                style={{ backgroundImage: getCoinGradient(baseSlug) }}
+                style={{ backgroundImage: getCoinGradient(displaySeed) }}
               >
-                {baseSlug.slice(0, 2)}
+                {displaySeed.slice(0, 2)}
               </div>
             )}
           </div>

@@ -169,11 +169,18 @@ export default function TradingCalculator({
         let fetchedCoins: DBAssetCoin[] = data.coins || [];
 
         if (event && (event as CustomEvent).detail) {
-          const { coin, is_favorite } = (event as CustomEvent).detail;
+          const { coin, is_favorite, logo_slug } = (event as CustomEvent)
+            .detail;
           const exists = fetchedCoins.some((c) => c.coin === coin);
           if (exists) {
             fetchedCoins = fetchedCoins.map((c) =>
-              c.coin === coin ? { ...c, is_favorite } : c,
+              c.coin === coin
+                ? {
+                    ...c,
+                    is_favorite,
+                    logo_slug: logo_slug || c.logo_slug,
+                  }
+                : c,
             );
           } else {
             fetchedCoins.push({
@@ -182,6 +189,7 @@ export default function TradingCalculator({
               is_favorite,
               is_active: true,
               is_delisted: false,
+              logo_slug,
             });
           }
         }
@@ -541,6 +549,7 @@ export default function TradingCalculator({
                 availableCoinsList={availableCoinsList}
                 tickerRegistry={tickerRegistry}
                 setIsModalOpen={setIsModalOpen}
+                liveTickerData={tickerData}
               />
               <BalanceRiskForm
                 balance={balance}

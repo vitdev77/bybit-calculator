@@ -20,6 +20,17 @@ export interface DBAssetCoin {
   logo_slug?: string;
 }
 
+interface TickerData {
+  lastPrice: number;
+  price24hPcnt: number;
+  highPrice24h: number;
+  lowPrice24h: number;
+  fundingRate: number;
+  turnover24h: number;
+  fullname?: string;
+  logo_slug?: string;
+}
+
 interface SelectorProps {
   selectedCoin: string;
   onCoinChange: (v: string) => void;
@@ -28,6 +39,7 @@ interface SelectorProps {
   availableCoinsList: DBAssetCoin[];
   tickerRegistry?: Record<string, any>;
   setIsModalOpen?: (v: boolean) => void;
+  liveTickerData?: TickerData | null;
 }
 
 interface GroupedCoins {
@@ -44,13 +56,39 @@ function getCoinGradient(name: string): string {
   return `linear-gradient(135deg, hsl(${c1}, 70%, 45%), hsl(${c2}, 80%, 35%))`;
 }
 
-function CoinIcon({ symbol, logoSlug }: { symbol: string; logoSlug?: string }) {
+function CoinIcon({
+  symbol,
+  logoSlug,
+  liveSlug,
+}: {
+  symbol: string;
+  logoSlug?: string;
+  liveSlug?: string;
+}) {
   const [isLoadFailed, setIsLoadFailed] = useState(false);
-  const base = (logoSlug || symbol.replace("USDT", "")).toUpperCase();
+
+  const dbSlug = liveSlug || logoSlug || "";
+  const fallbackTicker = symbol.replace("USDT", "");
+
+  let finalImgUrl = "";
+  const envRoot = process.env.TRADINGVIEW_LOGOS_URL;
+  const defaultCryptoBase =
+    envRoot || "https://s3-symbol-logo.tradingview.com/crypto/XTVC";
+
+  if (dbSlug.startsWith("http://") || dbSlug.startsWith("https://")) {
+    finalImgUrl = dbSlug;
+  } else if (dbSlug.startsWith("/")) {
+    finalImgUrl = `https://s3-symbol-logo.tradingview.com${dbSlug}`;
+  } else {
+    const activeSlug = (dbSlug || fallbackTicker).toUpperCase();
+    finalImgUrl = `${defaultCryptoBase}${activeSlug}.svg`;
+  }
 
   useEffect(() => {
     setIsLoadFailed(false);
-  }, [symbol, logoSlug]);
+  }, [symbol, logoSlug, liveSlug]);
+
+  const displaySeed = (dbSlug || fallbackTicker).toUpperCase();
 
   if (isLoadFailed) {
     return (
@@ -60,28 +98,23 @@ function CoinIcon({ symbol, logoSlug }: { symbol: string; logoSlug?: string }) {
           "justify-center font-black text-[8px] uppercase shrink-0",
           "select-none",
         )}
-        style={{ backgroundImage: getCoinGradient(base) }}
+        style={{ backgroundImage: getCoinGradient(displaySeed) }}
       >
-        {base.slice(0, 2)}
+        {displaySeed.slice(0, 2)}
       </div>
     );
   }
 
-  const envRoot = process.env.TRADINGVIEW_LOGOS_URL;
-  const finalBaseUrl =
-    envRoot || "https://s3-symbol-logo.tradingview.com/crypto/XTVC";
-
   return (
     <img
-      src={`${finalBaseUrl}${base}.svg`}
-      alt={base}
+      src={finalImgUrl}
+      alt={displaySeed}
       loading="lazy"
       className="size-4 shrink-0 rounded-full bg-neutral-100 dark:bg-zinc-800"
       onError={() => setIsLoadFailed(true)}
     />
   );
 }
-
 export default function CoinSelector({
   selectedCoin,
   onCoinChange,
@@ -89,6 +122,7 @@ export default function CoinSelector({
   setOrderType,
   availableCoinsList = [],
   setIsModalOpen,
+  liveTickerData,
 }: SelectorProps) {
   const [isStarToggling, setIsStarToggling] = useState(false);
   const [inpValue, setInpValue] = useState("");
@@ -166,7 +200,11 @@ export default function CoinSelector({
       if (res.ok) {
         window.dispatchEvent(
           new CustomEvent("refresh-calculator-coins", {
-            detail: { coin: selectedCoin, is_favorite: nextState },
+            detail: {
+              coin: selectedCoin,
+              is_favorite: nextState,
+              logo_slug: currentCoinData?.logo_slug,
+            },
           }),
         );
         toast.add({
@@ -210,7 +248,11 @@ export default function CoinSelector({
       if (res.ok) {
         window.dispatchEvent(
           new CustomEvent("refresh-calculator-coins", {
-            detail: { coin: coinName, is_favorite: nextState },
+            detail: {
+              coin: coinName,
+              is_favorite: nextState,
+              logo_slug: targetCoin?.logo_slug,
+            },
           }),
         );
         toast.add({
@@ -326,7 +368,11 @@ export default function CoinSelector({
                 )}
               >
                 <div className="flex items-center gap-2 truncate">
-                  <CoinIcon symbol={selectedCoin} logoSlug={currentLogoSlug} />
+                  <CoinIcon
+                    symbol={selectedCoin}
+                    logoSlug={currentLogoSlug}
+                    liveSlug={liveTickerData?.logo_slug}
+                  />
                   <SelectValue placeholder="Монета" />
                 </div>
               </SelectTrigger>

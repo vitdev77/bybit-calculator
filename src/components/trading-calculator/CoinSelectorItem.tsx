@@ -17,9 +17,22 @@ export function CoinSelectorItem({
 }: ItemProps) {
   const [isLoadFailed, setIsLoadFailed] = useState(false);
 
-  const baseSlug = (
-    asset.logo_slug || asset.coin.replace("USDT", "")
-  ).toUpperCase();
+  const dbSlug = asset.logo_slug || "";
+  const fallbackTicker = asset.coin.replace("USDT", "");
+
+  let finalImgUrl = "";
+  const envRoot = process.env.TRADINGVIEW_LOGOS_URL;
+  const defaultCryptoBase =
+    envRoot || "https://s3-symbol-logo.tradingview.com/crypto/XTVC";
+
+  if (dbSlug.startsWith("http://") || dbSlug.startsWith("https://")) {
+    finalImgUrl = dbSlug;
+  } else if (dbSlug.startsWith("/")) {
+    finalImgUrl = `https://s3-symbol-logo.tradingview.com${dbSlug}`;
+  } else {
+    const activeSlug = (dbSlug || fallbackTicker).toUpperCase();
+    finalImgUrl = `${defaultCryptoBase}${activeSlug}.svg`;
+  }
 
   useEffect(() => {
     setIsLoadFailed(false);
@@ -49,17 +62,15 @@ export function CoinSelectorItem({
     );
   };
 
-  const envRoot = process.env.TRADINGVIEW_LOGOS_URL;
-  const finalBaseUrl =
-    envRoot || "https://s3-symbol-logo.tradingview.com/crypto/XTVC";
+  const displaySeed = (dbSlug || fallbackTicker).toUpperCase();
 
   return (
     <div className="flex w-full items-center justify-between font-sans">
       <div className="flex flex-1 items-center gap-2 truncate">
         {!isLoadFailed ? (
           <img
-            src={`${finalBaseUrl}${baseSlug}.svg`}
-            alt={baseSlug}
+            src={finalImgUrl}
+            alt={displaySeed}
             loading="lazy"
             className="size-4 shrink-0 rounded-full bg-neutral-100 dark:bg-zinc-800"
             onError={() => setIsLoadFailed(true)}
@@ -71,9 +82,9 @@ export function CoinSelectorItem({
               "justify-center font-black text-[8px] uppercase",
               "shrink-0 select-none",
             )}
-            style={{ backgroundImage: getCoinGradient(baseSlug) }}
+            style={{ backgroundImage: getCoinGradient(displaySeed) }}
           >
-            {baseSlug.slice(0, 2)}
+            {displaySeed.slice(0, 2)}
           </div>
         )}
         <span className={textClass}>{asset.coin}</span>
