@@ -62,7 +62,31 @@ export async function GET(request: Request) {
         console.warn("⚠️ Admin DB Sync Tickers Error:", e);
       }
     } else if (table === "deals") {
-      rows = await sql`SELECT * FROM deals ORDER BY created_at DESC;`;
+      const rawDeals = await sql`
+SELECT d.id, d.created_at, d.coin, d.side, d.order_type, 
+d.entry_price::TEXT as entry_price, 
+d.stop_loss::TEXT as stop_loss, 
+d.take_profit::TEXT as take_profit, 
+d.volume, d.margin, d.leverage, d.status, 
+d.closed_at_price::TEXT as closed_at_price, 
+d.tp_touched, d.sl_touched,
+COALESCE(c.decimals, 2) as precision
+FROM deals d
+LEFT JOIN coins c ON d.coin = c.coin
+ORDER BY d.created_at DESC;
+`;
+
+      rows = rawDeals.map((d: any) => ({
+        ...d,
+        entry_price: parseFloat(d.entry_price) || 0,
+        stop_loss: parseFloat(d.stop_loss) || 0,
+        take_profit: parseFloat(d.take_profit) || 0,
+        closed_at_price: d.closed_at_price
+          ? parseFloat(d.closed_at_price)
+          : null,
+        precision: parseInt(d.precision, 10) || 2,
+      }));
+
       const dRes: any = await sql`SELECT COUNT(*) as count FROM deals;`;
       stats.count = parseInt(dRes[0]?.count || "0", 10);
     } else {
@@ -97,7 +121,9 @@ export async function DELETE(request: Request) {
       );
     }
 
-    const { searchParams } = new URL(request.url);
+    const { searchParams = new URL(request.url).searchParams } = new URL(
+      request.url,
+    );
     const table = searchParams.get("table");
 
     if (table === "coins") {

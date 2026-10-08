@@ -8,7 +8,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { SquareCheckBig } from "lucide-react";
+import {
+  SquareCheckBig,
+  Star,
+  ArrowUpRight,
+  ArrowDownRight,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TableProps {
@@ -29,6 +34,7 @@ export function AdminTable({
   const formatValue = (val: any, col: string, decimals: number = 2) => {
     if (val === null || val === undefined) return "--";
     const c = col.toLowerCase();
+
     if (c === "created_at") {
       return new Date(val).toLocaleString("ru-RU");
     }
@@ -46,12 +52,95 @@ export function AdminTable({
     }
     if (typeof val === "boolean") {
       return val ? (
-        <SquareCheckBig className="text-emerald-500 size-5" />
+        <SquareCheckBig className="text-emerald-500 size-4" />
       ) : (
-        <span className="text-muted-foreground/30 font-medium">-</span>
+        <span className="text-muted-foreground/20 font-medium">-</span>
       );
     }
     return String(val);
+  };
+
+  const renderCustomCell = (row: any, col: string) => {
+    const c = col.toLowerCase();
+    const val = row[col];
+
+    // Рассчитываем точную разрядность: приоритет у бэкенда, иначе системный фолбэк
+    const currentPrecision = row.precision !== undefined ? row.precision : 2;
+
+    if (c === "coin") {
+      return <span className="font-bold text-foreground font-mono">{val}</span>;
+    }
+
+    if (c === "side") {
+      const isBuy = String(val).toUpperCase() === "BUY";
+      return (
+        <span
+          className={cn(
+            "px-1.5 py-0.5 rounded text-[9px] font-black border tracking-wider",
+            isBuy
+              ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+              : "bg-rose-500/10 text-rose-500 border-rose-500/20",
+          )}
+        >
+          {isBuy ? "LONG" : "SHORT"}
+        </span>
+      );
+    }
+
+    if (c === "status") {
+      const s = String(val).toUpperCase();
+      let badgeCls =
+        "bg-muted/40 text-muted-foreground border-muted-foreground/20";
+      if (s === "PROFIT") {
+        badgeCls =
+          "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 font-bold";
+      } else if (s === "LOSS") {
+        badgeCls = "bg-rose-500/10 text-rose-400 border-rose-500/20 font-bold";
+      } else if (s === "OPEN") {
+        badgeCls =
+          "bg-amber-500/10 text-amber-400 border-amber-500/20 font-black animate-pulse";
+      }
+      return (
+        <span
+          className={cn(
+            "px-1.5 py-0.5 rounded text-[8px] uppercase tracking-wider border",
+            badgeCls,
+          )}
+        >
+          {s}
+        </span>
+      );
+    }
+
+    if (c === "is_favorite" && typeof val === "boolean") {
+      return val ? (
+        <Star className="size-3.5 text-amber-500 fill-amber-500" />
+      ) : (
+        <span className="text-muted-foreground/10">-</span>
+      );
+    }
+
+    if (
+      (c === "tp_touched" || c === "sl_touched") &&
+      typeof val === "boolean"
+    ) {
+      return val ? (
+        <span
+          className={cn(
+            "px-1 py-px text-[8px] font-black rounded border uppercase tracking-tight",
+            c === "tp_touched"
+              ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+              : "bg-rose-500/10 text-rose-500 border-rose-500/20",
+          )}
+        >
+          touch
+        </span>
+      ) : (
+        <span className="text-muted-foreground/20">-</span>
+      );
+    }
+
+    return formatValue(val, col, currentPrecision);
   };
 
   return (
@@ -61,8 +150,8 @@ export function AdminTable({
           <TableRow>
             <TableHead
               className={cn(
-                "h-10 px-3 text-center font-black uppercase text-muted-foreground",
-                "tracking-wider whitespace-nowrap w-12 border-r border-border/10 bg-muted/5",
+                "h-10 px-3 text-center font-black uppercase text-muted-foreground tracking-wider",
+                "whitespace-nowrap w-12 border-r border-border/10 bg-muted/5",
               )}
             >
               #
@@ -97,7 +186,7 @@ export function AdminTable({
                     isNumericColumn(col) ? "font-mono font-semibold" : "",
                   )}
                 >
-                  {formatValue(row[col], col, row.precision || 2)}
+                  {renderCustomCell(row, col)}
                 </TableCell>
               ))}
             </TableRow>

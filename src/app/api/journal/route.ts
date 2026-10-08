@@ -47,6 +47,7 @@ ON deals (status, coin);
     console.error("Database Deals Migration Error:", err);
   }
 }
+
 export async function GET(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
@@ -68,7 +69,7 @@ d.take_profit::TEXT as take_profit,
 d.volume, d.margin, d.leverage, d.status, 
 d.closed_at_price::TEXT as closed_at_price, 
 d.tp_touched, d.sl_touched,
-COALESCE(c.decimals, 2) as precision
+c.decimals as coin_decimals
 FROM deals d
 LEFT JOIN coins c ON d.coin = c.coin
 ORDER BY 
@@ -76,14 +77,32 @@ CASE WHEN d.status = 'OPEN' THEN 0 ELSE 1 END ASC,
 d.created_at DESC;
 `;
 
-    const parsedDeals = rawDeals.map((d: any) => ({
-      ...d,
-      entry_price: parseFloat(d.entry_price) || 0,
-      stop_loss: parseFloat(d.stop_loss) || 0,
-      take_profit: parseFloat(d.take_profit) || 0,
-      closed_at_price: d.closed_at_price ? parseFloat(d.closed_at_price) : null,
-      precision: parseInt(d.precision, 10) || 2,
-    }));
+    const parsedDeals = rawDeals.map((d: any) => {
+      const ep = parseFloat(d.entry_price) || 0;
+
+      let calculatedPrecision = 2;
+      if (d.coin_decimals !== null && d.coin_decimals !== undefined) {
+        calculatedPrecision = parseInt(d.coin_decimals, 10);
+      } else if (ep > 0) {
+        const epStr = d.entry_price || "";
+        const dotIdx = epStr.indexOf(".");
+        if (dotIdx !== -1) {
+          const cleanFraction = epStr.slice(dotIdx + 1).replace(/0+\$/, "");
+          calculatedPrecision = Math.max(2, Math.min(8, cleanFraction.length));
+        }
+      }
+
+      return {
+        ...d,
+        entry_price: ep,
+        stop_loss: parseFloat(d.stop_loss) || 0,
+        take_profit: parseFloat(d.take_profit) || 0,
+        closed_at_price: d.closed_at_price
+          ? parseFloat(d.closed_at_price)
+          : null,
+        precision: calculatedPrecision,
+      };
+    });
 
     let activeOpenDeal = null;
     let lastManualClosedDeal = null;
@@ -184,6 +203,7 @@ RETURNING *;
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
 export async function PATCH(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {

@@ -44,7 +44,6 @@ export default function AdminDbPage() {
       "Content-Type": "application/json",
     };
   };
-
   const loadTableData = async (tableName: "deals" | "coins") => {
     setIsLoading(true);
     try {
@@ -85,11 +84,14 @@ export default function AdminDbPage() {
   }, [activeTable, isMounted]);
 
   const handleTableChange = (tableName: "deals" | "coins") => {
+    if (tableName === activeTable) return; // ЗАЩИТА ОТ ПОВТОРНОГО НАЖАТИЯ НА АКТИВНЫЙ ТАБ
+    setRows([]);
     setActiveTable(tableName);
     if (typeof window !== "undefined") {
       localStorage.setItem(STORAGE_KEY_TABLE, tableName);
     }
   };
+
   const handleSyncBybit = async () => {
     if (isSyncing) return;
     setIsSyncing(true);
@@ -240,7 +242,6 @@ export default function AdminDbPage() {
 
     return { liqRows, midRows, riskRows, delisRows, allRows, filtered };
   };
-
   if (!isMounted) {
     return (
       <div className="w-full h-screen flex items-center justify-center">
@@ -391,7 +392,21 @@ export default function AdminDbPage() {
             )}
           >
             <div className="relative w-full md:w-64 flex items-center group shrink-0">
-              <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground/60" />
+              <span className="absolute left-2.5 flex items-center h-full pointer-events-none">
+                <svg
+                  className="size-3.5 text-muted-foreground/60"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+              </span>
               <Input
                 type="text"
                 placeholder="Поиск пары..."
@@ -460,7 +475,12 @@ export default function AdminDbPage() {
       </div>
 
       <Card className="border border-border/40 bg-background mt-1">
-        {displayedRows.length === 0 ? (
+        {rows.length === 0 && isLoading ? (
+          <div className="p-16 flex flex-col gap-2 items-center justify-center text-muted-foreground">
+            <Spinner className="text-violet-500" />
+            <span className="text-xs font-medium">Загрузка структуры...</span>
+          </div>
+        ) : displayedRows.length === 0 ? (
           <div className="p-12 text-center text-xs text-muted-foreground">
             Нет данных.
           </div>
