@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RotateCcw } from "lucide-react";
+import { Label } from "@/components/ui/label";
 
 interface BalanceRiskFormProps {
   balance: number;
@@ -130,10 +131,14 @@ export default function BalanceRiskForm({
       <div className="grid grid-cols-3 gap-2 sm:gap-3 items-start">
         {/* ДЕПОЗИТ */}
         <div className="space-y-1">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block select-none">
+          <Label
+            htmlFor="deposit"
+            className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block select-none"
+          >
             Депозит
-          </label>
+          </Label>
           <Input
+            id="deposit"
             ref={balanceRef}
             type="number"
             min="0"
@@ -152,10 +157,14 @@ export default function BalanceRiskForm({
 
         {/* РИСК НА СДЕЛКУ */}
         <div className="space-y-1">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block select-none">
+          <Label
+            htmlFor="risk-percent"
+            className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block select-none"
+          >
             Риск (%)
-          </label>
+          </Label>
           <Input
+            id="risk-percent"
             ref={riskRef}
             type="number"
             step="0.1"
@@ -178,11 +187,15 @@ export default function BalanceRiskForm({
 
         {/* КРЕДИТНОЕ ПЛЕЧО */}
         <div className="space-y-1">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block select-none">
+          <Label
+            htmlFor="leverage"
+            className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block select-none"
+          >
             Плечо
-          </label>
+          </Label>
           <div className="relative flex items-center w-full">
             <Input
+              id="leverage"
               ref={leverageRef}
               type="number"
               min="1"
@@ -216,9 +229,12 @@ export default function BalanceRiskForm({
 
       {/* РАСПРЕДЕЛЕНИЕ ДЕПОЗИТА */}
       <div className="space-y-1.5 pt-1">
-        <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block select-none">
+        <Label
+          htmlFor="parts-count"
+          className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block select-none"
+        >
           Распределение депозита
-        </label>
+        </Label>
         <Tabs
           value={String(partsCount)}
           onValueChange={(val) => setPartsCount(Number(val) || 1)}
@@ -227,6 +243,7 @@ export default function BalanceRiskForm({
           <TabsList className="w-full h-9.5 sm:h-9 grid grid-cols-5 p-0.5 bg-muted/40 dark:bg-muted/10 border border-border/40 rounded-xl shadow-inner">
             {partsPresets.map((preset) => (
               <TabsTrigger
+                id="parts-count"
                 key={`preset-${preset}`}
                 value={String(preset)}
                 className="text-xs font-normal tracking-wider rounded-lg transition-all cursor-pointer select-none py-1 text-muted-foreground hover:bg-muted/60 dark:hover:bg-white/5 hover:text-foreground data-active:bg-amber-500 data-active:text-white data-active:font-black data-active:shadow-md data-active:scale-[1.01]"
