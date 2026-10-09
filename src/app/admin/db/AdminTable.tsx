@@ -67,6 +67,17 @@ function LogoSlugCell({
       });
       if (res.ok) {
         setIsSuccess(true);
+
+        window.dispatchEvent(
+          new CustomEvent("refresh-calculator-coins", {
+            detail: {
+              coin: coin,
+              is_favorite: false,
+              logo_slug: val.trim(),
+            },
+          }),
+        );
+
         toast.add({
           title: "Слаг сохранен",
           description: `Для ${coin} задан слаг ${val}`,

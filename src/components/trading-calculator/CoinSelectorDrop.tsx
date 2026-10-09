@@ -44,9 +44,8 @@ export function CoinSelectorDrop({
   scrollCls,
 }: DropProps) {
   const hasFavs = favoriteCoins.length > 0;
-
   return (
-    <SelectContent className={popupCls}>
+    <SelectContent className={popupCls} alignItemWithTrigger={false}>
       <div className={searchBoxCls}>
         {isSearching ? (
           <Spinner className="text-amber-500" />

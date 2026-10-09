@@ -168,29 +168,30 @@ export default function TradingCalculator({
         const data = await res.json();
         let fetchedCoins: DBAssetCoin[] = data.coins || [];
 
+        let eventCoin: string | null = null;
+        let eventFav: boolean | null = null;
+        let eventSlug: string | null = null;
+
         if (event && (event as CustomEvent).detail) {
-          const { coin, is_favorite, logo_slug } = (event as CustomEvent)
-            .detail;
-          const exists = fetchedCoins.some((c) => c.coin === coin);
+          const detail = (event as CustomEvent).detail;
+          eventCoin = detail.coin || null;
+          eventFav =
+            detail.is_favorite !== undefined ? detail.is_favorite : null;
+          eventSlug = detail.logo_slug || null;
+        }
+
+        if (eventCoin) {
+          const exists = fetchedCoins.some((c) => c.coin === eventCoin);
           if (exists) {
             fetchedCoins = fetchedCoins.map((c) =>
-              c.coin === coin
+              c.coin === eventCoin
                 ? {
                     ...c,
-                    is_favorite,
-                    logo_slug: logo_slug || c.logo_slug,
+                    is_favorite: eventFav !== null ? eventFav : c.is_favorite,
+                    logo_slug: eventSlug !== null ? eventSlug : c.logo_slug,
                   }
                 : c,
             );
-          } else {
-            fetchedCoins.push({
-              coin,
-              decimals: 4,
-              is_favorite,
-              is_active: true,
-              is_delisted: false,
-              logo_slug,
-            });
           }
         }
 
@@ -199,15 +200,25 @@ export default function TradingCalculator({
             (c) => c.coin === selectedCoin,
           );
           const merged = [...fetchedCoins];
+
           if (!currentCoinInFetched && selectedCoin) {
             const prevMeta = prevList.find((c) => c.coin === selectedCoin);
+            let finalSlug = prevMeta?.logo_slug;
+
+            if (eventCoin === selectedCoin && eventSlug !== null) {
+              finalSlug = eventSlug;
+            }
+
             merged.push({
               coin: selectedCoin,
               decimals: prevMeta?.decimals || 4,
-              is_favorite: false,
+              is_favorite:
+                eventCoin === selectedCoin && eventFav !== null
+                  ? eventFav
+                  : prevMeta?.is_favorite || false,
               is_active: true,
               is_delisted: false,
-              logo_slug: prevMeta?.logo_slug,
+              logo_slug: finalSlug,
             });
           }
           return merged;

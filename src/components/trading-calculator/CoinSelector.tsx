@@ -211,7 +211,7 @@ export default function CoinSelector({
           title: "Избранное",
           description: nextState
             ? "Пара добавлена в избранное."
-            : "Пара удалена из избранного.",
+            : "Пара удалена из изберраного.",
           type: nextState ? "success" : "error",
         });
       }
@@ -274,7 +274,7 @@ export default function CoinSelector({
     ? searchResults
     : availableCoinsList;
 
-  baseSourceList.forEach((asset) => {
+  baseSourceList.forEach((asset: DBAssetCoin) => {
     if (!debouncedSearch.trim() && asset.is_favorite) return;
     const firstLetter = asset.coin.charAt(0).toUpperCase();
     if (!groupedCoins[firstLetter]) {
@@ -306,7 +306,6 @@ export default function CoinSelector({
     "outline-none transition-colors hover:bg-muted/40 cursor-pointer",
     "text-muted-foreground hover:text-foreground",
   );
-
   return (
     <div className="space-y-3.5 w-full font-sans">
       <div className="space-y-1 w-full">
@@ -351,6 +350,7 @@ export default function CoinSelector({
         <div className="flex items-center gap-1.5 w-full">
           <div className="flex-1 min-w-0">
             <Select
+              key={selectedCoin}
               value={selectedCoin}
               onValueChange={(val) => {
                 if (val) {
