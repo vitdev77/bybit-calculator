@@ -28,6 +28,8 @@ interface TableProps {
   displayedRows: any[];
   getRowStyles: (row: any) => string;
   isNumericColumn: (col: string) => boolean;
+  topGainers?: string[];
+  topLosers?: string[];
 }
 
 function LogoSlugCell({
@@ -159,6 +161,8 @@ export function AdminTable({
   displayedRows,
   getRowStyles,
   isNumericColumn,
+  topGainers = [],
+  topLosers = [],
 }: TableProps) {
   const formatValue = (val: any, col: string, decimals: number = 2) => {
     if (val === null || val === undefined) return "--";
@@ -192,11 +196,26 @@ export function AdminTable({
   const renderCustomCell = (row: any, col: string) => {
     const c = col.toLowerCase();
     const val = row[col];
-
     const currentPrecision = row.precision !== undefined ? row.precision : 2;
 
     if (c === "coin") {
-      return <span className="font-bold text-foreground font-mono">{val}</span>;
+      const isGainer = topGainers.includes(row.coin);
+      const isLoser = topLosers.includes(row.coin);
+      return (
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-foreground font-mono">{val}</span>
+          {activeTable === "coins" && isGainer && (
+            <span className="px-1 py-0.5 rounded text-[8px] font-black bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 tracking-wider">
+              GAINER
+            </span>
+          )}
+          {activeTable === "coins" && isLoser && (
+            <span className="px-1 py-0.5 rounded text-[8px] font-black bg-rose-500/10 text-rose-500 border border-rose-500/20 tracking-wider">
+              LOSER
+            </span>
+          )}
+        </div>
+      );
     }
 
     if (c === "logo_slug" && activeTable === "coins") {

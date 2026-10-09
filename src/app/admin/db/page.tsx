@@ -76,6 +76,7 @@ export default function AdminDbPage() {
       setIsMounted(true);
     }
   }, []);
+
   useEffect(() => {
     if (!isMounted) return;
     loadTableData(activeTable);
@@ -164,7 +165,6 @@ export default function AdminDbPage() {
       "precision",
     ].includes(c);
   };
-
   const getDealsMetrics = () => {
     let totalPnl = 0,
       totalMargin = 0,
@@ -208,6 +208,17 @@ export default function AdminDbPage() {
     const delisRows: any[] = [];
     const allRows: any[] = [];
 
+    const validTickers = Object.entries(tickerRegistry)
+      .map(([coin, t]: [string, any]) => ({ coin, p: t.price24hPcnt || 0 }))
+      .filter((item) => !isNaN(item.p));
+
+    const sortedTickers = [...validTickers].sort((a, b) => b.p - a.p);
+    const topGainers = sortedTickers.slice(0, 3).map((i) => i.coin);
+    const topLosers = sortedTickers
+      .slice(-3)
+      .reverse()
+      .map((i) => i.coin);
+
     rows.forEach((row) => {
       const isMatch = row.coin
         ?.toLowerCase()
@@ -236,8 +247,18 @@ export default function AdminDbPage() {
     else if (filterType === "MID") filtered = midRows;
     else if (filterType === "RISK") filtered = riskRows;
     else if (filterType === "DELIS") filtered = delisRows;
-    return { liqRows, midRows, riskRows, delisRows, allRows, filtered };
+    return {
+      liqRows,
+      midRows,
+      riskRows,
+      delisRows,
+      allRows,
+      filtered,
+      topGainers,
+      topLosers,
+    };
   };
+
   if (!isMounted) {
     return (
       <div className="w-full h-screen flex items-center justify-center">
@@ -254,6 +275,8 @@ export default function AdminDbPage() {
     delisRows,
     allRows,
     filtered: displayedRows,
+    topGainers,
+    topLosers,
   } = processCoinsDistribution();
 
   const dealsHeaders = [
@@ -285,7 +308,6 @@ export default function AdminDbPage() {
   ];
 
   const activeHeaders = activeTable === "deals" ? dealsHeaders : coinsHeaders;
-
   return (
     <div className="w-full max-w-5xl mx-auto p-2.5 sm:p-6 space-y-4 font-sans">
       <AdminHeader
@@ -310,7 +332,24 @@ export default function AdminDbPage() {
           )}
         >
           <div className="flex items-center gap-2">
-            <Wrench className="size-4 text-violet-400 shrink-0" />
+            <svg
+              className="size-4 text-violet-400 shrink-0"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+            </svg>
             <span className="text-[11px] font-bold text-muted-foreground">
               Управление:
             </span>
@@ -439,9 +478,9 @@ export default function AdminDbPage() {
             </div>
             <div
               className={cn(
-                "grid grid-cols-5 gap-1 w-full bg-background border border-input",
+                "flex flex-wrap gap-1 w-full bg-background border border-input",
                 "p-0.5 rounded-lg overflow-hidden flex-1",
-                "*:h-7 *:text-[10px] *:font-black *:rounded-md *:flex-1 *:w-full",
+                "*:h-7 *:text-[10px] *:font-black *:rounded-md *:flex-1 *:min-w-16.25 *:w-full",
               )}
             >
               <Button
@@ -510,6 +549,8 @@ export default function AdminDbPage() {
             displayedRows={displayedRows}
             getRowStyles={getRowStyles}
             isNumericColumn={isNumericColumn}
+            topGainers={topGainers}
+            topLosers={topLosers}
           />
         )}
       </Card>

@@ -605,6 +605,7 @@ export default function TradingCalculator({
           handleToggleActive={() => {}}
           handleSetActiveStatus={async () => {}}
           onCoinSelect={setSelectedCoin}
+          selectedCoin={selectedCoin}
         />
       </div>
     </div>

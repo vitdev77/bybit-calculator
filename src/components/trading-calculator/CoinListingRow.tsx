@@ -14,6 +14,7 @@ interface RowProps {
   favLoading: boolean;
   onSelect: (coin: string, del: boolean) => void;
   onToggleFav: (e: React.MouseEvent, coin: string, fav: boolean) => void;
+  isActiveCoin: boolean;
 }
 
 export function CoinListingRow({
@@ -23,6 +24,7 @@ export function CoinListingRow({
   favLoading,
   onSelect,
   onToggleFav,
+  isActiveCoin,
 }: RowProps) {
   const isUp = liveStats.price24hPcnt > 0;
 
@@ -69,14 +71,22 @@ export function CoinListingRow({
     );
   };
 
+  const getContainerStyle = () => {
+    if (item.is_delisted) {
+      return "border-rose-500/10 opacity-56 bg-rose-500/2 cursor-not-allowed";
+    }
+    if (isActiveCoin) {
+      return "border-amber-500/80 bg-amber-500/5 shadow-md shadow-amber-500/5 cursor-pointer";
+    }
+    return "border-border/30 cursor-pointer hover:bg-muted/30 hover:border-amber-500/30";
+  };
+
   return (
     <div
       onClick={() => onSelect(item.coin, item.is_delisted)}
       className={cn(
-        "grid grid-cols-12 p-2 gap-2 items-center rounded-xl border transition-all",
-        item.is_delisted
-          ? "border-rose-500/10 opacity-56 bg-rose-500/2 cursor-not-allowed"
-          : "border-border/30 cursor-pointer hover:bg-muted/30 hover:border-amber-500/30",
+        "grid grid-cols-12 p-2 gap-2 items-center rounded-xl border transition-all relative",
+        getContainerStyle(),
       )}
     >
       <div className="col-span-8 flex items-center gap-1.5 min-w-0 pr-2">
@@ -107,7 +117,12 @@ export function CoinListingRow({
             {isMid && renderBadge("MID")}
             {isRisk && renderBadge("RISK")}
           </div>
-          <span className="font-bold text-xs text-foreground truncate pl-0.5">
+          <span
+            className={cn(
+              "font-bold text-xs truncate pl-0.5",
+              isActiveCoin ? "text-amber-500 font-black" : "text-foreground",
+            )}
+          >
             {item.coin}
           </span>
         </div>

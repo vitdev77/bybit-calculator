@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   X,
   Search,
@@ -37,6 +37,7 @@ interface ListingManagerModalProps {
     currentStatus: boolean,
   ) => Promise<void>;
   onCoinSelect?: (coin: string) => void;
+  selectedCoin: string;
 }
 
 export default function ListingManagerModal({
@@ -44,6 +45,7 @@ export default function ListingManagerModal({
   setIsModalOpen,
   setAvailableCoinsList,
   onCoinSelect,
+  selectedCoin,
 }: ListingManagerModalProps) {
   const [modalSearch, setModalSearch] = useState("");
   const [filterType, setFilterType] = useState<
@@ -83,7 +85,6 @@ export default function ListingManagerModal({
     setVisibleCount(50);
     if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
   }, [modalSearch, filterType]);
-
   const handleSelectCoinRow = (coinName: string, isDelisted: boolean) => {
     if (isDelisted) return;
     if (onCoinSelect) {
@@ -137,6 +138,7 @@ export default function ListingManagerModal({
     }
     setFavLoadingMap((prev) => ({ ...prev, [coinName]: false }));
   };
+
   const processDistribution = () => {
     const liqRows: DBAssetCoin[] = [];
     const midRows: DBAssetCoin[] = [];
@@ -204,7 +206,6 @@ export default function ListingManagerModal({
       }
     }
   };
-
   return (
     <AlertDialog open={isModalOpen} onOpenChange={setIsModalOpen}>
       <AlertDialogContent
@@ -349,6 +350,7 @@ export default function ListingManagerModal({
                 favLoading={!!favLoadingMap[item.coin]}
                 onSelect={handleSelectCoinRow}
                 onToggleFav={handleToggleFav}
+                isActiveCoin={item.coin === selectedCoin}
               />
             ))
           )}
