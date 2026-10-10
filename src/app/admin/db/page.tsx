@@ -25,6 +25,12 @@ import { AdminTable } from "./AdminTable";
 
 const STORAGE_KEY_TABLE = "bybit_calc_admin_table_v1";
 
+interface SyncMeta {
+  timestamp: number;
+  totalCoins: number;
+  liveCount: number;
+}
+
 export default function AdminDbPage() {
   const [activeTable, setActiveTable] = useState<"deals" | "coins">("deals");
   const [filterType, setFilterType] = useState<string>("ALL");
@@ -32,6 +38,7 @@ export default function AdminDbPage() {
   const [rows, setRows] = useState<any[]>([]);
   const [tickerRegistry, setTickerRegistry] = useState<Record<string, any>>({});
   const [stats, setStats] = useState<any>({ count: 0 });
+  const [syncMeta, setSyncMeta] = useState<SyncMeta | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isClearOpen, setIsClearOpen] = useState(false);
@@ -58,6 +65,9 @@ export default function AdminDbPage() {
         setStats(data.stats || { count: 0 });
         if (data.tickerRegistry) {
           setTickerRegistry(data.tickerRegistry);
+        }
+        if (data.syncMeta) {
+          setSyncMeta(data.syncMeta);
         }
       }
     } catch (err: any) {
@@ -289,7 +299,6 @@ export default function AdminDbPage() {
       topLosers,
     };
   };
-
   if (!isMounted) {
     return (
       <div className="w-full h-screen flex items-center justify-center">
@@ -351,6 +360,7 @@ export default function AdminDbPage() {
         delistedCount={rows.filter((r) => r.is_delisted).length}
         activeCount={rows.length - rows.filter((r) => r.is_delisted).length}
       />
+
       <div className="flex flex-col gap-2 p-3 bg-muted/30 border border-border/40 rounded-xl">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 w-full">
           <div className="flex items-center gap-2">
@@ -431,6 +441,25 @@ export default function AdminDbPage() {
             </AlertDialog>
           </ButtonGroup>
         </div>
+
+        {activeTable === "coins" && syncMeta && (
+          <div className="text-[10px] font-semibold text-muted-foreground/60 leading-none px-0.5 mt-1">
+            Листинг Bybit актуален. Синхронизировано:{" "}
+            <span className="text-foreground/80 font-bold">
+              {new Date(syncMeta.timestamp).toLocaleString("ru-RU")}
+            </span>{" "}
+            | Всего:{" "}
+            <span className="text-foreground/80 font-bold">
+              {syncMeta.totalCoins}
+            </span>{" "}
+            пар (Активных:{" "}
+            <span className="text-emerald-500 font-bold">
+              {syncMeta.liveCount}
+            </span>
+            )
+          </div>
+        )}
+
         {activeTable === "coins" && (
           <div className="w-full pt-1.5 border-t border-border/10 flex flex-col md:flex-row md:items-center justify-between gap-3">
             <div className="relative w-full md:w-48 flex items-center group shrink-0">
@@ -517,7 +546,8 @@ export default function AdminDbPage() {
           </div>
         )}
       </div>
-      <Card className="border border-border/40 bg-background mt-1 py-0!">
+
+      <Card className="border border-border/40 bg-background mt-1">
         {rows.length === 0 && isLoading ? (
           <div className="p-16 flex flex-col gap-2 items-center justify-center text-muted-foreground">
             <Spinner className="text-violet-500" />

@@ -47,6 +47,12 @@ ALTER TABLE coins
 ADD COLUMN IF NOT EXISTS listed_at 
 TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
 `;
+    await sql`
+CREATE TABLE IF NOT EXISTS sys_settings (
+key VARCHAR(100) PRIMARY KEY,
+value JSONB NOT NULL
+);
+`;
     isCoinsVerified = true;
   } catch (err) {
     console.error("Admin DB Coins Migration Error:", err);
@@ -72,10 +78,23 @@ export async function GET(request: Request) {
 
     let rows = [];
     let stats: any = { count: 0 };
+    let syncMeta: any = null;
+
     const registryMap: Record<
       string,
       { price24hPcnt: number; turnover24h: number }
     > = {};
+
+    try {
+      const metaRes = await sql`
+SELECT value FROM sys_settings WHERE key = 'last_sync_meta' LIMIT 1;
+`;
+      if (metaRes && metaRes.length > 0) {
+        syncMeta = metaRes[0].value;
+      }
+    } catch (e) {
+      console.warn("⚠️ Cannot read sync meta settings:", e);
+    }
 
     if (table === "coins") {
       rows = await sql`
@@ -156,6 +175,7 @@ SELECT COUNT(*) as count FROM deals;
       stats,
       data: rows,
       tickerRegistry: registryMap,
+      syncMeta,
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

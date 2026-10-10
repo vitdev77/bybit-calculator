@@ -146,6 +146,18 @@ is_delisted = TRUE, fullname = ${officialName},
 logo_slug = COALESCE(coins.logo_slug, ${defaultSlug});
 `;
     }
+
+    await sql`
+INSERT INTO sys_settings (key, value)
+VALUES ('last_sync_meta', ${JSON.stringify({
+      timestamp: Date.now(),
+      totalCoins: totalCoinsFound,
+      liveCount: livePairs.length,
+    })})
+ON CONFLICT (key) DO UPDATE SET 
+value = EXCLUDED.value;
+`;
+
     return true;
   }
   return false;
@@ -186,12 +198,17 @@ ALTER TABLE coins
 ADD COLUMN IF NOT EXISTS listed_at 
 TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
 `;
+    await sql`
+CREATE TABLE IF NOT EXISTS sys_settings (
+key VARCHAR(100) PRIMARY KEY,
+value JSONB NOT NULL
+);
+`;
     isCoinsVerified = true;
   } catch (err) {
     console.error("Database Migration Error:", err);
   }
 }
-
 export async function GET(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
