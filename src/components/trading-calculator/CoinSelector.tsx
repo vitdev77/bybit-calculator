@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
-import { Star, Settings } from "lucide-react";
+import { Star, Settings, ClipboardPaste } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { OrderType } from "./TradingCalculator";
@@ -40,6 +40,8 @@ interface SelectorProps {
   tickerRegistry?: Record<string, any>;
   setIsModalOpen?: (v: boolean) => void;
   liveTickerData?: TickerData | null;
+  setSide?: (v: "BUY" | "SELL") => void;
+  setEntryPrice?: (v: number) => void;
 }
 
 interface GroupedCoins {
@@ -66,7 +68,6 @@ function CoinIcon({
   liveSlug?: string;
 }) {
   const [isLoadFailed, setIsLoadFailed] = useState(false);
-
   const dbSlug = liveSlug || logoSlug || "";
   const fallbackTicker = symbol.replace("USDT", "");
 
@@ -95,8 +96,7 @@ function CoinIcon({
       <div
         className={cn(
           "size-4 rounded-full flex items-center text-white",
-          "justify-center font-black text-[8px] uppercase shrink-0",
-          "select-none",
+          "justify-center font-black text-[8px] uppercase shrink-0 select-none",
         )}
         style={{ backgroundImage: getCoinGradient(displaySeed) }}
       >
@@ -123,6 +123,8 @@ export default function CoinSelector({
   availableCoinsList = [],
   setIsModalOpen,
   liveTickerData,
+  setSide,
+  setEntryPrice,
 }: SelectorProps) {
   const [isStarToggling, setIsStarToggling] = useState(false);
   const [inpValue, setInpValue] = useState("");
@@ -174,6 +176,68 @@ export default function CoinSelector({
       .finally(() => setSearchResultsLoading(false));
   }, [debouncedSearch]);
 
+  const handleImportFromClipboard = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text) {
+        toast.add({
+          title: "Буфер пуст",
+          description: "Скопируйте строку позиции из Bybit.",
+          type: "warning",
+        });
+        return;
+      }
+
+      const coinRegex = /([A-Z0-9]+USDT)/i;
+      const coinMatch = text.match(coinRegex);
+      if (!coinMatch || !coinMatch[0]) {
+        toast.add({
+          title: "Ошибка импорта",
+          description: "Не найден тикер пары (например, BTCUSDT).",
+          type: "error",
+        });
+        return;
+      }
+      const detectedCoin = coinMatch[0].toUpperCase();
+
+      const isLong = /LONG|BUY/i.test(text);
+      const isShort = /SHORT|SELL/i.test(text);
+
+      const entryRegex = /Entry\s*Price:\s*([0-9.,]+)/i;
+      const entryMatch = text.match(entryRegex);
+      let detectedPrice = 0;
+      if (entryMatch && entryMatch[1]) {
+        detectedPrice = parseFloat(entryMatch[1].replace(/,/g, ""));
+      }
+
+      onCoinChange(detectedCoin);
+      if (setSide) {
+        if (isLong) setSide("BUY");
+        if (isShort) setSide("SELL");
+      }
+      if (setEntryPrice && detectedPrice > 0) {
+        setEntryPrice(detectedPrice);
+      }
+
+      const descText =
+        "Пара: " +
+        detectedCoin +
+        (detectedPrice > 0 ? ", Вход: " + detectedPrice : "");
+
+      toast.add({
+        title: "Позиция импортирована",
+        description: descText,
+        type: "success",
+      });
+    } catch (err) {
+      toast.add({
+        title: "Нет доступа",
+        description: "Предоставьте доступ к буферу обмена.",
+        type: "error",
+      });
+    }
+  };
+
   const handleToggleFavClick = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -211,7 +275,7 @@ export default function CoinSelector({
           title: "Избранное",
           description: nextState
             ? "Пара добавлена в избранное."
-            : "Пара удалена из изберраного.",
+            : "Пара удалена из избранного.",
           type: nextState ? "success" : "error",
         });
       }
@@ -308,34 +372,46 @@ export default function CoinSelector({
   );
   return (
     <div className="space-y-3.5 w-full font-sans">
-      <div className="space-y-1 w-full">
-        <Label className={lblCls}>Тип ордера</Label>
-        <ButtonGroup className="w-full flex h-9.5">
-          <Button
-            type="button"
-            variant={orderType === "MARKET" ? "default" : "outline"}
-            className={cn(
-              "flex-1 h-full px-1 font-semibold text-[11px] sm:text-xs",
-              "shadow-none border border-input",
-              orderType === "MARKET" ? "font-bold" : "",
-            )}
-            onClick={() => setOrderType("MARKET")}
-          >
-            Рыночный
-          </Button>
-          <Button
-            type="button"
-            variant={orderType === "LIMIT" ? "default" : "outline"}
-            className={cn(
-              "flex-1 h-full px-1 font-semibold text-[11px] sm:text-xs",
-              "shadow-none border border-input",
-              orderType === "LIMIT" ? "font-bold" : "",
-            )}
-            onClick={() => setOrderType("LIMIT")}
-          >
-            Лимитный
-          </Button>
-        </ButtonGroup>
+      <div className="flex items-end justify-between gap-2">
+        <div className="space-y-1 flex-1">
+          <Label className={lblCls}>Тип ордера</Label>
+          <ButtonGroup className="w-full flex h-9.5">
+            <Button
+              type="button"
+              variant={orderType === "MARKET" ? "default" : "outline"}
+              className={cn(
+                "flex-1 h-full px-1 font-semibold text-[11px] sm:text-xs",
+                "shadow-none border border-input",
+                orderType === "MARKET" ? "font-bold" : "",
+              )}
+              onClick={() => setOrderType("MARKET")}
+            >
+              Рыночный
+            </Button>
+            <Button
+              type="button"
+              variant={orderType === "LIMIT" ? "default" : "outline"}
+              className={cn(
+                "flex-1 h-full px-1 font-semibold text-[11px] sm:text-xs",
+                "shadow-none border border-input",
+                orderType === "LIMIT" ? "font-bold" : "",
+              )}
+              onClick={() => setOrderType("LIMIT")}
+            >
+              Лимитный
+            </Button>
+          </ButtonGroup>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleImportFromClipboard}
+          className="h-9.5 text-[10px] font-black uppercase tracking-wider rounded-xl border-dashed border-input flex items-center gap-1 bg-muted/10 hover:bg-muted/30"
+          title="Импортировать открытую позицию из Bybit"
+        >
+          <ClipboardPaste className="size-3.5 shrink-0" />
+          Импорт
+        </Button>
       </div>
       <div className="space-y-1 w-full min-w-0">
         <Label

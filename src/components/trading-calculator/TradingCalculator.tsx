@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import CoinSelector from "./CoinSelector";
 import BalanceRiskForm from "./BalanceRiskForm";
@@ -71,6 +71,7 @@ function useTabTicker(
     document.title = "Bybit Futures Calculator";
   }, [coin]);
 }
+
 interface CalculatorProps {
   selectedCoin: string;
   setSelectedCoin: (coin: string) => void;
@@ -153,7 +154,6 @@ export default function TradingCalculator({
   });
 
   useTabTicker(tickerData?.lastPrice, selectedCoin, currentDecimals);
-
   const prevCoinRef = useRef(selectedCoin);
   const entryPriceRef = useRef(entryPrice);
 
@@ -239,6 +239,7 @@ export default function TradingCalculator({
     const handleRefresh = (e: Event) => {
       loadDatabaseCoins(e);
     };
+    window.dispatchEvent(new CustomEvent("refresh-calculator-coins"));
     window.addEventListener("refresh-calculator-coins", handleRefresh);
     return () => {
       window.removeEventListener("refresh-calculator-coins", handleRefresh);
@@ -409,6 +410,7 @@ export default function TradingCalculator({
       clearInterval(interval);
     };
   }, [selectedCoin, isLoaded, fetchLiveTicker]);
+
   useEffect(() => {
     if (isLoaded && typeof window !== "undefined") {
       const state = {
@@ -513,7 +515,6 @@ export default function TradingCalculator({
     maxSafeLeverage,
     partsCount,
   ]);
-
   const cardCls = cn(
     "shadow-sm border flex flex-col border-border/40",
     "bg-background rounded-xl sm:rounded-2xl",
@@ -561,6 +562,8 @@ export default function TradingCalculator({
                 tickerRegistry={tickerRegistry}
                 setIsModalOpen={setIsModalOpen}
                 liveTickerData={tickerData}
+                setSide={setSide}
+                setEntryPrice={setEntryPrice}
               />
               <BalanceRiskForm
                 balance={balance}
