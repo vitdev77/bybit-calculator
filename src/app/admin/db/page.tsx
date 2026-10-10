@@ -76,7 +76,6 @@ export default function AdminDbPage() {
       setIsLoading(false);
     }
   };
-
   useEffect(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem(STORAGE_KEY_TABLE);
@@ -101,6 +100,15 @@ export default function AdminDbPage() {
     if (typeof window !== "undefined") {
       localStorage.setItem(STORAGE_KEY_TABLE, tableName);
     }
+  };
+
+  const handleReloadTable = async () => {
+    await loadTableData(activeTable);
+    toast.add({
+      title: "Обновлено",
+      description: `Таблица ${activeTable} успешно перезагружена.`,
+      type: "success",
+    });
   };
 
   const handleSyncBybit = async () => {
@@ -151,7 +159,6 @@ export default function AdminDbPage() {
       toast.add({ title: "Ошибка", description: err.message, type: "error" });
     }
   };
-
   const getRowStyles = (row: any) => {
     if (activeTable === "coins" && row.is_delisted) {
       return "opacity-50 cursor-not-allowed";
@@ -175,6 +182,7 @@ export default function AdminDbPage() {
       "precision",
     ].includes(c);
   };
+
   const getDealsMetrics = () => {
     let totalPnl = 0,
       totalMargin = 0,
@@ -247,7 +255,6 @@ export default function AdminDbPage() {
       .slice(-3)
       .reverse()
       .map((i) => i.coin);
-
     rows.forEach((row) => {
       const isMatch = row.coin
         ?.toLowerCase()
@@ -299,6 +306,7 @@ export default function AdminDbPage() {
       topLosers,
     };
   };
+
   if (!isMounted) {
     return (
       <div className="w-full h-screen flex items-center justify-center">
@@ -345,6 +353,7 @@ export default function AdminDbPage() {
   ];
 
   const activeHeaders = activeTable === "deals" ? dealsHeaders : coinsHeaders;
+
   return (
     <div className="w-full max-w-5xl mx-auto p-2.5 sm:p-6 space-y-4 font-sans">
       <AdminHeader
@@ -361,8 +370,14 @@ export default function AdminDbPage() {
         activeCount={rows.length - rows.filter((r) => r.is_delisted).length}
       />
 
-      <div className="flex flex-col gap-2 p-3 bg-muted/30 border border-border/40 rounded-xl">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 w-full">
+      <div
+        className="flex flex-col gap-2 p-3 bg-muted/30 border border-border/40 
+rounded-xl"
+      >
+        <div
+          className="flex flex-col sm:flex-row items-start sm:items-center 
+justify-between gap-3 w-full"
+        >
           <div className="flex items-center gap-2">
             <svg
               className="size-4 text-violet-400 shrink-0"
@@ -374,7 +389,15 @@ export default function AdminDbPage() {
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 
+002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 
+001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 
+00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 
+00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 
+00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 
+00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 
+001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 
+2.572-1.065z"
               />
               <path
                 strokeLinecap="round"
@@ -382,68 +405,104 @@ export default function AdminDbPage() {
                 d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
               />
             </svg>
-            <span className="text-[11px] font-bold text-muted-foreground">
+            <div className="text-[11px] font-bold text-muted-foreground">
               Управление:
-            </span>
+            </div>
           </div>
-          <ButtonGroup className="h-8.5 rounded-lg border border-input flex flex-row items-stretch bg-background overflow-hidden *:rounded-none w-full sm:w-auto">
-            {activeTable === "coins" && (
+          <div
+            className="flex items-center gap-2 ml-auto w-full sm:w-auto 
+justify-end"
+          >
+            {activeTable === "deals" && (
               <Button
                 type="button"
-                disabled={isSyncing}
-                onClick={handleSyncBybit}
-                className="h-full text-[10px] font-black uppercase tracking-wider bg-transparent text-foreground border-r border-input px-3 flex flex-1 sm:flex-none items-center justify-center rounded-none"
+                disabled={isLoading}
+                onClick={handleReloadTable}
+                variant="outline"
+                className="h-8.5 text-[10px] font-black uppercase tracking-wider 
+rounded-lg border border-input px-3 flex items-center justify-center 
+bg-background text-foreground"
+                title="Перезагрузить таблицу журнала сделок"
               >
-                {isSyncing ? (
-                  <Spinner className="size-3" />
+                {isLoading ? (
+                  <Spinner className="size-3 animate-spin" />
                 ) : (
-                  <>
-                    <RefreshCw className="size-3 md:mr-1.5" />
-                    <span className="hidden md:inline">Синхронизация</span>
-                  </>
+                  <RefreshCw className="size-3" />
                 )}
               </Button>
             )}
-            <AlertDialog open={isClearOpen} onOpenChange={setIsClearOpen}>
-              <AlertDialogTrigger
-                render={(triggerProps) => (
-                  <Button
-                    {...triggerProps}
-                    type="button"
-                    disabled={isLoading || rows.length === 0}
-                    className="h-full text-[10px] font-black uppercase bg-rose-600 text-white border-none px-3 flex flex-1 sm:flex-none items-center justify-center rounded-none"
-                  >
-                    Очистить
-                  </Button>
-                )}
-              />
-              <AlertDialogContent className="rounded-2xl max-w-sm w-[calc(100%-1rem)]">
-                <AlertDialogHeader>
-                  <AlertDialogTitle className="text-sm">
-                    Очистить {activeTable}?
-                  </AlertDialogTitle>
-                  <AlertDialogDescription className="text-xs">
-                    Строки будут безвозвратно удалены.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter className="gap-1.5">
-                  <AlertDialogCancel className="rounded-xl text-xs h-9">
-                    Отмена
-                  </AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleTruncateTable}
-                    className="rounded-xl text-xs h-9 bg-rose-600 border-none text-white font-bold"
-                  >
-                    Стереть
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </ButtonGroup>
+
+            <ButtonGroup
+              className="h-8.5 rounded-lg border border-input flex flex-row 
+items-stretch bg-background overflow-hidden *:rounded-none w-full 
+sm:w-auto"
+            >
+              {activeTable === "coins" && (
+                <Button
+                  type="button"
+                  disabled={isSyncing}
+                  onClick={handleSyncBybit}
+                  className="h-full text-[10px] font-black uppercase tracking-wider 
+bg-transparent text-foreground border-r border-input px-3 flex 
+flex-1 sm:flex-none items-center justify-center rounded-none"
+                >
+                  {isSyncing ? (
+                    <Spinner className="size-3" />
+                  ) : (
+                    <RefreshCw className="size-3" />
+                  )}
+                </Button>
+              )}
+              <AlertDialog open={isClearOpen} onOpenChange={setIsClearOpen}>
+                <AlertDialogTrigger
+                  render={(triggerProps) => (
+                    <Button
+                      {...triggerProps}
+                      type="button"
+                      disabled={isLoading || rows.length === 0}
+                      className="h-full text-[10px] font-black uppercase bg-rose-600 
+text-white border-none px-3 flex flex-1 sm:flex-none items-center 
+justify-center rounded-none"
+                    >
+                      Очистить
+                    </Button>
+                  )}
+                />
+                <AlertDialogContent
+                  className="rounded-2xl max-w-sm 
+w-[calc(100%-1rem)]"
+                >
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="text-sm">
+                      Очистить {activeTable}?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription className="text-xs">
+                      Строки будут безвозвратно удалены.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter className="gap-1.5">
+                    <AlertDialogCancel className="rounded-xl text-xs h-9">
+                      Отмена
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleTruncateTable}
+                      className="rounded-xl text-xs h-9 bg-rose-600 border-none 
+text-white font-bold"
+                    >
+                      Стереть
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </ButtonGroup>
+          </div>
         </div>
 
         {activeTable === "coins" && syncMeta && (
-          <div className="text-[10px] font-semibold text-muted-foreground/60 leading-none px-0.5 mt-1">
+          <div
+            className="text-[10px] font-semibold text-muted-foreground/60 
+leading-none px-0.5 mt-1"
+          >
             Листинг Bybit актуален. Синхронизировано:{" "}
             <span className="text-foreground/80 font-bold">
               {new Date(syncMeta.timestamp).toLocaleString("ru-RU")}
@@ -461,40 +520,39 @@ export default function AdminDbPage() {
         )}
 
         {activeTable === "coins" && (
-          <div className="w-full pt-1.5 border-t border-border/10 flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <div className="relative w-full md:w-48 flex items-center group shrink-0">
-              <span className="absolute left-2.5 flex items-center h-full pointer-events-none">
-                <svg
-                  className="size-3.5 text-muted-foreground/60"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
-                </svg>
-              </span>
+          <div
+            className="w-full pt-1.5 border-t border-border/10 flex 
+flex-col md:flex-row md:items-center justify-between gap-3"
+          >
+            <div
+              className="relative w-full md:w-48 flex items-center group 
+shrink-0"
+            >
               <Input
                 type="text"
                 placeholder="Поиск пары..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 pr-8 h-8 text-xs bg-background/50 border-border/40 rounded-lg w-full"
+                className="pl-8 pr-8 h-8 text-xs bg-background/50 border-border/40 
+rounded-lg w-full"
               />
               {searchQuery.length > 0 && (
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-2.5 text-muted-foreground/60 hover:text-foreground bg-transparent border-none p-0 cursor-pointer"
+                  className="absolute right-2.5 text-muted-foreground/60 
+hover:text-foreground bg-transparent border-none p-0 
+cursor-pointer"
                 >
                   <X className="size-3.5" />
                 </button>
               )}
             </div>
-            <div className="flex flex-wrap gap-1 w-full bg-background border border-input p-0.5 rounded-lg overflow-hidden flex-1 *:h-7 *:text-[10px] *:font-black *:rounded-md *:flex-1 *:min-w-14 *:w-full">
+            <div
+              className="flex flex-wrap gap-1 w-full bg-background border 
+border-input p-0.5 rounded-lg overflow-hidden flex-1 *:h-7 
+*:text-[10px] *:font-black *:rounded-md *:flex-1 *:min-w-14 
+*:w-full"
+            >
               <Button
                 type="button"
                 variant={filterType === "ALL" ? "default" : "ghost"}
@@ -549,7 +607,10 @@ export default function AdminDbPage() {
 
       <Card className="border border-border/40 bg-background mt-1">
         {rows.length === 0 && isLoading ? (
-          <div className="p-16 flex flex-col gap-2 items-center justify-center text-muted-foreground">
+          <div
+            className="p-16 flex flex-col gap-2 items-center justify-center 
+text-muted-foreground"
+          >
             <Spinner className="text-violet-500" />
             <span className="text-xs font-medium">Загрузка структуры...</span>
           </div>
