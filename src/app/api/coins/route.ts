@@ -110,12 +110,12 @@ WHERE NOT (coin = ANY(${allNames}));
       await sql`
 INSERT INTO coins (
 coin, decimals, is_favorite, is_active, 
-is_delisted, fullname, logo_slug
+is_delisted, fullname, logo_slug, listed_at
 )
 VALUES (
 ${coinName}, ${decimals}, 
 ${defaultFavs.includes(coinName)}, 
-TRUE, FALSE, ${officialName}, ${defaultSlug}
+TRUE, FALSE, ${officialName}, ${defaultSlug}, NOW()
 )
 ON CONFLICT (coin) DO UPDATE SET 
 decimals = ${decimals}, is_active = TRUE, 
@@ -134,11 +134,11 @@ logo_slug = COALESCE(coins.logo_slug, ${defaultSlug});
       await sql`
 INSERT INTO coins (
 coin, decimals, is_favorite, is_active, 
-is_delisted, fullname, logo_slug
+is_delisted, fullname, logo_slug, listed_at
 )
 VALUES (
 ${coinName}, ${decimals}, FALSE, FALSE, TRUE, 
-${officialName}, ${defaultSlug}
+${officialName}, ${defaultSlug}, NOW()
 )
 ON CONFLICT (coin) DO UPDATE SET 
 decimals = ${decimals}, is_active = FALSE, 
@@ -181,11 +181,17 @@ ALTER TABLE coins
 ADD COLUMN IF NOT EXISTS logo_slug 
 VARCHAR(50);
 `;
+    await sql`
+ALTER TABLE coins 
+ADD COLUMN IF NOT EXISTS listed_at 
+TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+`;
     isCoinsVerified = true;
   } catch (err) {
     console.error("Database Migration Error:", err);
   }
 }
+
 export async function GET(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
@@ -202,7 +208,7 @@ export async function GET(request: Request) {
     if (all === "true") {
       coinsResult = await sql`
 SELECT coin, decimals, is_favorite, is_active, 
-is_delisted, fullname, logo_slug 
+is_delisted, fullname, logo_slug, listed_at 
 FROM coins 
 ORDER BY is_favorite DESC, coin ASC;
 `;
@@ -210,7 +216,7 @@ ORDER BY is_favorite DESC, coin ASC;
       const cleanSearch = "%" + search.trim().toUpperCase() + "%";
       coinsResult = await sql`
 SELECT coin, decimals, is_favorite, is_active, 
-is_delisted, fullname, logo_slug 
+is_delisted, fullname, logo_slug, listed_at 
 FROM coins 
 WHERE coin LIKE ${cleanSearch}
 ORDER BY is_favorite DESC, coin ASC 
@@ -219,7 +225,7 @@ LIMIT 30;
     } else {
       coinsResult = await sql`
 SELECT coin, decimals, is_favorite, is_active, 
-is_delisted, fullname, logo_slug 
+is_delisted, fullname, logo_slug, listed_at 
 FROM coins 
 WHERE is_favorite = TRUE
 ORDER BY coin ASC;
@@ -243,11 +249,11 @@ ORDER BY coin ASC;
         await sql`
 INSERT INTO coins (
 coin, decimals, is_favorite, is_active, 
-is_delisted, fullname, logo_slug
+is_delisted, fullname, logo_slug, listed_at
 )
 VALUES (
 ${item.coin}, ${dDec}, ${isFav}, TRUE, FALSE, 
-${fName}, ${dSlug}
+${fName}, ${dSlug}, NOW()
 )
 ON CONFLICT (coin) DO UPDATE SET 
 decimals = ${dDec}, fullname = ${fName},
@@ -256,7 +262,7 @@ logo_slug = COALESCE(coins.logo_slug, ${dSlug});
       }
       coinsResult = await sql`
 SELECT coin, decimals, is_favorite, is_active, 
-is_delisted, fullname, logo_slug 
+is_delisted, fullname, logo_slug, listed_at 
 FROM coins 
 WHERE is_favorite = TRUE
 ORDER BY coin ASC;
@@ -300,6 +306,7 @@ ORDER BY coin ASC;
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
 export async function PATCH(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {

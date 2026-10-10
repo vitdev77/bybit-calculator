@@ -172,6 +172,7 @@ export default function AdminDbPage() {
     let profitCount = 0,
       lossCount = 0;
     rows.forEach((r) => {
+      if (activeTable !== "deals") return;
       const feeRate = 0.0013;
       const entry = parseFloat(r.entry_price) || 0;
       const vol = parseFloat(r.volume) || 0;
@@ -201,11 +202,29 @@ export default function AdminDbPage() {
     };
   };
 
-  const processCoinsDistribution = () => {
+  const processAdminTableDistribution = () => {
+    if (activeTable === "deals") {
+      const filteredDeals = rows.filter((row) =>
+        row.coin?.toLowerCase().includes(searchQuery.toLowerCase()),
+      );
+      return {
+        liqRows: [],
+        midRows: [],
+        riskRows: [],
+        delisRows: [],
+        newRows: [],
+        allRows: rows,
+        filtered: filteredDeals,
+        topGainers: [],
+        topLosers: [],
+      };
+    }
+
     const liqRows: any[] = [];
     const midRows: any[] = [];
     const riskRows: any[] = [];
     const delisRows: any[] = [];
+    const newRows: any[] = [];
     const allRows: any[] = [];
 
     const validTickers = Object.entries(tickerRegistry)
@@ -229,6 +248,15 @@ export default function AdminDbPage() {
         delisRows.push(row);
         return;
       }
+
+      if (row.listed_at) {
+        const created = new Date(row.listed_at).getTime();
+        const oneDayAgo = Date.now() - 1 * 24 * 60 * 60 * 1000;
+        if (created >= oneDayAgo) {
+          newRows.push(row);
+        }
+      }
+
       const live = tickerRegistry[row.coin] || { turnover24h: 0 };
       const isMem =
         row.coin?.includes("DOGE") ||
@@ -247,11 +275,14 @@ export default function AdminDbPage() {
     else if (filterType === "MID") filtered = midRows;
     else if (filterType === "RISK") filtered = riskRows;
     else if (filterType === "DELIS") filtered = delisRows;
+    else if (filterType === "NEW") filtered = newRows;
+
     return {
       liqRows,
       midRows,
       riskRows,
       delisRows,
+      newRows,
       allRows,
       filtered,
       topGainers,
@@ -273,24 +304,21 @@ export default function AdminDbPage() {
     midRows,
     riskRows,
     delisRows,
+    newRows,
     allRows,
     filtered: displayedRows,
     topGainers,
     topLosers,
-  } = processCoinsDistribution();
+  } = processAdminTableDistribution();
 
   const dealsHeaders = [
     "id",
     "created_at",
     "coin",
-    "side",
     "order_type",
-    "entry_price",
-    "stop_loss",
-    "take_profit",
     "volume",
-    "margin",
-    "leverage",
+    "entry_price",
+    "tp_sl",
     "status",
     "closed_at_price",
     "tp_touched",
@@ -304,7 +332,7 @@ export default function AdminDbPage() {
     "is_favorite",
     "is_active",
     "is_delisted",
-    "fullname",
+    "listed_at",
   ];
 
   const activeHeaders = activeTable === "deals" ? dealsHeaders : coinsHeaders;
@@ -320,17 +348,11 @@ export default function AdminDbPage() {
         totalRowsCount={stats.count}
         dm={dm}
         favCount={rows.filter((r) => r.is_favorite).length}
-        delistedCount={delisRows.length}
-        activeCount={rows.length - delisRows.length}
+        delistedCount={rows.filter((r) => r.is_delisted).length}
+        activeCount={rows.length - rows.filter((r) => r.is_delisted).length}
       />
-
       <div className="flex flex-col gap-2 p-3 bg-muted/30 border border-border/40 rounded-xl">
-        <div
-          className={cn(
-            "flex flex-col sm:flex-row items-start sm:items-center justify-between",
-            "gap-3 w-full",
-          )}
-        >
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 w-full">
           <div className="flex items-center gap-2">
             <svg
               className="size-4 text-violet-400 shrink-0"
@@ -354,23 +376,13 @@ export default function AdminDbPage() {
               Управление:
             </span>
           </div>
-          <ButtonGroup
-            className={cn(
-              "h-8.5 rounded-lg border border-input flex flex-row items-stretch",
-              "bg-background overflow-hidden *:rounded-none w-full sm:w-auto",
-            )}
-          >
+          <ButtonGroup className="h-8.5 rounded-lg border border-input flex flex-row items-stretch bg-background overflow-hidden *:rounded-none w-full sm:w-auto">
             {activeTable === "coins" && (
               <Button
                 type="button"
                 disabled={isSyncing}
                 onClick={handleSyncBybit}
-                className={cn(
-                  "h-full text-[10px] font-black uppercase tracking-wider",
-                  "bg-transparent text-foreground border-r border-input",
-                  "px-3 flex flex-1 sm:flex-none items-center justify-center",
-                  "rounded-none",
-                )}
+                className="h-full text-[10px] font-black uppercase tracking-wider bg-transparent text-foreground border-r border-input px-3 flex flex-1 sm:flex-none items-center justify-center rounded-none"
               >
                 {isSyncing ? (
                   <Spinner className="size-3" />
@@ -389,11 +401,7 @@ export default function AdminDbPage() {
                     {...triggerProps}
                     type="button"
                     disabled={isLoading || rows.length === 0}
-                    className={cn(
-                      "h-full text-[10px] font-black uppercase bg-rose-600",
-                      "text-white border-none px-3 flex flex-1 sm:flex-none",
-                      "items-center justify-center rounded-none",
-                    )}
+                    className="h-full text-[10px] font-black uppercase bg-rose-600 text-white border-none px-3 flex flex-1 sm:flex-none items-center justify-center rounded-none"
                   >
                     Очистить
                   </Button>
@@ -414,10 +422,7 @@ export default function AdminDbPage() {
                   </AlertDialogCancel>
                   <AlertDialogAction
                     onClick={handleTruncateTable}
-                    className={cn(
-                      "rounded-xl text-xs h-9 bg-rose-600 border-none",
-                      "text-white font-bold",
-                    )}
+                    className="rounded-xl text-xs h-9 bg-rose-600 border-none text-white font-bold"
                   >
                     Стереть
                   </AlertDialogAction>
@@ -427,19 +432,9 @@ export default function AdminDbPage() {
           </ButtonGroup>
         </div>
         {activeTable === "coins" && (
-          <div
-            className={cn(
-              "w-full pt-1.5 border-t border-border/10 flex flex-col md:flex-row",
-              "md:items-center justify-between gap-3",
-            )}
-          >
-            <div className="relative w-full md:w-64 flex items-center group shrink-0">
-              <span
-                className={cn(
-                  "absolute left-2.5 flex items-center h-full",
-                  "pointer-events-none",
-                )}
-              >
+          <div className="w-full pt-1.5 border-t border-border/10 flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="relative w-full md:w-48 flex items-center group shrink-0">
+              <span className="absolute left-2.5 flex items-center h-full pointer-events-none">
                 <svg
                   className="size-3.5 text-muted-foreground/60"
                   fill="none"
@@ -459,30 +454,18 @@ export default function AdminDbPage() {
                 placeholder="Поиск пары..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className={cn(
-                  "pl-8 pr-8 h-8 text-xs bg-background/50 border-border/40",
-                  "rounded-lg w-full",
-                )}
+                className="pl-8 pr-8 h-8 text-xs bg-background/50 border-border/40 rounded-lg w-full"
               />
               {searchQuery.length > 0 && (
                 <button
                   onClick={() => setSearchQuery("")}
-                  className={cn(
-                    "absolute right-2.5 text-muted-foreground/60 hover:text-foreground",
-                    "bg-transparent border-none p-0 cursor-pointer",
-                  )}
+                  className="absolute right-2.5 text-muted-foreground/60 hover:text-foreground bg-transparent border-none p-0 cursor-pointer"
                 >
                   <X className="size-3.5" />
                 </button>
               )}
             </div>
-            <div
-              className={cn(
-                "flex flex-wrap gap-1 w-full bg-background border border-input",
-                "p-0.5 rounded-lg overflow-hidden flex-1",
-                "*:h-7 *:text-[10px] *:font-black *:rounded-md *:flex-1 *:min-w-16.25 *:w-full",
-              )}
-            >
+            <div className="flex flex-wrap gap-1 w-full bg-background border border-input p-0.5 rounded-lg overflow-hidden flex-1 *:h-7 *:text-[10px] *:font-black *:rounded-md *:flex-1 *:min-w-14 *:w-full">
               <Button
                 type="button"
                 variant={filterType === "ALL" ? "default" : "ghost"}
@@ -516,6 +499,14 @@ export default function AdminDbPage() {
               </Button>
               <Button
                 type="button"
+                variant={filterType === "NEW" ? "default" : "ghost"}
+                className="text-cyan-500"
+                onClick={() => setFilterType("NEW")}
+              >
+                NEW ({newRows.length})
+              </Button>
+              <Button
+                type="button"
                 variant={filterType === "DELIS" ? "default" : "ghost"}
                 className="text-rose-500"
                 onClick={() => setFilterType("DELIS")}
@@ -526,15 +517,9 @@ export default function AdminDbPage() {
           </div>
         )}
       </div>
-
-      <Card className="border border-border/40 bg-background mt-1">
+      <Card className="border border-border/40 bg-background mt-1 py-0!">
         {rows.length === 0 && isLoading ? (
-          <div
-            className={cn(
-              "p-16 flex flex-col gap-2 items-center justify-center",
-              "text-muted-foreground",
-            )}
-          >
+          <div className="p-16 flex flex-col gap-2 items-center justify-center text-muted-foreground">
             <Spinner className="text-violet-500" />
             <span className="text-xs font-medium">Загрузка структуры...</span>
           </div>

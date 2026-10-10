@@ -4,6 +4,7 @@ import { neon } from "@neondatabase/serverless";
 export const dynamic = "force-dynamic";
 
 const sql = neon(process.env.DATABASE_URL || "");
+let isCoinsVerified = false;
 
 function checkAuth(req: Request): boolean {
   const secret = process.env.ADMIN_SECRET_KEY || "fallback_default_token_key";
@@ -11,11 +12,53 @@ function checkAuth(req: Request): boolean {
   return token === secret;
 }
 
+async function ensureCoinsTableSchema() {
+  if (isCoinsVerified) return;
+  try {
+    await sql`
+CREATE TABLE IF NOT EXISTS coins (
+coin VARCHAR(50) PRIMARY KEY,
+decimals INTEGER NOT NULL DEFAULT 2,
+is_favorite BOOLEAN NOT NULL DEFAULT FALSE
+);
+`;
+    await sql`
+ALTER TABLE coins 
+ADD COLUMN IF NOT EXISTS is_active 
+BOOLEAN NOT NULL DEFAULT TRUE;
+`;
+    await sql`
+ALTER TABLE coins 
+ADD COLUMN IF NOT EXISTS is_delisted 
+BOOLEAN NOT NULL DEFAULT FALSE;
+`;
+    await sql`
+ALTER TABLE coins 
+ADD COLUMN IF NOT EXISTS fullname 
+VARCHAR(100) NOT NULL DEFAULT 'Crypto Asset';
+`;
+    await sql`
+ALTER TABLE coins 
+ADD COLUMN IF NOT EXISTS logo_slug 
+VARCHAR(50);
+`;
+    await sql`
+ALTER TABLE coins 
+ADD COLUMN IF NOT EXISTS listed_at 
+TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+`;
+    isCoinsVerified = true;
+  } catch (err) {
+    console.error("Admin DB Coins Migration Error:", err);
+  }
+}
 export async function GET(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
       return NextResponse.json({ error: "No DB URL" }, { status: 500 });
     }
+
+    await ensureCoinsTableSchema();
 
     if (!checkAuth(request)) {
       return NextResponse.json(
@@ -37,7 +80,7 @@ export async function GET(request: Request) {
     if (table === "coins") {
       rows = await sql`
 SELECT coin, decimals, is_favorite, is_active, 
-is_delisted, fullname, logo_slug 
+is_delisted, fullname, logo_slug, listed_at 
 FROM coins 
 ORDER BY coin ASC;
 `;
@@ -124,6 +167,8 @@ export async function DELETE(request: Request) {
     if (!process.env.DATABASE_URL) {
       return NextResponse.json({ error: "No DB URL" }, { status: 500 });
     }
+
+    await ensureCoinsTableSchema();
 
     if (!checkAuth(request)) {
       return NextResponse.json(
