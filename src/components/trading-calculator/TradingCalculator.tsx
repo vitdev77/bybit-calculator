@@ -71,7 +71,6 @@ function useTabTicker(
     document.title = "Bybit Futures Calculator";
   }, [coin]);
 }
-
 interface CalculatorProps {
   selectedCoin: string;
   setSelectedCoin: (coin: string) => void;
@@ -134,7 +133,6 @@ export default function TradingCalculator({
   const currentDecimals = getAutoDecimals();
   const maxSafeLeverage =
     selectedCoin === "BTCUSDT" || selectedCoin === "ETHUSDT" ? 100 : 50;
-
   const [results, setResults] = useState({
     riskAmount: 0,
     positionSizeCrypto: 0,
@@ -160,6 +158,7 @@ export default function TradingCalculator({
   useEffect(() => {
     entryPriceRef.current = entryPrice;
   }, [entryPrice]);
+
   const loadDatabaseCoins = useCallback(
     async (event?: Event) => {
       try {
@@ -233,7 +232,6 @@ export default function TradingCalculator({
     },
     [selectedCoin],
   );
-
   useEffect(() => {
     loadDatabaseCoins();
     const handleRefresh = (e: Event) => {
@@ -366,7 +364,6 @@ export default function TradingCalculator({
     },
     [onPriceUpdate],
   );
-
   const handlePriceApply = (price: number) => {
     if (price > 0) {
       setEntryPrice(price);
@@ -515,6 +512,7 @@ export default function TradingCalculator({
     maxSafeLeverage,
     partsCount,
   ]);
+
   const cardCls = cn(
     "shadow-sm border flex flex-col border-border/40",
     "bg-background rounded-xl sm:rounded-2xl",
@@ -562,8 +560,6 @@ export default function TradingCalculator({
                 tickerRegistry={tickerRegistry}
                 setIsModalOpen={setIsModalOpen}
                 liveTickerData={tickerData}
-                setSide={setSide}
-                setEntryPrice={setEntryPrice}
               />
               <BalanceRiskForm
                 balance={balance}
