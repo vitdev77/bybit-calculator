@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { toast } from "@/components/ui/toast";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import {
@@ -51,7 +50,6 @@ export default function AdminDbPage() {
       "Content-Type": "application/json",
     };
   };
-
   const loadTableData = async (tableName: "deals" | "coins") => {
     setIsLoading(true);
     try {
@@ -71,11 +69,12 @@ export default function AdminDbPage() {
         }
       }
     } catch (err: any) {
-      toast.add({ title: "Сбой", description: err.message, type: "error" });
+      console.error("Fetch Error:", err.message);
     } finally {
       setIsLoading(false);
     }
   };
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem(STORAGE_KEY_TABLE);
@@ -104,13 +103,7 @@ export default function AdminDbPage() {
 
   const handleReloadTable = async () => {
     await loadTableData(activeTable);
-    toast.add({
-      title: "Обновлено",
-      description: `Таблица ${activeTable} успешно перезагружена.`,
-      type: "success",
-    });
   };
-
   const handleSyncBybit = async () => {
     if (isSyncing) return;
     setIsSyncing(true);
@@ -124,17 +117,12 @@ export default function AdminDbPage() {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        toast.add({
-          title: "Синхронизация",
-          description: "Листинг фьючерсов Bybit обновлен.",
-          type: "success",
-        });
         loadTableData(activeTable);
       } else {
         throw new Error(data.error || "Ошибка API");
       }
     } catch (err: any) {
-      toast.add({ title: "Ошибка", description: err.message, type: "error" });
+      console.error("Sync Error:", err.message);
       loadTableData(activeTable);
     } finally {
       setIsSyncing(false);
@@ -142,23 +130,22 @@ export default function AdminDbPage() {
   };
 
   const handleTruncateTable = async () => {
+    setIsLoading(true);
     try {
       const res = await fetch(`/api/admin/db?table=${activeTable}`, {
         method: "DELETE",
         headers: getAuthHeaders(),
       });
       if (!res.ok) throw new Error("Ошибка очистки");
-      toast.add({
-        title: "Очищено",
-        description: `Таблица ${activeTable} очищена.`,
-        type: "success",
-      });
       setRows([]);
       setIsClearOpen(false);
     } catch (err: any) {
-      toast.add({ title: "Ошибка", description: err.message, type: "error" });
+      console.error("Truncate Error:", err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
+
   const getRowStyles = (row: any) => {
     if (activeTable === "coins" && row.is_delisted) {
       return "opacity-50 cursor-not-allowed";
@@ -219,7 +206,6 @@ export default function AdminDbPage() {
       winRate,
     };
   };
-
   const processAdminTableDistribution = () => {
     if (activeTable === "deals") {
       const filteredDeals = rows.filter((row) =>
@@ -246,7 +232,10 @@ export default function AdminDbPage() {
     const allRows: any[] = [];
 
     const validTickers = Object.entries(tickerRegistry)
-      .map(([coin, t]: [string, any]) => ({ coin, p: t.price24hPcnt || 0 }))
+      .map(([coin, t]: [string, any]) => ({
+        coin,
+        p: t.price24hPcnt || 0,
+      }))
       .filter((item) => !isNaN(item.p));
 
     const sortedTickers = [...validTickers].sort((a, b) => b.p - a.p);
@@ -355,7 +344,7 @@ export default function AdminDbPage() {
   const activeHeaders = activeTable === "deals" ? dealsHeaders : coinsHeaders;
 
   return (
-    <div className="w-full max-w-5xl mx-auto p-2.5 sm:p-6 space-y-4 font-sans">
+    <div className="w-full max-w-5xl mx-auto p-2.5 sm:p-6 space-y-4">
       <AdminHeader
         activeTable={activeTable}
         onTableChange={handleTableChange}
@@ -371,8 +360,8 @@ export default function AdminDbPage() {
       />
 
       <div
-        className="flex flex-col gap-2 p-3 bg-muted/30 border border-border/40 
-rounded-xl"
+        className="flex flex-col gap-2 p-3 bg-muted/30 border 
+border-border/40 rounded-xl"
       >
         <div
           className="flex flex-col sm:flex-row items-start sm:items-center 
@@ -468,10 +457,7 @@ justify-center rounded-none"
                     </Button>
                   )}
                 />
-                <AlertDialogContent
-                  className="rounded-2xl max-w-sm 
-w-[calc(100%-1rem)]"
-                >
+                <AlertDialogContent className="rounded-2xl max-w-sm w-[calc(100%-1rem)]">
                   <AlertDialogHeader>
                     <AlertDialogTitle className="text-sm">
                       Очистить {activeTable}?
@@ -606,7 +592,7 @@ border-input p-0.5 rounded-lg overflow-hidden flex-1 *:h-7
       </div>
 
       <Card className="border border-border/40 bg-background mt-1">
-        {rows.length === 0 && isLoading ? (
+        {isLoading ? (
           <div
             className="p-16 flex flex-col gap-2 items-center justify-center 
 text-muted-foreground"
