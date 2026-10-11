@@ -64,7 +64,6 @@ export default function TradingJournal({
   useEffect(() => {
     document.title = `Журнал сделок (${openDealsCount})`;
   }, [openDealsCount]);
-
   useEffect(() => {
     if (!activeCoin || !isChangingCoin) return;
     if (!activeOpenDeal || activeOpenDeal.coin !== activeCoin) {
@@ -79,6 +78,7 @@ export default function TradingJournal({
       setIsChangingCoin(false);
     }
   }, [livePrice, activeCoin, activeOpenDeal, isChangingCoin]);
+
   const fetchJournal = useCallback(async () => {
     try {
       const url = activeCoin
@@ -157,7 +157,6 @@ export default function TradingJournal({
       setLoading(false);
     }
   }, [onDealsCountChange, activeCoin, statusFilter]);
-
   const handleUpdateStatus = useCallback(
     async (
       id: number,
@@ -199,7 +198,7 @@ export default function TradingJournal({
       if (livePrice <= activeOpenDeal.take_profit) isTp = true;
       if (livePrice >= activeOpenDeal.stop_loss) isSl = true;
     }
-    if (isTp && !activeOpenDeal.tp_touched) {
+    if (isTp && !activeOpenDeal.tp_touched && !activeOpenDeal.sl_touched) {
       const key = `${activeOpenDeal.id}-tp`;
       if (!processedSignalsRef.current[key]) {
         processedSignalsRef.current[key] = true;
@@ -212,7 +211,7 @@ export default function TradingJournal({
         });
       }
     }
-    if (isSl && !activeOpenDeal.sl_touched) {
+    if (isSl && !activeOpenDeal.sl_touched && !activeOpenDeal.tp_touched) {
       const key = `${activeOpenDeal.id}-sl`;
       if (!processedSignalsRef.current[key]) {
         processedSignalsRef.current[key] = true;
@@ -317,7 +316,7 @@ export default function TradingJournal({
       setIsClearOpen(false);
       toast.add({
         title: "Журнал очищен",
-        description: "Все торговые записи безвозвратно удалены.",
+        description: "All торговые записи безвозвратно удалены.",
         type: "success",
       });
     } catch (e) {
@@ -341,20 +340,12 @@ export default function TradingJournal({
   const hasDealsForPosition = deals.some((d) => d.coin === activeCoin);
 
   return (
-    <div
-      className={cn(
-        "w-full bg-transparent flex flex-col px-0 space-y-4 min-w-0",
-      )}
-    >
-      <div
-        className={cn(
-          "py-3 sm:py-4 border-b border-border/40 flex items-center justify-between bg-transparent select-none w-full min-w-0",
-        )}
-      >
+    <div className="w-full bg-transparent flex flex-col px-0 space-y-4">
+      <div className="py-3 border-b border-border/40 flex justify-between">
         <JournalStats deals={deals} />
       </div>
       {hasDealsForPosition && (
-        <div className={cn("w-full min-w-0")}>
+        <div className="w-full min-w-0">
           <OrderRuntimeMap
             focusedDeal={focusedDeal}
             livePrice={livePrice}
@@ -370,7 +361,7 @@ export default function TradingJournal({
           />
         </div>
       )}
-      <div className={cn("w-full min-w-0 overflow-hidden")}>
+      <div className="w-full min-w-0 overflow-hidden">
         <JournalTable
           filteredDeals={filteredDeals}
           searchQuery={searchQuery}

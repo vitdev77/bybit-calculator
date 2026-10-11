@@ -48,7 +48,6 @@ ON deals (status, coin);
     console.error("Database Deals Migration Error:", err);
   }
 }
-
 export async function GET(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
@@ -238,7 +237,9 @@ RETURNING *;
     if (body.action === "TOUCH_TP") {
       const result = await sql`
 UPDATE deals SET tp_touched = TRUE 
-WHERE id = ${targetId} AND status = 'OPEN' 
+WHERE id = ${targetId} 
+AND status = 'OPEN' 
+AND sl_touched = FALSE
 RETURNING *;
 `;
       return NextResponse.json({ success: true, data: result });
@@ -247,7 +248,9 @@ RETURNING *;
     if (body.action === "TOUCH_SL") {
       const result = await sql`
 UPDATE deals SET sl_touched = TRUE 
-WHERE id = ${targetId} AND status = 'OPEN' 
+WHERE id = ${targetId} 
+AND status = 'OPEN' 
+AND tp_touched = FALSE
 RETURNING *;
 `;
       return NextResponse.json({ success: true, data: result });
