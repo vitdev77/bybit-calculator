@@ -59,13 +59,13 @@ Bybit (USDT-Linear Contracts). Проект реализует реактивн�
 Создайте файл `.env.local` в корневой директории со следующими параметрами:
 
 - `DATABASE_URL` — строка подключения к Neon PostgreSQL.
-- `NEXT_PUBLIC_ADMIN_SECRET_KEY` / `ADMIN_SECRET_KEY` — секретные ключи для административных маршрутов.
+- `ADMIN_SECRET_KEY` — секретный ключ для административных маршрутов.
 - `BYBIT_API_URL` и `TRADINGVIEW_SCRIPT_URL` — опциональные URL для API Bybit и виджетов TradingView.
 
 ---
 
 ## 🚀 Инструкция по развертыванию
 
-1. Клонируйте репозиторий и установите зависимости: `git clone https://github.com`, затем `npm install`.
+1. Клонируйте репозиторий и установите зависимости: `git clone https://github.com/vitdev77/bybit-calculator.git`, затем `npm install`.
 2. Запустите локальный сервер разработки: `npm run dev` (доступно на `http://localhost:3000`).
 3. Соберите и запустите проект для продакшена: `npm run build` и `npm run start`.
