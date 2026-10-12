@@ -133,6 +133,7 @@ export default function TradingCalculator({
   const currentDecimals = getAutoDecimals();
   const maxSafeLeverage =
     selectedCoin === "BTCUSDT" || selectedCoin === "ETHUSDT" ? 100 : 50;
+
   const [results, setResults] = useState({
     riskAmount: 0,
     positionSizeCrypto: 0,
@@ -159,6 +160,55 @@ export default function TradingCalculator({
     entryPriceRef.current = entryPrice;
   }, [entryPrice]);
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      let loadedCoin = "BTCUSDT";
+      let parsed: any = {};
+      const savedState = localStorage.getItem(STORAGE_KEY);
+      if (savedState) {
+        try {
+          parsed = JSON.parse(savedState);
+          if (parsed.selectedCoin) loadedCoin = parsed.selectedCoin;
+          if (parsed.balance) {
+            setBalance(parsed.balance);
+            onBalanceChange?.(parsed.balance);
+          }
+          if (parsed.riskPercent) setRiskPercent(parsed.riskPercent);
+          if (parsed.riskRewardRatio) {
+            setRiskRewardRatio(parsed.riskRewardRatio);
+          }
+          if (parsed.orderType) setOrderType(parsed.orderType);
+          if (parsed.entryPrice) setEntryPrice(parsed.entryPrice);
+          if (parsed.stopLossPercent) {
+            setStopLossPercent(parsed.stopLossPercent);
+          }
+          if (parsed.leverage) setLeverage(Number(parsed.leverage));
+          if (parsed.side) setSide(parsed.side);
+          if (parsed.partsCount) setPartsCount(Number(parsed.partsCount));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      const params = new URLSearchParams(window.location.search);
+      const urlCoin = params.get("coin");
+      if (urlCoin) {
+        const upperUrlCoin = urlCoin.toUpperCase();
+        loadedCoin = upperUrlCoin;
+        setSelectedCoin(upperUrlCoin);
+        const nextState = {
+          ...parsed,
+          selectedCoin: upperUrlCoin,
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
+      } else if (parsed.selectedCoin) {
+        setSelectedCoin(parsed.selectedCoin);
+      } else {
+        setSelectedCoin("BTCUSDT");
+      }
+      setIsLoaded(true);
+    }
+  }, [setSelectedCoin, onBalanceChange, setPartsCount]);
   const loadDatabaseCoins = useCallback(
     async (event?: Event) => {
       try {
@@ -232,6 +282,7 @@ export default function TradingCalculator({
     },
     [selectedCoin],
   );
+
   useEffect(() => {
     loadDatabaseCoins();
     const handleRefresh = (e: Event) => {
@@ -243,35 +294,6 @@ export default function TradingCalculator({
       window.removeEventListener("refresh-calculator-coins", handleRefresh);
     };
   }, [loadDatabaseCoins]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedState = localStorage.getItem(STORAGE_KEY);
-      if (savedState) {
-        try {
-          const parsed = JSON.parse(savedState);
-          if (parsed.balance) {
-            setBalance(parsed.balance);
-            onBalanceChange?.(parsed.balance);
-          }
-          if (parsed.riskPercent) setRiskPercent(parsed.riskPercent);
-          if (parsed.riskRewardRatio)
-            setRiskRewardRatio(parsed.riskRewardRatio);
-          if (parsed.selectedCoin) setSelectedCoin(parsed.selectedCoin);
-          if (parsed.orderType) setOrderType(parsed.orderType);
-          if (parsed.entryPrice) setEntryPrice(parsed.entryPrice);
-          if (parsed.stopLossPercent)
-            setStopLossPercent(parsed.stopLossPercent);
-          if (parsed.leverage) setLeverage(Number(parsed.leverage));
-          if (parsed.side) setSide(parsed.side);
-          if (parsed.partsCount) setPartsCount(Number(parsed.partsCount));
-        } catch (e) {
-          console.error(e);
-        }
-      }
-      setIsLoaded(true);
-    }
-  }, [setSelectedCoin, onBalanceChange, setPartsCount]);
 
   useEffect(() => {
     if (isLoaded) {
@@ -364,6 +386,7 @@ export default function TradingCalculator({
     },
     [onPriceUpdate],
   );
+
   const handlePriceApply = (price: number) => {
     if (price > 0) {
       setEntryPrice(price);
@@ -512,7 +535,6 @@ export default function TradingCalculator({
     maxSafeLeverage,
     partsCount,
   ]);
-
   const cardCls = cn(
     "shadow-sm border flex flex-col border-border/40",
     "bg-background rounded-xl sm:rounded-2xl",

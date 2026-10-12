@@ -8,7 +8,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { SquareCheckBig, Star, Check, Loader2, Copy } from "lucide-react";
+import {
+  SquareCheckBig,
+  Star,
+  Check,
+  Loader2,
+  Copy,
+  ExternalLink,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/toast";
 import {
@@ -32,6 +39,7 @@ interface TableProps {
   topLosers?: string[];
 }
 
+const STORAGE_KEY = "bybit_calculator_state_v14";
 export function AdminTable({
   activeTable,
   activeHeaders,
@@ -51,6 +59,24 @@ export function AdminTable({
     setTimeout(() => setCopiedCoin(null), 2000);
   };
 
+  const handleNavigateToMain = (e: React.MouseEvent, coinName: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (typeof window !== "undefined") {
+      let currentState: any = {};
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          currentState = JSON.parse(saved);
+        } catch (err) {
+          console.error(err);
+        }
+      }
+      currentState.selectedCoin = coinName;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(currentState));
+      window.open("/", "_blank", "noopener,noreferrer");
+    }
+  };
   const formatValue = (val: any, col: string, decimals: number = 2) => {
     if (val === null || val === undefined) return "--";
     const c = col.toLowerCase();
@@ -85,7 +111,6 @@ export function AdminTable({
     }
     return String(val);
   };
-
   const renderCustomCell = (row: any, col: string) => {
     const c = col.toLowerCase();
     const val = row[col];
@@ -97,12 +122,12 @@ export function AdminTable({
       const isLong = row.side === "BUY";
       return (
         <div className="flex flex-col leading-tight">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             {activeTable === "deals" && (
               <span
                 className={cn(
                   "px-1 py-px rounded text-[8px] font-black border",
-                  "uppercase tracking-wide",
+                  "uppercase tracking-wide mr-1",
                   isLong
                     ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
                     : "bg-rose-500/10 text-rose-500 border-rose-500/20",
@@ -126,13 +151,27 @@ export function AdminTable({
                 <Copy className="size-3 shrink-0" />
               )}
             </button>
-            <span className="font-bold text-foreground font-mono">{val}</span>
+            <button
+              type="button"
+              onClick={(e) => handleNavigateToMain(e, row.coin)}
+              className={cn(
+                "p-1 hover:bg-muted rounded text-muted-foreground/40",
+                "hover:text-foreground cursor-pointer transition-colors flex",
+                "items-center justify-center bg-transparent border-none",
+              )}
+              title="Открыть в калькуляторе"
+            >
+              <ExternalLink className="size-3 shrink-0" />
+            </button>
+            <span className="font-bold text-foreground font-mono ml-1">
+              {val}
+            </span>
             {activeTable === "coins" && isGainer && (
               <span
                 className={cn(
                   "px-1 py-0.5 rounded text-[8px] font-black border",
                   "bg-emerald-500/10 text-emerald-500",
-                  "border-emerald-500/20 tracking-wider",
+                  "border-emerald-500/20 tracking-wider ml-1",
                 )}
               >
                 GAINER
@@ -143,7 +182,7 @@ export function AdminTable({
                 className={cn(
                   "px-1 py-0.5 rounded text-[8px] font-black border",
                   "bg-rose-500/10 text-rose-500",
-                  "border-rose-500/20 tracking-wider",
+                  "border-rose-500/20 tracking-wider ml-1",
                 )}
               >
                 LOSER
@@ -154,7 +193,7 @@ export function AdminTable({
             <span
               className={cn(
                 "text-[10px] text-muted-foreground/60",
-                "font-medium mt-0.5 pl-7",
+                "font-medium mt-0.5 pl-12.5",
               )}
             >
               {row.fullname}
@@ -163,7 +202,6 @@ export function AdminTable({
         </div>
       );
     }
-
     if (c === "order_type" && activeTable === "deals") {
       return (
         <span
@@ -360,7 +398,6 @@ export function AdminTable({
     </div>
   );
 }
-
 function LogoSlugCell({
   coin,
   initialValue,
@@ -422,6 +459,10 @@ function LogoSlugCell({
     }
   };
 
+  const handleConfirmSaveWrapper = () => {
+    handleConfirmSave();
+  };
+
   const handleCancelSave = () => {
     setIsAlertOpen(false);
     setVal(initialValue || "");
@@ -472,7 +513,7 @@ function LogoSlugCell({
               Отмена
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleConfirmSave}
+              onClick={handleConfirmSaveWrapper}
               className={cn(
                 "rounded-xl text-xs h-9 bg-amber-500 border-none",
                 "text-white font-bold cursor-pointer",
