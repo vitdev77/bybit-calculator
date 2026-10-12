@@ -8,7 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { SquareCheckBig, Star, Check, Loader2 } from "lucide-react";
+import { SquareCheckBig, Star, Check, Loader2, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/toast";
 import {
@@ -41,20 +41,38 @@ export function AdminTable({
   topGainers = [],
   topLosers = [],
 }: TableProps) {
+  const [copiedCoin, setCopiedCoin] = useState<string | null>(null);
+
+  const handleCopyCoin = (e: React.MouseEvent, coinName: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigator.clipboard.writeText(coinName);
+    setCopiedCoin(coinName);
+    setTimeout(() => setCopiedCoin(null), 2000);
+  };
+
   const formatValue = (val: any, col: string, decimals: number = 2) => {
     if (val === null || val === undefined) return "--";
     const c = col.toLowerCase();
     if (c === "created_at" || c === "listed_at") {
       try {
         const d = new Date(val);
+        const dateStr =
+          `${String(d.getDate()).padStart(2, "0")}.` +
+          `${String(d.getMonth() + 1).padStart(2, "0")}.` +
+          `${String(d.getFullYear()).slice(-2)}`;
+        const timeStr =
+          `${String(d.getHours()).padStart(2, "0")}:` +
+          `${String(d.getMinutes()).padStart(2, "0")}`;
         return (
-          <div className="flex flex-col text-[10px] text-muted-foreground leading-tight">
-            <span className="font-semibold text-foreground/80">
-              {`${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getFullYear()).slice(-2)}`}
-            </span>
-            <span className="opacity-60">
-              {`${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`}
-            </span>
+          <div
+            className={cn(
+              "flex flex-col text-[10px] text-muted-foreground",
+              "leading-tight",
+            )}
+          >
+            <span className="font-semibold text-foreground/80">{dateStr}</span>
+            <span className="opacity-60">{timeStr}</span>
           </div>
         );
       } catch (e) {
@@ -67,6 +85,7 @@ export function AdminTable({
     }
     return String(val);
   };
+
   const renderCustomCell = (row: any, col: string) => {
     const c = col.toLowerCase();
     const val = row[col];
@@ -82,7 +101,8 @@ export function AdminTable({
             {activeTable === "deals" && (
               <span
                 className={cn(
-                  "px-1 py-px rounded text-[8px] font-black border uppercase tracking-wide",
+                  "px-1 py-px rounded text-[8px] font-black border",
+                  "uppercase tracking-wide",
                   isLong
                     ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
                     : "bg-rose-500/10 text-rose-500 border-rose-500/20",
@@ -91,20 +111,52 @@ export function AdminTable({
                 {isLong ? "LONG" : "SHORT"}
               </span>
             )}
+            <button
+              type="button"
+              onClick={(e) => handleCopyCoin(e, row.coin)}
+              className={cn(
+                "p-1 hover:bg-muted rounded text-muted-foreground/40",
+                "hover:text-foreground cursor-pointer transition-colors",
+              )}
+              title="Копировать тикер"
+            >
+              {copiedCoin === row.coin ? (
+                <Check className="size-3 text-emerald-500 shrink-0" />
+              ) : (
+                <Copy className="size-3 shrink-0" />
+              )}
+            </button>
             <span className="font-bold text-foreground font-mono">{val}</span>
             {activeTable === "coins" && isGainer && (
-              <span className="px-1 py-0.5 rounded text-[8px] font-black bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 tracking-wider">
+              <span
+                className={cn(
+                  "px-1 py-0.5 rounded text-[8px] font-black border",
+                  "bg-emerald-500/10 text-emerald-500",
+                  "border-emerald-500/20 tracking-wider",
+                )}
+              >
                 GAINER
               </span>
             )}
             {activeTable === "coins" && isLoser && (
-              <span className="px-1 py-0.5 rounded text-[8px] font-black bg-rose-500/10 text-rose-500 border border-rose-500/20 tracking-wider">
+              <span
+                className={cn(
+                  "px-1 py-0.5 rounded text-[8px] font-black border",
+                  "bg-rose-500/10 text-rose-500",
+                  "border-rose-500/20 tracking-wider",
+                )}
+              >
                 LOSER
               </span>
             )}
           </div>
           {activeTable === "coins" && row.fullname && (
-            <span className="text-[10px] text-muted-foreground/60 font-medium mt-0.5">
+            <span
+              className={cn(
+                "text-[10px] text-muted-foreground/60",
+                "font-medium mt-0.5 pl-7",
+              )}
+            >
               {row.fullname}
             </span>
           )}
@@ -116,7 +168,8 @@ export function AdminTable({
       return (
         <span
           className={cn(
-            "px-1 py-0.5 rounded text-[8px] font-black border uppercase tracking-wide",
+            "px-1 py-0.5 rounded text-[8px] font-black border",
+            "uppercase tracking-wide",
             val === "LIMIT"
               ? "bg-violet-500/10 text-violet-500 border-violet-500/15"
               : "bg-blue-500/10 text-blue-500 border-blue-500/15",
@@ -174,11 +227,13 @@ export function AdminTable({
         badgeCls = "bg-rose-500/10 text-rose-400 border-rose-500/20 font-bold";
       else if (s === "OPEN")
         badgeCls =
-          "bg-amber-500/10 text-amber-400 border-amber-500/20 font-black animate-pulse";
+          "bg-amber-500/10 text-amber-400 border-amber-500/20 " +
+          "font-black animate-pulse";
       return (
         <span
           className={cn(
-            "px-1.5 py-0.5 rounded text-[8px] uppercase tracking-wider border",
+            "px-1.5 py-0.5 rounded text-[8px] uppercase border",
+            "tracking-wider",
             badgeCls,
           )}
         >
@@ -214,7 +269,8 @@ export function AdminTable({
       return val ? (
         <span
           className={cn(
-            "px-1 py-px text-[7px] font-black rounded border uppercase tracking-tight",
+            "px-1 py-px text-[7px] font-black rounded border border-solid",
+            "uppercase tracking-tight",
             c === "tp_touched"
               ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
               : "bg-rose-500/10 text-rose-500 border-rose-500/20",
@@ -229,7 +285,6 @@ export function AdminTable({
 
     return formatValue(val, col, currentPrecision);
   };
-
   return (
     <div className="overflow-x-auto max-h-140 scrollbar-thin touch-pan-x w-full">
       <Table className="text-[11px] font-medium border-collapse min-w-150 w-full">
@@ -265,7 +320,9 @@ export function AdminTable({
               return (
                 <TableHead
                   key={col}
-                  className="h-10 px-3 text-left font-black uppercase tracking-wider"
+                  className={cn(
+                    "h-10 px-3 text-left font-black uppercase tracking-wider",
+                  )}
                 >
                   {displayHeader}
                 </TableHead>
@@ -410,7 +467,7 @@ function LogoSlugCell({
           <AlertDialogFooter className="gap-1.5">
             <AlertDialogCancel
               onClick={handleCancelSave}
-              className="rounded-xl text-xs h-9 cursor-pointer"
+              className={cn("rounded-xl text-xs h-9 cursor-pointer")}
             >
               Отмена
             </AlertDialogCancel>
