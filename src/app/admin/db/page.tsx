@@ -96,7 +96,6 @@ export default function AdminDbPage() {
       setIsMounted(true);
     }
   }, []);
-
   useEffect(() => {
     if (!isMounted) return;
     loadTableData(activeTable);
@@ -116,6 +115,7 @@ export default function AdminDbPage() {
   const handleReloadTable = async () => {
     await loadTableData(activeTable);
   };
+
   const handleSyncBybit = async () => {
     if (isSyncing) return;
     setIsSyncing(true);
@@ -162,9 +162,7 @@ export default function AdminDbPage() {
       setIsLoading(false);
     }
   };
-
   const handleBackupExport = async () => {
-    setActionLoading(true);
     try {
       const res = await fetch("/api/admin/db?action=backup", {
         headers: getAuthHeaders(),
@@ -175,12 +173,17 @@ export default function AdminDbPage() {
       const blob = new Blob([dataStr], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      const date = new Date().toISOString().slice(0, 10);
+
+      const now = new Date();
+      const date = now.toISOString().slice(0, 10);
+      const time = now.toTimeString().slice(0, 8).replace(/:/g, "-");
+
       link.href = url;
-      link.download = `bybit_calc_db_backup_${date}.json`;
+      link.download = `bybit_calc_db_backup_${date}_${time}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+
       toast.add({
         title: "Бэкап создан",
         description: "Файл резервной копии успешно скачан.",
@@ -193,8 +196,6 @@ export default function AdminDbPage() {
         description: "Не удалось выгрузить слепок таблиц СУБД.",
         type: "error",
       });
-    } finally {
-      setActionLoading(false);
     }
   };
 
@@ -437,6 +438,7 @@ export default function AdminDbPage() {
         delistedCount={rows.filter((r) => r.is_delisted).length}
         activeCount={rows.length - rows.filter((r) => r.is_delisted).length}
       />
+
       <div
         className="flex flex-col gap-2 p-3 bg-muted/30 border 
 border-border/40 rounded-xl"
@@ -583,6 +585,7 @@ leading-none px-0.5 mt-1"
             )
           </div>
         )}
+
         {activeTable === "coins" && (
           <div
             className="w-full pt-1.5 border-t border-border/10 flex 
