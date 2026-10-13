@@ -9,12 +9,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  SquareCheckBig,
   Star,
-  Check,
   Loader2,
-  Copy,
   ExternalLink,
+  CheckIcon,
+  CopyIcon,
+  CircleSmallIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/toast";
@@ -86,10 +86,11 @@ export function AdminTable({
         const dateStr =
           `${String(d.getDate()).padStart(2, "0")}.` +
           `${String(d.getMonth() + 1).padStart(2, "0")}.` +
-          `${String(d.getFullYear()).slice(-2)}`;
+          `${String(d.getFullYear())}`;
         const timeStr =
           `${String(d.getHours()).padStart(2, "0")}:` +
-          `${String(d.getMinutes()).padStart(2, "0")}`;
+          `${String(d.getMinutes()).padStart(2, "0")}:` +
+          `${String(d.getSeconds()).padStart(2, "0")}`;
         return (
           <div
             className={cn(
@@ -133,37 +134,41 @@ export function AdminTable({
                     : "bg-rose-500/10 text-rose-500 border-rose-500/20",
                 )}
               >
-                {isLong ? "LONG" : "SHORT"}
+                {isLong ? "L" : "S"}
               </span>
             )}
-            <button
-              type="button"
-              onClick={(e) => handleCopyCoin(e, row.coin)}
-              className={cn(
-                "p-1 hover:bg-muted rounded text-muted-foreground/40",
-                "hover:text-foreground cursor-pointer transition-colors",
-              )}
-              title="Копировать тикер"
-            >
-              {copiedCoin === row.coin ? (
-                <Check className="size-3 text-emerald-500 shrink-0" />
-              ) : (
-                <Copy className="size-3 shrink-0" />
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={(e) => handleNavigateToMain(e, row.coin)}
-              className={cn(
-                "p-1 hover:bg-muted rounded text-muted-foreground/40",
-                "hover:text-foreground cursor-pointer transition-colors flex",
-                "items-center justify-center bg-transparent border-none",
-              )}
-              title="Открыть в калькуляторе"
-            >
-              <ExternalLink className="size-3 shrink-0" />
-            </button>
-            <span className="font-bold text-foreground font-mono ml-1">
+            {activeTable === "coins" && (
+              <span className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={(e) => handleCopyCoin(e, row.coin)}
+                  className={cn(
+                    "p-1 hover:bg-muted rounded text-muted-foreground/40",
+                    "hover:text-foreground cursor-pointer transition-colors",
+                  )}
+                  title="Копировать тикер"
+                >
+                  {copiedCoin === row.coin ? (
+                    <CheckIcon className="size-3 text-emerald-500 shrink-0" />
+                  ) : (
+                    <CopyIcon className="size-3 shrink-0" />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => handleNavigateToMain(e, row.coin)}
+                  className={cn(
+                    "p-1 hover:bg-muted rounded text-muted-foreground/40",
+                    "hover:text-foreground cursor-pointer transition-colors flex",
+                    "items-center justify-center bg-transparent border-none",
+                  )}
+                  title="Открыть в калькуляторе"
+                >
+                  <ExternalLink className="size-3 shrink-0" />
+                </button>
+              </span>
+            )}
+            <span className="font-bold text-foreground font-mono text-xs">
               {val}
             </span>
             {activeTable === "coins" && isGainer && (
@@ -292,16 +297,23 @@ export function AdminTable({
     ) {
       if (c === "is_favorite") {
         return val ? (
-          <Star className="size-3.5 text-amber-500 fill-amber-500" />
+          <Star className="size-4 text-amber-500 fill-amber-500" />
         ) : (
-          <span className="text-muted-foreground/10">-</span>
+          <Star className="text-muted-foreground/10 size-4" />
         );
       }
-      if (["is_active", "is_delisted"].includes(c)) {
+      if (c === "is_active") {
         return val ? (
-          <SquareCheckBig className="text-emerald-500 size-4" />
+          <CircleSmallIcon className="text-emerald-500 fill-emerald-500 size-4" />
         ) : (
-          <span className="text-muted-foreground/10">-</span>
+          <CircleSmallIcon className="text-muted-foreground/10 size-4" />
+        );
+      }
+      if (c === "is_delisted") {
+        return val ? (
+          <CircleSmallIcon className="text-rose-500 fill-rose-500 size-4" />
+        ) : (
+          <CircleSmallIcon className="text-muted-foreground/10 size-4" />
         );
       }
       return val ? (
@@ -330,7 +342,7 @@ export function AdminTable({
           <TableRow>
             <TableHead
               className={cn(
-                "h-10 px-3 text-center font-black uppercase text-muted-foreground",
+                "h-10 px-3 text-center font-black uppercase text-muted-foreground/80",
                 "whitespace-nowrap w-12 border-r border-border/10 bg-muted/5",
               )}
             >
@@ -339,27 +351,27 @@ export function AdminTable({
             {activeHeaders.map((col) => {
               let displayHeader = col;
               if (col === "id") displayHeader = "ID";
-              if (col === "created_at") displayHeader = "Дата";
-              if (col === "coin") displayHeader = "Пара";
-              if (col === "order_type") displayHeader = "Тип";
-              if (col === "volume") displayHeader = "Объем";
-              if (col === "entry_price") displayHeader = "Вход";
+              if (col === "created_at") displayHeader = "Date";
+              if (col === "coin") displayHeader = "Pair";
+              if (col === "order_type") displayHeader = "Type";
+              if (col === "volume") displayHeader = "Volume";
+              if (col === "entry_price") displayHeader = "Enter";
               if (col === "tp_sl") displayHeader = "TP / SL";
-              if (col === "status") displayHeader = "Статус";
-              if (col === "closed_at_price") displayHeader = "Выход";
-              if (col === "tp_touched") displayHeader = "Тейкнут";
-              if (col === "sl_touched") displayHeader = "Стопнут";
-              if (col === "logo_slug") displayHeader = "Логотип";
-              if (col === "decimals") displayHeader = "Точность";
-              if (col === "is_favorite") displayHeader = "Избранное";
-              if (col === "is_active") displayHeader = "Активно";
-              if (col === "is_delisted") displayHeader = "Архив";
-              if (col === "listed_at") displayHeader = "Листинг";
+              if (col === "status") displayHeader = "Status";
+              if (col === "closed_at_price") displayHeader = "Exit";
+              if (col === "tp_touched") displayHeader = "by TP";
+              if (col === "sl_touched") displayHeader = "by SL";
+              if (col === "logo_slug") displayHeader = "Logo";
+              if (col === "decimals") displayHeader = "Decimals";
+              if (col === "is_favorite") displayHeader = "Favorites";
+              if (col === "is_active") displayHeader = "Active";
+              if (col === "is_delisted") displayHeader = "Archive";
+              if (col === "listed_at") displayHeader = "Listed at";
               return (
                 <TableHead
                   key={col}
                   className={cn(
-                    "h-10 px-3 text-left font-black uppercase tracking-wider",
+                    "h-10 px-3 text-left font-black uppercase tracking-wider text-muted-foreground/80",
                   )}
                 >
                   {displayHeader}
@@ -493,7 +505,7 @@ function LogoSlugCell({
       {isSaving && (
         <Loader2 className="size-3 animate-spin text-amber-500 shrink-0" />
       )}
-      {isSuccess && <Check className="size-3 text-emerald-500 shrink-0" />}
+      {isSuccess && <CheckIcon className="size-3 text-emerald-500 shrink-0" />}
       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
         <AlertDialogContent className="rounded-2xl max-w-sm">
           <AlertDialogHeader>

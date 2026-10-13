@@ -1,12 +1,18 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Wrench, Search, X, RefreshCw } from "lucide-react";
+import {
+  X,
+  TrashIcon,
+  RefreshCcwIcon,
+  SettingsIcon,
+  SearchIcon,
+  RotateCcwClockIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import { cn } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -368,118 +374,88 @@ border-border/40 rounded-xl"
 justify-between gap-3 w-full"
         >
           <div className="flex items-center gap-2">
-            <svg
-              className="size-4 text-violet-400 shrink-0"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 
-002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 
-001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 
-00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 
-00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 
-00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 
-00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 
-001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 
-2.572-1.065z"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-              />
-            </svg>
-            <div className="text-[11px] font-bold text-muted-foreground">
-              Управление:
+            <SettingsIcon className="size-4 text-violet-400 shrink-0" />
+            <div className="text-[11px] font-bold text-muted-foreground uppercase">
+              Панель управления
             </div>
           </div>
           <div
             className="flex items-center gap-2 ml-auto w-full sm:w-auto 
 justify-end"
           >
-            {activeTable === "deals" && (
-              <Button
-                type="button"
-                disabled={isLoading}
-                onClick={handleReloadTable}
-                variant="outline"
-                className="h-8.5 text-[10px] font-black uppercase tracking-wider 
-rounded-lg border border-input px-3 flex items-center justify-center 
-bg-background text-foreground"
-                title="Перезагрузить таблицу журнала сделок"
-              >
-                {isLoading ? (
-                  <Spinner className="size-3 animate-spin" />
-                ) : (
-                  <RefreshCw className="size-3" />
+            <ButtonGroup>
+              <ButtonGroup>
+                {activeTable === "deals" && (
+                  <Button
+                    type="button"
+                    disabled={isLoading}
+                    onClick={handleReloadTable}
+                    size={"icon"}
+                    variant={"secondary"}
+                    title="Перезагрузить таблицу журнала сделок"
+                  >
+                    {isLoading ? <Spinner /> : <RefreshCcwIcon />}
+                  </Button>
                 )}
-              </Button>
-            )}
 
-            <ButtonGroup
-              className="h-8.5 rounded-lg border border-input flex flex-row 
-items-stretch bg-background overflow-hidden *:rounded-none w-full 
-sm:w-auto"
-            >
-              {activeTable === "coins" && (
-                <Button
-                  type="button"
-                  disabled={isSyncing}
-                  onClick={handleSyncBybit}
-                  className="h-full text-[10px] font-black uppercase tracking-wider 
-bg-transparent text-foreground border-r border-input px-3 flex 
-flex-1 sm:flex-none items-center justify-center rounded-none"
-                >
-                  {isSyncing ? (
-                    <Spinner className="size-3" />
-                  ) : (
-                    <RefreshCw className="size-3" />
-                  )}
-                </Button>
-              )}
-              <AlertDialog open={isClearOpen} onOpenChange={setIsClearOpen}>
-                <AlertDialogTrigger
-                  render={(triggerProps) => (
-                    <Button
-                      {...triggerProps}
-                      type="button"
-                      disabled={isLoading || rows.length === 0}
-                      className="h-full text-[10px] font-black uppercase bg-rose-600 
-text-white border-none px-3 flex flex-1 sm:flex-none items-center 
-justify-center rounded-none"
-                    >
-                      Очистить
-                    </Button>
-                  )}
-                />
-                <AlertDialogContent className="rounded-2xl max-w-sm w-[calc(100%-1rem)]">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle className="text-sm">
-                      Очистить {activeTable}?
-                    </AlertDialogTitle>
-                    <AlertDialogDescription className="text-xs">
-                      Строки будут безвозвратно удалены.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter className="gap-1.5">
-                    <AlertDialogCancel className="rounded-xl text-xs h-9">
-                      Отмена
-                    </AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleTruncateTable}
-                      className="rounded-xl text-xs h-9 bg-rose-600 border-none 
+                {activeTable === "coins" && (
+                  <Button
+                    type="button"
+                    disabled={isSyncing}
+                    onClick={handleSyncBybit}
+                    size={"icon"}
+                    variant={"secondary"}
+                    title="Синхронизация новых данных"
+                  >
+                    {isSyncing ? <Spinner /> : <RotateCcwClockIcon />}
+                  </Button>
+                )}
+              </ButtonGroup>
+              <ButtonGroup>
+                <AlertDialog open={isClearOpen} onOpenChange={setIsClearOpen}>
+                  <AlertDialogTrigger
+                    render={(triggerProps) => (
+                      <Button
+                        {...triggerProps}
+                        type="button"
+                        disabled={isLoading || rows.length === 0}
+                        size={"icon"}
+                        className={
+                          "bg-rose-700 hover:bg-rose-600 text-white font-bold"
+                        }
+                        title="Удалить всё"
+                      >
+                        <TrashIcon />
+                      </Button>
+                    )}
+                  />
+                  <AlertDialogContent className="rounded-2xl max-w-sm w-[calc(100%-1rem)]">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="text-sm">
+                        Очистить таблицу{" "}
+                        <span className="uppercase">{activeTable}</span>?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription className="text-xs">
+                        {activeTable === "deals"
+                          ? "Это действие безвозвратно удалит всю историю Вашей торговли из БД."
+                          : "Данным действием все пары будут безвозвратно удалены из БД."}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="gap-1.5">
+                      <AlertDialogCancel className="rounded-xl text-xs h-9">
+                        Отмена
+                      </AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleTruncateTable}
+                        className="rounded-xl text-xs h-9 bg-rose-700 hover:bg-rose-600 
 text-white font-bold"
-                    >
-                      Стереть
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                      >
+                        Удалить всё
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </ButtonGroup>
             </ButtonGroup>
           </div>
         </div>
@@ -514,9 +490,10 @@ flex-col md:flex-row md:items-center justify-between gap-3"
               className="relative w-full md:w-48 flex items-center group 
 shrink-0"
             >
+              <SearchIcon className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground/60 pointer-events-none" />
               <Input
                 type="text"
-                placeholder="Поиск пары..."
+                placeholder="Search..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-8 pr-8 h-8 text-xs bg-background/50 border-border/40 
@@ -544,7 +521,7 @@ border-input p-0.5 rounded-lg overflow-hidden flex-1 *:h-7
                 variant={filterType === "ALL" ? "default" : "ghost"}
                 onClick={() => setFilterType("ALL")}
               >
-                Все ({allRows.length})
+                ALL ({allRows.length})
               </Button>
               <Button
                 type="button"
@@ -591,18 +568,20 @@ border-input p-0.5 rounded-lg overflow-hidden flex-1 *:h-7
         )}
       </div>
 
-      <Card className="border border-border/40 bg-background mt-1">
+      <Card className="border border-border/40 bg-background mt-1 py-0!">
         {isLoading ? (
           <div
-            className="p-16 flex flex-col gap-2 items-center justify-center 
+            className="p-16 flex gap-2 items-center justify-center 
 text-muted-foreground"
           >
             <Spinner className="text-violet-500" />
-            <span className="text-xs font-medium">Загрузка структуры...</span>
+            <span className="text-xs font-medium">
+              Data loading, please wait...
+            </span>
           </div>
         ) : displayedRows.length === 0 ? (
           <div className="p-12 text-center text-xs text-muted-foreground">
-            Нет данных.
+            No data.
           </div>
         ) : (
           <AdminTable

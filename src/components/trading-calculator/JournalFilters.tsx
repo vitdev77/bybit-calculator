@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Search, X, Download, Trash2 } from "lucide-react";
+import { X, Download, Trash2, SearchIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -45,10 +45,10 @@ export function JournalFilters({
       {/* ЛЕВАЯ ЧАСТЬ */}
       <div className="grid grid-cols-2 sm:flex sm:items-center gap-2.5 w-full sm:w-auto flex-1 sm:flex-none min-w-0">
         <div className="relative w-full sm:w-56 flex items-center group">
-          <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground/60 pointer-events-none" />
+          <SearchIcon className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground/60 pointer-events-none" />
           <Input
             type="text"
-            placeholder="Поиск пары..."
+            placeholder="Search..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-8 pr-8 h-9 sm:h-7.5 text-xs bg-muted/20 border-border/40 rounded-lg w-full"
@@ -132,11 +132,11 @@ export function JournalFilters({
             <AlertDialogContent className="rounded-2xl max-w-xs sm:max-w-sm bg-popover/70 dark:bg-zinc-950/70 backdrop-blur-md border border-border/40 dark:border-white/10 shadow-2xl">
               <AlertDialogHeader>
                 <AlertDialogTitle className="text-sm sm:text-base">
-                  Очистить весь журнал?
+                  Очистить журнал сделок?
                 </AlertDialogTitle>
                 <AlertDialogDescription className="text-[11px] sm:text-xs">
                   Это действие безвозвратно удалит всю историю Вашей торговли из
-                  облачной базы данных Neon DB.
+                  БД.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter className="gap-1.5 sm:gap-2">
@@ -145,11 +145,9 @@ export function JournalFilters({
                 </AlertDialogCancel>
                 <AlertDialogAction
                   onClick={handleClearAllDeals}
-                  className={buttonVariants({
-                    variant: "destructive",
-                    className:
-                      "rounded-xl text-xs h-9 bg-rose-600 hover:bg-rose-700 text-white border-none cursor-pointer flex items-center justify-center",
-                  })}
+                  className={
+                    "rounded-xl text-xs h-9 bg-rose-700 hover:bg-rose-600 text-white font-bold"
+                  }
                 >
                   Удалить всё
                 </AlertDialogAction>

@@ -247,7 +247,7 @@ export default function ListingManagerModal({
             <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground/60" />
             <Input
               type="text"
-              placeholder="Поиск..."
+              placeholder="Search..."
               value={modalSearch}
               onChange={(e) => setModalSearch(e.target.value)}
               className="pl-8 pr-8 h-8 text-xs bg-muted/20 w-full rounded-lg border-border/40"
@@ -276,7 +276,7 @@ export default function ListingManagerModal({
               <span className="md:hidden flex items-center gap-0.5">
                 <Coins className="size-3" />({allRows.length})
               </span>
-              <span className="hidden md:inline">Все ({allRows.length})</span>
+              <span className="hidden md:inline">ALL ({allRows.length})</span>
             </Button>
             <Button
               type="button"

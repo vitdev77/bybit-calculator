@@ -1,6 +1,5 @@
 "use client";
 import React, { useEffect, useState, useRef } from "react";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { DBAssetCoin } from "./TradingCalculator";
@@ -270,7 +269,7 @@ export default function MarketTicker({
             <span
               className={cn(
                 "text-sm sm:text-base font-black text-foreground truncate block",
-                "max-w-30 xs:max-w-none",
+                "max-w-50 xs:max-w-none",
               )}
             >
               {selectedCoin}
