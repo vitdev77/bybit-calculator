@@ -96,10 +96,11 @@ export function JournalRow({
         const dateStr =
           `${String(d.getDate()).padStart(2, "0")}.` +
           `${String(d.getMonth() + 1).padStart(2, "0")}.` +
-          `${String(d.getFullYear()).slice(-2)}`;
+          `${String(d.getFullYear())}`;
         const timeStr =
           `${String(d.getHours()).padStart(2, "0")}:` +
-          `${String(d.getMinutes()).padStart(2, "0")}`;
+          `${String(d.getMinutes()).padStart(2, "0")}:` +
+          `${String(d.getSeconds()).padStart(2, "0")}`;
         setFormattedDateTime({ date: dateStr, time: timeStr });
       } catch (e) {}
     }

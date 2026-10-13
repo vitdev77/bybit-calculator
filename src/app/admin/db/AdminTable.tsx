@@ -168,9 +168,7 @@ export function AdminTable({
                 </button>
               </span>
             )}
-            <span className="font-bold text-foreground font-mono text-xs">
-              {val}
-            </span>
+            <span className="font-bold text-foreground text-xs">{val}</span>
             {activeTable === "coins" && isGainer && (
               <span
                 className={cn(
@@ -397,7 +395,7 @@ export function AdminTable({
                   key={col}
                   className={cn(
                     "p-3 max-w-44 truncate text-foreground/90 font-sans whitespace-nowrap",
-                    isNumericColumn(col) ? "font-mono font-semibold" : "",
+                    isNumericColumn(col) ? "font-semibold" : "",
                   )}
                 >
                   {renderCustomCell(row, col)}
@@ -494,7 +492,7 @@ function LogoSlugCell({
         }}
         disabled={isSaving || isDelisted}
         className={cn(
-          "w-full h-7 text-[11px] font-mono bg-muted/40",
+          "w-full h-7 text-[11px] bg-muted/40",
           "border border-border/40 rounded px-1.5 outline-hidden",
           "focus:bg-background focus:border-amber-500/50",
           "transition-all",

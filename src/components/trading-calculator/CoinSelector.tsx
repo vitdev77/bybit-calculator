@@ -71,17 +71,17 @@ function CoinIcon({
   const fallbackTicker = symbol.replace("USDT", "");
 
   let finalImgUrl = "";
-  const envRoot = process.env.TRADINGVIEW_LOGOS_URL;
+  const envRootBase = process.env.TRADINGVIEW_LOGOS_URL_BASE;
   const defaultCryptoBase =
-    envRoot || "https://s3-symbol-logo.tradingview.com/crypto/XTVC";
+    envRootBase || "https://s3-symbol-logo.tradingview.com";
 
   if (dbSlug.startsWith("http://") || dbSlug.startsWith("https://")) {
     finalImgUrl = dbSlug;
   } else if (dbSlug.startsWith("/")) {
-    finalImgUrl = `https://s3-symbol-logo.tradingview.com${dbSlug}`;
+    finalImgUrl = `${defaultCryptoBase}${dbSlug}`;
   } else {
     const activeSlug = (dbSlug || fallbackTicker).toUpperCase();
-    finalImgUrl = `${defaultCryptoBase}${activeSlug}.svg`;
+    finalImgUrl = `${defaultCryptoBase}/crypto/XTVC${activeSlug}.svg`;
   }
 
   useEffect(() => {
