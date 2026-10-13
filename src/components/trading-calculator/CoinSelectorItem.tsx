@@ -2,12 +2,31 @@
 import React, { useState, useEffect } from "react";
 import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { DBAssetCoin } from "./TradingCalculator";
+
+interface DBAssetCoin {
+  coin: string;
+  decimals: number;
+  is_favorite: boolean;
+  is_active: boolean;
+  is_delisted: boolean;
+  fullname?: string;
+  logo_slug?: string;
+}
 
 interface ItemProps {
-  asset: DBAssetCoin & { logo_slug?: string };
+  asset: DBAssetCoin;
   selectedCoin: string;
-  onToggleFav: (e: React.MouseEvent, coin: string) => void;
+  onToggleFav: (e: React.MouseEvent, coinName: string) => void;
+}
+
+function getCoinGradient(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const c1 = Math.abs((hash & 0xff0000) >> 16) % 360;
+  const c2 = (c1 + 40) % 360;
+  return `linear-gradient(135deg, hsl(${c1}, 70%, 45%), hsl(${c2}, 80%, 35%))`;
 }
 
 export function CoinSelectorItem({
@@ -16,12 +35,20 @@ export function CoinSelectorItem({
   onToggleFav,
 }: ItemProps) {
   const [isLoadFailed, setIsLoadFailed] = useState(false);
-
-  const dbSlug = asset.logo_slug || "";
+  const isCurrent = asset.coin === selectedCoin;
   const fallbackTicker = asset.coin.replace("USDT", "");
+  const dbSlug = asset.logo_slug || "";
+
+  useEffect(() => {
+    setIsLoadFailed(false);
+  }, [asset.coin, asset.logo_slug]);
+
+  const displaySeed = (dbSlug || fallbackTicker).toUpperCase();
 
   let finalImgUrl = "";
-  const defaultCryptoBase = process.env.TRADINGVIEW_LOGOS_URL_BASE || "";
+  const defaultCryptoBase =
+    process.env.TRADINGVIEW_LOGOS_URL_BASE ||
+    "https://s3-symbol-logo.tradingview.com";
 
   if (dbSlug.startsWith("http://") || dbSlug.startsWith("https://")) {
     finalImgUrl = dbSlug;
@@ -32,40 +59,20 @@ export function CoinSelectorItem({
     finalImgUrl = `${defaultCryptoBase}/crypto/XTVC${activeSlug}.svg`;
   }
 
-  useEffect(() => {
-    setIsLoadFailed(false);
-  }, [asset.coin, asset.logo_slug]);
-
-  const textClass = cn(
-    "truncate",
-    asset.is_favorite ? "font-semibold text-amber-500" : "",
-  );
-
-  const starClass = cn(
-    "p-0.5 bg-transparent border-none cursor-pointer",
-    asset.is_favorite
-      ? "text-amber-500"
-      : "text-muted-foreground/20 hover:text-amber-500",
-  );
-
-  const getCoinGradient = (name: string): string => {
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-      hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const c1 = Math.abs((hash & 0xff0000) >> 16) % 360;
-    const c2 = (c1 + 40) % 360;
-    return (
-      `linear-gradient(135deg, hsl(${c1}, 70%, 45%), ` + `hsl(${c2}, 80%, 35%))`
-    );
-  };
-
-  const displaySeed = (dbSlug || fallbackTicker).toUpperCase();
-
   return (
-    <div className="flex w-full items-center justify-between font-sans">
-      <div className="flex flex-1 items-center gap-2 truncate">
-        {!isLoadFailed ? (
+    <div className="flex items-center justify-between w-full font-sans">
+      <div className="flex items-center gap-2 min-w-0">
+        {isLoadFailed ? (
+          <div
+            className={cn(
+              "size-4 rounded-full flex items-center text-white",
+              "justify-center font-black text-[8px] uppercase shrink-0 select-none",
+            )}
+            style={{ backgroundImage: getCoinGradient(displaySeed) }}
+          >
+            {displaySeed.slice(0, 2)}
+          </div>
+        ) : (
           <img
             src={finalImgUrl}
             alt={displaySeed}
@@ -73,32 +80,39 @@ export function CoinSelectorItem({
             className="size-4 shrink-0 rounded-full bg-neutral-100 dark:bg-zinc-800"
             onError={() => setIsLoadFailed(true)}
           />
-        ) : (
-          <div
-            className={cn(
-              "size-4 rounded-full flex items-center text-white",
-              "justify-center font-black text-[8px] uppercase",
-              "shrink-0 select-none",
-            )}
-            style={{ backgroundImage: getCoinGradient(displaySeed) }}
-          >
-            {displaySeed.slice(0, 2)}
-          </div>
         )}
-        <span className={textClass}>{asset.coin}</span>
-      </div>
-      <div className="flex gap-2 items-center shrink-0 ml-auto">
-        <button
-          type="button"
-          onClick={(e) => onToggleFav(e, asset.coin)}
-          className={starClass}
+        <span
+          className={cn(
+            "truncate text-xs sm:text-sm transition-colors",
+            isCurrent
+              ? "font-black text-amber-500"
+              : "font-medium text-foreground",
+          )}
         >
-          <Star
-            className="size-3"
-            fill={asset.is_favorite ? "currentColor" : "none"}
-          />
-        </button>
+          {asset.coin}
+        </span>
+        {asset.fullname && (
+          <span className="text-[9px] font-medium opacity-30 truncate hidden xs:inline max-w-24">
+            {asset.fullname}
+          </span>
+        )}
       </div>
+      <button
+        type="button"
+        onClick={(e) => onToggleFav(e, asset.coin)}
+        className={cn(
+          "absolute right-2 p-1 border-none bg-transparent outline-none",
+          "transition-colors cursor-pointer text-muted-foreground/30",
+          "hover:text-amber-500",
+          asset.is_favorite ? "text-amber-500!" : "",
+        )}
+        title={asset.is_favorite ? "Из избранного" : "В избранное"}
+      >
+        <Star
+          className="size-3.5 shrink-0"
+          fill={asset.is_favorite ? "currentColor" : "none"}
+        />
+      </button>
     </div>
   );
 }

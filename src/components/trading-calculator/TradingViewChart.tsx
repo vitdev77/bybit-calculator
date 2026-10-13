@@ -9,6 +9,8 @@ interface TradingViewChartProps {
   coin: string;
 }
 
+const DEFAULT_TV_SCRIPT = "https://s3.tradingview.com/tv.js";
+const WIDGET_ID = "tradingview_chart_widget";
 export default function TradingViewChart({ coin }: TradingViewChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
@@ -23,7 +25,7 @@ export default function TradingViewChart({ coin }: TradingViewChartProps) {
     const scriptId = "tradingview-widget-script";
     let script = document.getElementById(scriptId) as HTMLScriptElement;
 
-    const tvScriptUrl = process.env.TRADINGVIEW_SCRIPT_URL || "";
+    const tvScriptUrl = process.env.TRADINGVIEW_SCRIPT_URL || DEFAULT_TV_SCRIPT;
 
     if (!script) {
       script = document.createElement("script");
@@ -54,7 +56,7 @@ export default function TradingViewChart({ coin }: TradingViewChartProps) {
           enable_publishing: false,
           hide_side_toolbar: false,
           allow_symbol_change: false,
-          container_id: containerRef.current.id,
+          container_id: WIDGET_ID,
           studies: [],
         });
         setIsChartLoading(false);
@@ -213,7 +215,7 @@ linear-gradient(90deg, rgba(120, 119, 198, 0.08) 1px, transparent 1px)
       )}
 
       <div
-        id="tradingview_chart_widget"
+        id={WIDGET_ID}
         ref={containerRef}
         className="w-full min-w-full h-full overflow-hidden border border-border/30 shadow-inner"
       />

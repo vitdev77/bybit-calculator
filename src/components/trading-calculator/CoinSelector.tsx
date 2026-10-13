@@ -67,11 +67,30 @@ function CoinIcon({
   liveSlug?: string;
 }) {
   const [isLoadFailed, setIsLoadFailed] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const dbSlug = liveSlug || logoSlug || "";
   const fallbackTicker = symbol.replace("USDT", "");
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    setIsLoadFailed(false);
+  }, [symbol, logoSlug, liveSlug]);
+
+  const displaySeed = (dbSlug || fallbackTicker).toUpperCase();
+
+  if (!mounted) {
+    return (
+      <div className="size-4 rounded-full shrink-0 bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+    );
+  }
+
   let finalImgUrl = "";
-  const defaultCryptoBase = process.env.TRADINGVIEW_LOGOS_URL_BASE || "";
+  const defaultCryptoBase =
+    process.env.TRADINGVIEW_LOGOS_URL_BASE ||
+    "https://s3-symbol-logo.tradingview.com";
 
   if (dbSlug.startsWith("http://") || dbSlug.startsWith("https://")) {
     finalImgUrl = dbSlug;
@@ -81,12 +100,6 @@ function CoinIcon({
     const activeSlug = (dbSlug || fallbackTicker).toUpperCase();
     finalImgUrl = `${defaultCryptoBase}/crypto/XTVC${activeSlug}.svg`;
   }
-
-  useEffect(() => {
-    setIsLoadFailed(false);
-  }, [symbol, logoSlug, liveSlug]);
-
-  const displaySeed = (dbSlug || fallbackTicker).toUpperCase();
 
   if (isLoadFailed) {
     return (

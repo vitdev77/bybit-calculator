@@ -58,7 +58,6 @@ function getCoinGradient(name: string): string {
     `linear-gradient(135deg, hsl(${c1}, 70%, 45%), ` + `hsl(${c2}, 80%, 35%))`
   );
 }
-
 export default function MarketTicker({
   data,
   decimals,
@@ -71,6 +70,7 @@ export default function MarketTicker({
     "stable",
   );
   const [isLoadFailed, setIsLoadFailed] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const prevPriceRef = useRef<number | null>(null);
 
   const [fng, setFng] = useState<FGData | null>(null);
@@ -78,22 +78,12 @@ export default function MarketTicker({
   const [timeLeft, setTimeLeft] = useState("00:00:00");
   const [fundProgress, setFundProgress] = useState(100);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const dbSlug = data?.logo_slug || "";
   const fallbackTicker = selectedCoin.replace("USDT", "");
-
-  let finalImgUrl = "";
-  const defaultCryptoBase = process.env.TRADINGVIEW_LOGOS_URL_BASE || "";
-
-  if (dbSlug.startsWith("http://") || dbSlug.startsWith("https://")) {
-    finalImgUrl = dbSlug;
-  } else if (dbSlug.startsWith("/")) {
-    finalImgUrl = `${defaultCryptoBase}${dbSlug}`;
-  } else {
-    const activeSlug = (dbSlug || fallbackTicker).toUpperCase();
-    finalImgUrl = `${defaultCryptoBase}/crypto/XTVC${activeSlug}.svg`;
-  }
-
-  const displaySeed = (dbSlug || fallbackTicker).toUpperCase();
 
   useEffect(() => {
     setIsLoadFailed(false);
@@ -161,7 +151,7 @@ export default function MarketTicker({
         now.getUTCSeconds(),
       );
       const h = now.getUTCHours();
-      const intervals = [0, 8, 16];
+      const intervals = Array.of(0, 8, 16);
       const nextHour = intervals.find((i) => i > h) ?? 24;
       const nextFundingUtc = Date.UTC(
         now.getUTCFullYear(),
@@ -204,7 +194,6 @@ export default function MarketTicker({
       </div>
     );
   }
-
   const ratio = allocatedMarginMax > 0 ? marginUsed / allocatedMarginMax : 0;
   const isFundingHigh = Math.abs(data.fundingRate) >= 0.01;
   const radius = 8;
@@ -226,6 +215,21 @@ export default function MarketTicker({
         : "text-muted-foreground";
 
   const fullName = data?.fullname || "Crypto Asset";
+  const displaySeed = (dbSlug || fallbackTicker).toUpperCase();
+
+  let finalImgUrl = "";
+  const defaultCryptoBase =
+    process.env.TRADINGVIEW_LOGOS_URL_BASE ||
+    "https://s3-symbol-logo.tradingview.com";
+
+  if (dbSlug.startsWith("http://") || dbSlug.startsWith("https://")) {
+    finalImgUrl = dbSlug;
+  } else if (dbSlug.startsWith("/")) {
+    finalImgUrl = `${defaultCryptoBase}${dbSlug}`;
+  } else {
+    const activeSlug = (dbSlug || fallbackTicker).toUpperCase();
+    finalImgUrl = `${defaultCryptoBase}/crypto/XTVC${activeSlug}.svg`;
+  }
 
   return (
     <div
@@ -244,7 +248,9 @@ export default function MarketTicker({
       >
         <div className="flex items-center gap-3 min-w-0 max-w-[50%] md:max-w-full">
           <div className="relative size-9 shrink-0 flex items-center justify-center">
-            {!isLoadFailed ? (
+            {!mounted ? (
+              <div className="w-full h-full rounded-full bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+            ) : !isLoadFailed ? (
               <img
                 src={finalImgUrl}
                 alt={displaySeed}
