@@ -82,9 +82,7 @@ export default function MarketTicker({
   const fallbackTicker = selectedCoin.replace("USDT", "");
 
   let finalImgUrl = "";
-  const envRootBase = process.env.TRADINGVIEW_LOGOS_URL_BASE;
-  const defaultCryptoBase =
-    envRootBase || "https://s3-symbol-logo.tradingview.com";
+  const defaultCryptoBase = process.env.TRADINGVIEW_LOGOS_URL_BASE || "";
 
   if (dbSlug.startsWith("http://") || dbSlug.startsWith("https://")) {
     finalImgUrl = dbSlug;

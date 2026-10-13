@@ -32,8 +32,7 @@ export async function GET(request: Request) {
 
   try {
     const protocol = "https://";
-    const defaultDomain = "https://api.bytick.com";
-    const bybitDomain = process.env.BYBIT_API_URL || defaultDomain;
+    const bybitDomain = process.env.BYBIT_API_URL || "";
     const cleanedDomain = bybitDomain.replace(/^https?:\/\//, "");
 
     const baseUrl = protocol + cleanedDomain;

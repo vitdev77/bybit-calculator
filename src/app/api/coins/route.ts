@@ -27,8 +27,7 @@ function getDecimalsFromTick(tickStr: string): number {
 }
 
 async function fetchAndSyncBybitPairs() {
-  const defaultDomain = "https://api.bytick.com";
-  const bybitDomain = process.env.BYBIT_API_URL || defaultDomain;
+  const bybitDomain = process.env.BYBIT_API_URL || "";
   const cleanedDomain = bybitDomain.replace(/^https?:\/\//, "");
   const baseUrl = "https://" + cleanedDomain;
   const endpoint = "/v5/market/instruments-info";
@@ -292,8 +291,7 @@ ORDER BY coin ASC;
 
     if (all === "true" || search) {
       try {
-        const defaultDomain = "https://api.bytick.com";
-        const bybitDomain = process.env.BYBIT_API_URL || defaultDomain;
+        const bybitDomain = process.env.BYBIT_API_URL || "";
         const cleanedDomain = bybitDomain.replace(/^https?:\/\//, "");
         const baseUrl = "https://" + cleanedDomain;
         const endpoint = "/v5/market/tickers";

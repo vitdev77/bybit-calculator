@@ -23,8 +23,7 @@ export default function TradingViewChart({ coin }: TradingViewChartProps) {
     const scriptId = "tradingview-widget-script";
     let script = document.getElementById(scriptId) as HTMLScriptElement;
 
-    const tvScriptUrl =
-      process.env.TRADINGVIEW_SCRIPT_URL || "https://s3.tradingview.com/tv.js";
+    const tvScriptUrl = process.env.TRADINGVIEW_SCRIPT_URL || "";
 
     if (!script) {
       script = document.createElement("script");

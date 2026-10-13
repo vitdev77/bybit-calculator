@@ -109,8 +109,7 @@ SELECT COUNT(*) as count FROM coins;
       stats.count = parseInt(cRes[0]?.count || "0", 10);
 
       try {
-        const defaultDomain = "https://api.bytick.com";
-        const bybitDomain = process.env.BYBIT_API_URL || defaultDomain;
+        const bybitDomain = process.env.BYBIT_API_URL || "";
         const cleanedDomain = bybitDomain.replace(/^https?:\/\//, "");
         const baseUrl = "https://" + cleanedDomain;
         const endpoint = "/v5/market/tickers";
