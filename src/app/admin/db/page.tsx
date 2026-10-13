@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   X,
   TrashIcon,
@@ -7,6 +7,8 @@ import {
   SettingsIcon,
   SearchIcon,
   RotateCcwClockIcon,
+  DownloadIcon,
+  UploadIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
@@ -27,6 +29,7 @@ import {
 import { AdminHeader } from "./AdminHeader";
 import { AdminStats } from "./AdminStats";
 import { AdminTable } from "./AdminTable";
+import { toast } from "@/components/ui/toast";
 
 const STORAGE_KEY_TABLE = "bybit_calc_admin_table_v1";
 
@@ -35,7 +38,6 @@ interface SyncMeta {
   totalCoins: number;
   liveCount: number;
 }
-
 export default function AdminDbPage() {
   const [activeTable, setActiveTable] = useState<"deals" | "coins">("deals");
   const [filterType, setFilterType] = useState<string>("ALL");
@@ -48,6 +50,9 @@ export default function AdminDbPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isClearOpen, setIsClearOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const getAuthHeaders = () => {
     const token = process.env.ADMIN_SECRET_KEY || "fallback_default_token_key";
@@ -56,6 +61,7 @@ export default function AdminDbPage() {
       "Content-Type": "application/json",
     };
   };
+
   const loadTableData = async (tableName: "deals" | "coins") => {
     setIsLoading(true);
     try {
@@ -145,10 +151,94 @@ export default function AdminDbPage() {
       if (!res.ok) throw new Error("Ошибка очистки");
       setRows([]);
       setIsClearOpen(false);
+      toast.add({
+        title: "Таблица очищена",
+        description: `Все данные из ${activeTable} успешно стерты.`,
+        type: "success",
+      });
     } catch (err: any) {
       console.error("Truncate Error:", err.message);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleBackupExport = async () => {
+    setActionLoading(true);
+    try {
+      const res = await fetch("/api/admin/db?action=backup", {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error();
+      const json = await res.json();
+      const dataStr = JSON.stringify(json.backupData, null, 2);
+      const blob = new Blob([dataStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const date = new Date().toISOString().slice(0, 10);
+      link.href = url;
+      link.download = `bybit_calc_db_backup_${date}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.add({
+        title: "Бэкап создан",
+        description: "Файл резервной копии успешно скачан.",
+        type: "success",
+      });
+    } catch (err) {
+      console.error(err);
+      toast.add({
+        title: "Сбой бэкапа",
+        description: "Не удалось выгрузить слепок таблиц СУБД.",
+        type: "error",
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleBackupImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const msg =
+      "Внимание! Импорт полностью перезапишет текущие таблицы. Продолжить?";
+    if (!confirm(msg)) {
+      e.target.value = "";
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const fileText = await file.text();
+      const parsedBackup = JSON.parse(fileText);
+      const res = await fetch("/api/admin/db", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          action: "restore",
+          backupData: parsedBackup,
+        }),
+      });
+      if (res.ok) {
+        toast.add({
+          title: "Данные импортированы",
+          description: "Таблицы успешно восстановлены из файла.",
+          type: "success",
+        });
+        loadTableData(activeTable);
+      } else {
+        throw new Error();
+      }
+    } catch (err) {
+      console.error(err);
+      toast.add({
+        title: "Сбой восстановления",
+        description: "Неверный формат JSON или ошибка структуры.",
+        type: "error",
+      });
+    } finally {
+      setActionLoading(false);
+      e.target.value = "";
     }
   };
 
@@ -175,7 +265,6 @@ export default function AdminDbPage() {
       "precision",
     ].includes(c);
   };
-
   const getDealsMetrics = () => {
     let totalPnl = 0,
       totalMargin = 0,
@@ -229,21 +318,18 @@ export default function AdminDbPage() {
         topLosers: [],
       };
     }
-
     const liqRows: any[] = [];
     const midRows: any[] = [];
     const riskRows: any[] = [];
     const delisRows: any[] = [];
     const newRows: any[] = [];
     const allRows: any[] = [];
-
     const validTickers = Object.entries(tickerRegistry)
       .map(([coin, t]: [string, any]) => ({
         coin,
         p: t.price24hPcnt || 0,
       }))
       .filter((item) => !isNaN(item.p));
-
     const sortedTickers = [...validTickers].sort((a, b) => b.p - a.p);
     const topGainers = sortedTickers.slice(0, 3).map((i) => i.coin);
     const topLosers = sortedTickers
@@ -260,7 +346,6 @@ export default function AdminDbPage() {
         delisRows.push(row);
         return;
       }
-
       if (row.listed_at) {
         const created = new Date(row.listed_at).getTime();
         const oneDayAgo = Date.now() - 1 * 24 * 60 * 60 * 1000;
@@ -268,7 +353,6 @@ export default function AdminDbPage() {
           newRows.push(row);
         }
       }
-
       const live = tickerRegistry[row.coin] || { turnover24h: 0 };
       const isMem =
         row.coin?.includes("DOGE") ||
@@ -281,14 +365,12 @@ export default function AdminDbPage() {
       else if (isRisk) riskRows.push(row);
       else midRows.push(row);
     });
-
     let filtered = allRows;
     if (filterType === "LIQ") filtered = liqRows;
     else if (filterType === "MID") filtered = midRows;
     else if (filterType === "RISK") filtered = riskRows;
     else if (filterType === "DELIS") filtered = delisRows;
     else if (filterType === "NEW") filtered = newRows;
-
     return {
       liqRows,
       midRows,
@@ -301,15 +383,6 @@ export default function AdminDbPage() {
       topLosers,
     };
   };
-
-  if (!isMounted) {
-    return (
-      <div className="w-full h-screen flex items-center justify-center">
-        <Spinner className="text-violet-500 size-6" />
-      </div>
-    );
-  }
-
   const dm = getDealsMetrics();
   const {
     liqRows,
@@ -364,7 +437,6 @@ export default function AdminDbPage() {
         delistedCount={rows.filter((r) => r.is_delisted).length}
         activeCount={rows.length - rows.filter((r) => r.is_delisted).length}
       />
-
       <div
         className="flex flex-col gap-2 p-3 bg-muted/30 border 
 border-border/40 rounded-xl"
@@ -383,7 +455,38 @@ justify-between gap-3 w-full"
             className="flex items-center gap-2 ml-auto w-full sm:w-auto 
 justify-end"
           >
-            <ButtonGroup>
+            <div className="flex items-center gap-2">
+              <ButtonGroup>
+                <Button
+                  type="button"
+                  disabled={actionLoading}
+                  onClick={handleBackupExport}
+                  size={"icon"}
+                  variant={"secondary"}
+                  title="Выгрузить полный бэкап базы данных (JSON)"
+                >
+                  <DownloadIcon className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  disabled={actionLoading}
+                  onClick={() => fileInputRef.current?.click()}
+                  size={"icon"}
+                  variant={"secondary"}
+                  title="Восстановить СУБД из файла бэкапа"
+                >
+                  <UploadIcon className="size-4" />
+                </Button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept=".json"
+                  onChange={handleBackupImport}
+                  disabled={actionLoading}
+                  className="hidden"
+                />
+              </ButtonGroup>
+
               <ButtonGroup>
                 {activeTable === "deals" && (
                   <Button
@@ -456,7 +559,7 @@ text-white font-bold"
                   </AlertDialogContent>
                 </AlertDialog>
               </ButtonGroup>
-            </ButtonGroup>
+            </div>
           </div>
         </div>
 
@@ -480,7 +583,6 @@ leading-none px-0.5 mt-1"
             )
           </div>
         )}
-
         {activeTable === "coins" && (
           <div
             className="w-full pt-1.5 border-t border-border/10 flex 
