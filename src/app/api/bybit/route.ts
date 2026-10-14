@@ -17,7 +17,6 @@ function safeParseFloat(val: any): number {
   const parsed = parseFloat(val);
   return isNaN(parsed) ? 0 : parsed;
 }
-
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const symbol = (searchParams.get("symbol") || "BTCUSDT").toUpperCase();
@@ -59,7 +58,9 @@ export async function GET(request: Request) {
     const responseText = await response.text();
     if (!response.ok) {
       return NextResponse.json(
-        { error: `Bybit API Error Status: ${response.status}` },
+        {
+          error: `Bybit API Error Status: ` + `${response.status}`,
+        },
         { status: response.status },
       );
     }
@@ -69,7 +70,9 @@ export async function GET(request: Request) {
       data = JSON.parse(responseText);
     } catch (e) {
       return NextResponse.json(
-        { error: "Invalid JSON response or Cloudflare block" },
+        {
+          error: "Invalid JSON response or " + "Cloudflare block",
+        },
         { status: 403 },
       );
     }
@@ -80,7 +83,9 @@ export async function GET(request: Request) {
       data.result.list.length === 0
     ) {
       return NextResponse.json(
-        { error: data.retMsg || "Symbol asset not found" },
+        {
+          error: data.retMsg || "Symbol asset not found",
+        },
         { status: 404 },
       );
     }
@@ -88,7 +93,6 @@ export async function GET(request: Request) {
     const ticker = data.result.list[0];
     let dbFullName = "Crypto Asset";
     let dbLogoSlug = symbol.replace("USDT", "").toUpperCase();
-
     try {
       const dbRes = await sql`
 SELECT fullname, logo_slug 
@@ -107,6 +111,19 @@ WHERE coin = ${symbol} LIMIT 1;
       console.warn("Database Name Fetch Error", dbErr);
     }
 
+    let isDbLocked = false;
+    try {
+      const lockRes = await sql`
+SELECT value FROM sys_settings 
+WHERE key = 'db_lock_status' LIMIT 1;
+`;
+      if (lockRes && lockRes.length > 0) {
+        isDbLocked = !!lockRes[0].value?.is_locked;
+      }
+    } catch (lockErr) {
+      console.warn("Database Lock Check Error", lockErr);
+    }
+
     const finalResult = {
       lastPrice: safeParseFloat(ticker.lastPrice),
       prevPrice24h: safeParseFloat(ticker.prevPrice24h),
@@ -118,6 +135,7 @@ WHERE coin = ${symbol} LIMIT 1;
       turnover24h: safeParseFloat(ticker.turnover24h),
       fullname: dbFullName,
       logo_slug: dbLogoSlug,
+      isDbSyncing: isDbLocked,
     };
 
     memoryCache.set(symbol, {
@@ -130,7 +148,9 @@ WHERE coin = ${symbol} LIMIT 1;
     clearTimeout(timeoutId);
     if (error.name === "AbortError") {
       return NextResponse.json(
-        { error: "Bybit API response timeout exceeded" },
+        {
+          error: "Bybit API response timeout " + "exceeded",
+        },
         { status: 504 },
       );
     }

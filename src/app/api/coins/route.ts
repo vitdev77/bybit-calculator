@@ -25,8 +25,17 @@ function getDecimalsFromTick(tickStr: string): number {
   if (dotIdx === -1) return 0;
   return tickStr.length - dotIdx - 1;
 }
-
 async function fetchAndSyncBybitPairs() {
+  await sql`
+INSERT INTO sys_settings (key, value)
+VALUES (
+'db_lock_status', 
+'{"is_locked":true}'
+)
+ON CONFLICT (key) DO UPDATE 
+SET value = EXCLUDED.value;
+`;
+
   const bybitDomain = process.env.BYBIT_API_URL || "";
   const cleanedDomain = bybitDomain.replace(/^https?:\/\//, "");
   const baseUrl = "https://" + cleanedDomain;
@@ -47,7 +56,8 @@ async function fetchAndSyncBybitPairs() {
         let targetUrl =
           baseUrl +
           endpoint +
-          "?category=linear&limit=1000&status=" +
+          "?category=linear&limit=1000" +
+          "&status=" +
           currentStatus;
         if (currentCursor) {
           targetUrl += "&cursor=" + currentCursor;
@@ -82,6 +92,17 @@ async function fetchAndSyncBybitPairs() {
     }
   } catch (bybitErr) {
     console.warn("⚠️ Сбой Bybit API:", bybitErr);
+    try {
+      await sql`
+INSERT INTO sys_settings (key, value)
+VALUES (
+'db_lock_status', 
+'{"is_locked":false}'
+)
+ON CONFLICT (key) DO UPDATE 
+SET value = EXCLUDED.value;
+`;
+    } catch (e) {}
     return false;
   }
 
@@ -96,7 +117,6 @@ UPDATE coins
 SET is_active = FALSE, is_delisted = TRUE 
 WHERE NOT (coin = ANY(${allNames}));
 `;
-
     const defaultFavs = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "SUIUSDT", "XRPUSDT"];
 
     for (const item of livePairs) {
@@ -114,12 +134,17 @@ is_delisted, fullname, logo_slug, listed_at
 VALUES (
 ${coinName}, ${decimals}, 
 ${defaultFavs.includes(coinName)}, 
-TRUE, FALSE, ${officialName}, ${defaultSlug}, NOW()
+TRUE, FALSE, ${officialName}, 
+${defaultSlug}, NOW()
 )
 ON CONFLICT (coin) DO UPDATE SET 
 decimals = ${decimals}, is_active = TRUE, 
-is_delisted = FALSE, fullname = ${officialName},
-logo_slug = COALESCE(coins.logo_slug, ${defaultSlug});
+is_delisted = FALSE, 
+fullname = ${officialName},
+logo_slug = COALESCE(
+coins.logo_slug, 
+${defaultSlug}
+);
 `;
     }
 
@@ -136,13 +161,17 @@ coin, decimals, is_favorite, is_active,
 is_delisted, fullname, logo_slug, listed_at
 )
 VALUES (
-${coinName}, ${decimals}, FALSE, FALSE, TRUE, 
-${officialName}, ${defaultSlug}, NOW()
+${coinName}, ${decimals}, FALSE, FALSE, 
+TRUE, ${officialName}, ${defaultSlug}, NOW()
 )
 ON CONFLICT (coin) DO UPDATE SET 
 decimals = ${decimals}, is_active = FALSE, 
-is_delisted = TRUE, fullname = ${officialName},
-logo_slug = COALESCE(coins.logo_slug, ${defaultSlug});
+is_delisted = TRUE, 
+fullname = ${officialName},
+logo_slug = COALESCE(
+coins.logo_slug, 
+${defaultSlug}
+);
 `;
     }
 
@@ -157,11 +186,20 @@ ON CONFLICT (key) DO UPDATE SET
 value = EXCLUDED.value;
 `;
 
+    await sql`
+INSERT INTO sys_settings (key, value)
+VALUES (
+'db_lock_status', 
+'{"is_locked":false}'
+)
+ON CONFLICT (key) DO UPDATE 
+SET value = EXCLUDED.value;
+`;
+
     return true;
   }
   return false;
 }
-
 async function ensureCoinsTableExists() {
   if (isCoinsVerified) return;
   try {
@@ -195,7 +233,8 @@ VARCHAR(50);
     await sql`
 ALTER TABLE coins 
 ADD COLUMN IF NOT EXISTS listed_at 
-TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+TIMESTAMP WITH TIME ZONE 
+DEFAULT CURRENT_TIMESTAMP;
 `;
     await sql`
 CREATE TABLE IF NOT EXISTS sys_settings (
@@ -208,6 +247,7 @@ value JSONB NOT NULL
     console.error("Database Migration Error:", err);
   }
 }
+
 export async function GET(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
@@ -247,7 +287,6 @@ WHERE is_favorite = TRUE
 ORDER BY coin ASC;
 `;
     }
-
     if (coinsResult.length === 0 && !search && !all) {
       const defaultFavs = [
         "BTCUSDT",
@@ -273,7 +312,10 @@ ${fName}, ${dSlug}, NOW()
 )
 ON CONFLICT (coin) DO UPDATE SET 
 decimals = ${dDec}, fullname = ${fName},
-logo_slug = COALESCE(coins.logo_slug, ${dSlug});
+logo_slug = COALESCE(
+coins.logo_slug, 
+${dSlug}
+);
 `;
       }
       coinsResult = await sql`

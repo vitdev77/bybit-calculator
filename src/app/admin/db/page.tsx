@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useState, useEffect, useRef } from "react";
 import {
   X,
@@ -30,6 +31,7 @@ import { AdminHeader } from "./AdminHeader";
 import { AdminStats } from "./AdminStats";
 import { AdminTable } from "./AdminTable";
 import { toast } from "@/components/ui/toast";
+import { cn } from "@/lib/utils";
 
 const STORAGE_KEY_TABLE = "bybit_calc_admin_table_v1";
 
@@ -96,6 +98,7 @@ export default function AdminDbPage() {
       setIsMounted(true);
     }
   }, []);
+
   useEffect(() => {
     if (!isMounted) return;
     loadTableData(activeTable);
@@ -115,9 +118,9 @@ export default function AdminDbPage() {
   const handleReloadTable = async () => {
     await loadTableData(activeTable);
   };
-
   const handleSyncBybit = async () => {
     if (isSyncing) return;
+    window.dispatchEvent(new Event("db-sync-start"));
     setIsSyncing(true);
     setRows([]);
     setIsLoading(true);
@@ -125,7 +128,9 @@ export default function AdminDbPage() {
       const res = await fetch("/api/coins", {
         method: "PATCH",
         headers: getAuthHeaders(),
-        body: JSON.stringify({ action: "SYNC_BYBIT" }),
+        body: JSON.stringify({
+          action: "SYNC_BYBIT",
+        }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
@@ -138,30 +143,36 @@ export default function AdminDbPage() {
       loadTableData(activeTable);
     } finally {
       setIsSyncing(false);
+      window.dispatchEvent(new Event("db-sync-end"));
     }
   };
 
   const handleTruncateTable = async () => {
+    window.dispatchEvent(new Event("db-sync-start"));
     setIsLoading(true);
     try {
       const res = await fetch(`/api/admin/db?table=${activeTable}`, {
         method: "DELETE",
         headers: getAuthHeaders(),
       });
-      if (!res.ok) throw new Error("Ошибка очистки");
+      if (!res.ok) {
+        throw new Error("Ошибка очистки");
+      }
       setRows([]);
       setIsClearOpen(false);
       toast.add({
         title: "Таблица очищена",
-        description: `Все данные из таблицы ${activeTable} успешно стерты.`,
+        description: `Все данные из таблицы ` + `${activeTable} стерты.`,
         type: "success",
       });
     } catch (err: any) {
       console.error("Truncate Error:", err.message);
     } finally {
       setIsLoading(false);
+      window.dispatchEvent(new Event("db-sync-end"));
     }
   };
+
   const handleBackupExport = async () => {
     try {
       const res = await fetch("/api/admin/db?action=backup", {
@@ -175,21 +186,15 @@ export default function AdminDbPage() {
       const link = document.createElement("a");
 
       link.href = url;
-      link.download = `bybit_calc_db_backup_${new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 19).replace("T", "_").replace(/:/g, "-")}.json`;
+      link.download = `bybit_calc_db_backup_` + `${Date.now()}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
-      // toast.add({
-      //   title: "Бэкап создан",
-      //   description: "Файл резервной копии успешно скачан.",
-      //   type: "success",
-      // });
     } catch (err) {
       console.error(err);
       toast.add({
         title: "Сбой бэкапа",
-        description: "Не удалось выгрузить слепок таблиц СУБД.",
+        description: "Не удалось выгрузить слепок.",
         type: "error",
       });
     }
@@ -199,11 +204,14 @@ export default function AdminDbPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     const msg =
-      "Внимание! Импорт полностью перезапишет текущие таблицы. Продолжить?";
+      "Внимание! Импорт полностью " +
+      "перезапишет текущие таблицы. " +
+      "Продолжить?";
     if (!confirm(msg)) {
       e.target.value = "";
       return;
     }
+    window.dispatchEvent(new Event("db-sync-start"));
     setActionLoading(true);
     try {
       const fileText = await file.text();
@@ -219,7 +227,7 @@ export default function AdminDbPage() {
       if (res.ok) {
         toast.add({
           title: "Данные импортированы",
-          description: "Таблицы успешно восстановлены из файла.",
+          description: "Таблицы восстановлены из файла.",
           type: "success",
         });
         loadTableData(activeTable);
@@ -230,12 +238,13 @@ export default function AdminDbPage() {
       console.error(err);
       toast.add({
         title: "Сбой восстановления",
-        description: "Неверный формат JSON или ошибка структуры.",
+        description: "Неверный формат JSON.",
         type: "error",
       });
     } finally {
       setActionLoading(false);
       e.target.value = "";
+      window.dispatchEvent(new Event("db-sync-end"));
     }
   };
 
@@ -298,6 +307,7 @@ export default function AdminDbPage() {
       winRate,
     };
   };
+
   const processAdminTableDistribution = () => {
     if (activeTable === "deals") {
       const filteredDeals = rows.filter((row) =>
@@ -380,6 +390,7 @@ export default function AdminDbPage() {
       topLosers,
     };
   };
+
   const dm = getDealsMetrics();
   const {
     liqRows,
@@ -418,9 +429,8 @@ export default function AdminDbPage() {
   ];
 
   const activeHeaders = activeTable === "deals" ? dealsHeaders : coinsHeaders;
-
   return (
-    <div className="w-full max-w-5xl mx-auto p-2.5 sm:p-6 space-y-4">
+    <div className={cn("w-full max-w-5xl mx-auto ", "p-2.5 sm:p-6 space-y-4")}>
       <AdminHeader
         activeTable={activeTable}
         onTableChange={handleTableChange}
@@ -436,22 +446,34 @@ export default function AdminDbPage() {
       />
 
       <div
-        className="flex flex-col gap-2 p-3 bg-muted/30 border 
-border-border/40 rounded-xl"
+        className={cn(
+          "flex flex-col gap-2 p-3 bg-muted/30 ",
+          "border border-border/40 rounded-xl",
+        )}
       >
         <div
-          className="flex flex-col sm:flex-row items-start sm:items-center 
-justify-between gap-3 w-full"
+          className={cn(
+            "flex flex-col sm:flex-row ",
+            "items-start sm:items-center ",
+            "justify-between gap-3 w-full",
+          )}
         >
           <div className="flex items-center gap-2">
-            <SettingsIcon className="size-4 text-violet-400 shrink-0" />
-            <div className="text-[11px] font-bold text-muted-foreground uppercase">
+            <SettingsIcon className={cn("size-4 text-violet-400 shrink-0")} />
+            <div
+              className={cn(
+                "text-[11px] font-bold ",
+                "text-muted-foreground uppercase",
+              )}
+            >
               Панель управления
             </div>
           </div>
           <div
-            className="flex items-center gap-2 ml-auto w-full sm:w-auto 
-justify-end"
+            className={cn(
+              "flex items-center gap-2 ml-auto ",
+              "w-full sm:w-auto justify-end",
+            )}
           >
             <div className="flex items-center gap-2">
               <ButtonGroup>
@@ -463,7 +485,7 @@ justify-end"
                   onClick={handleBackupExport}
                   size={"icon"}
                   variant={"secondary"}
-                  title="Бэкап базы данных в формате JSON"
+                  title="Бэкап базы данных"
                 >
                   <DownloadIcon className="size-4" />
                 </Button>
@@ -473,7 +495,7 @@ justify-end"
                   onClick={() => fileInputRef.current?.click()}
                   size={"icon"}
                   variant={"secondary"}
-                  title="Восстановить СУБД из файла бэкапа"
+                  title="Восстановить СУБД"
                 >
                   <UploadIcon className="size-4" />
                 </Button>
@@ -499,7 +521,7 @@ justify-end"
                     onClick={handleReloadTable}
                     size={"icon"}
                     variant={"secondary"}
-                    title="Обновить таблицу журнала сделок"
+                    title="Обновить таблицу"
                   >
                     {isLoading || isSyncing ? <Spinner /> : <RefreshCcwIcon />}
                   </Button>
@@ -512,7 +534,7 @@ justify-end"
                     onClick={handleSyncBybit}
                     size={"icon"}
                     variant={"secondary"}
-                    title="Синхронизация новых данных"
+                    title="Синхронизация Bybit"
                   >
                     {isSyncing ? <Spinner /> : <RotateCcwClockIcon />}
                   </Button>
@@ -532,35 +554,47 @@ justify-end"
                           isSyncing
                         }
                         size={"icon"}
-                        className={
-                          "bg-rose-700 hover:bg-rose-600 text-white font-bold"
-                        }
+                        className={cn(
+                          "bg-rose-700 ",
+                          "hover:bg-rose-600 ",
+                          "text-white font-bold",
+                        )}
                         title="Удалить всё"
                       >
                         <TrashIcon />
                       </Button>
                     )}
                   />
-                  <AlertDialogContent className="rounded-2xl max-w-sm w-[calc(100%-1rem)]">
+                  <AlertDialogContent
+                    className={cn(
+                      "rounded-2xl max-w-sm ",
+                      "w-[calc(100%-1rem)]",
+                    )}
+                  >
                     <AlertDialogHeader>
                       <AlertDialogTitle className="text-sm">
                         Очистить таблицу{" "}
                         <span className="uppercase">{activeTable}</span>?
                       </AlertDialogTitle>
-                      <AlertDialogDescription className="text-xs">
+                      <AlertDialogDescription className={cn("text-xs")}>
                         {activeTable === "deals"
-                          ? "Это действие безвозвратно удалит всю историю Вашей торговли из БД."
-                          : "Это действие безвозвратно удалит все пары монет из БД."}
+                          ? "Удалить историю Вашей торговли."
+                          : "Удалить все пары монет из БД."}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter className="gap-1.5">
-                      <AlertDialogCancel className="rounded-xl text-xs h-9">
+                      <AlertDialogCancel
+                        className={cn("rounded-xl text-xs h-9")}
+                      >
                         Отмена
                       </AlertDialogCancel>
                       <AlertDialogAction
                         onClick={handleTruncateTable}
-                        className="rounded-xl text-xs h-9 bg-rose-700 hover:bg-rose-600 
-text-white font-bold"
+                        className={cn(
+                          "rounded-xl text-xs h-9 ",
+                          "bg-rose-700 hover:bg-rose-600 ",
+                          "text-white font-bold",
+                        )}
                       >
                         Удалить всё
                       </AlertDialogAction>
@@ -574,11 +608,14 @@ text-white font-bold"
 
         {activeTable === "coins" && syncMeta && (
           <div
-            className="text-[10px] font-semibold text-muted-foreground/60 
-leading-none px-0.5 mt-1"
+            className={cn(
+              "text-[10px] font-semibold ",
+              "text-muted-foreground/60 ",
+              "leading-none px-0.5 mt-1",
+            )}
           >
-            Листинг Bybit синхронизирован:{" "}
-            <span className="text-foreground/80 font-bold">
+            Синхронизировано:{" "}
+            <span className={cn("text-foreground/80 font-bold")}>
               {new Date(syncMeta.timestamp).toLocaleString("ru-RU")}
             </span>
           </div>
@@ -586,14 +623,27 @@ leading-none px-0.5 mt-1"
 
         {activeTable === "coins" && (
           <div
-            className="w-full pt-1.5 border-t border-border/10 flex 
-flex-col md:flex-row md:items-center justify-between gap-3"
+            className={cn(
+              "w-full pt-1.5 border-t ",
+              "border-border/10 flex ",
+              "flex-col md:flex-row ",
+              "md:items-center ",
+              "justify-between gap-3",
+            )}
           >
             <div
-              className="relative w-full md:w-48 flex items-center group 
-shrink-0"
+              className={cn(
+                "relative w-full md:w-48 flex ",
+                "items-center group shrink-0",
+              )}
             >
-              <SearchIcon className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground/60 pointer-events-none" />
+              <SearchIcon
+                className={cn(
+                  "absolute left-2.5 h-3.5 ",
+                  "w-3.5 text-muted-foreground/60 ",
+                  "pointer-events-none",
+                )}
+              />
               <Input
                 type="text"
                 placeholder="Search..."
@@ -602,25 +652,36 @@ shrink-0"
                 disabled={
                   isLoading || actionLoading || displayedRows.length === 0
                 }
-                className="pl-8 pr-8 h-8 text-xs bg-background/50 border-border/40 
-rounded-lg w-full"
+                className={cn(
+                  "pl-8 pr-8 h-8 text-xs ",
+                  "bg-background/50 ",
+                  "border-border/40 rounded-lg w-full",
+                )}
               />
               {searchQuery.length > 0 && (
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-2.5 text-muted-foreground/60 
-hover:text-foreground bg-transparent border-none p-0 
-cursor-pointer"
+                  className={cn(
+                    "absolute right-2.5 ",
+                    "text-muted-foreground/60 ",
+                    "hover:text-foreground ",
+                    "bg-transparent border-none ",
+                    "p-0 cursor-pointer",
+                  )}
                 >
                   <X className="size-3.5" />
                 </button>
               )}
             </div>
             <div
-              className="flex flex-wrap gap-1 w-full bg-background border 
-border-input p-0.5 rounded-lg overflow-hidden flex-1 *:h-7 
-*:text-[10px] *:font-black *:rounded-md *:flex-1 *:min-w-14 
-*:w-full"
+              className={cn(
+                "flex flex-wrap gap-1 w-full ",
+                "bg-background border border-input ",
+                "p-0.5 rounded-lg overflow-hidden ",
+                "flex-1 *:h-7 *:text-[10px] ",
+                "*:font-black *:rounded-md ",
+                "*:flex-1 *:min-w-14 *:w-full",
+              )}
             >
               <Button
                 type="button"
@@ -692,22 +753,28 @@ border-input p-0.5 rounded-lg overflow-hidden flex-1 *:h-7
         )}
       </div>
 
-      <Card className="border border-border/40 bg-background mt-1 py-0!">
+      <Card
+        className={cn("border border-border/40 ", "bg-background mt-1 py-0!")}
+      >
         {isLoading || actionLoading || isSyncing ? (
           <div
-            className="p-12 flex gap-2 items-center justify-center 
-text-muted-foreground"
+            className={cn(
+              "p-12 flex gap-2 items-center ",
+              "justify-center text-muted-foreground",
+            )}
           >
             <Spinner className="text-violet-500" />
             <span className="text-xs font-medium">
-              {isLoading && !isSyncing && "Data loading, please wait..."}
-              {actionLoading && !isLoading && "Recovering data, please wait..."}
-              {isSyncing && "Synchronizing data, please wait..."}
+              {isLoading && !isSyncing && "Загрузка данных..."}
+              {actionLoading && !isLoading && "Восстановление данных..."}
+              {isSyncing && "Синхронизация листинга..."}
             </span>
           </div>
         ) : displayedRows.length === 0 ? (
-          <div className="p-12 text-center text-xs text-muted-foreground">
-            No data found
+          <div
+            className={cn("p-12 text-center text-xs ", "text-muted-foreground")}
+          >
+            Ничего не найдено
           </div>
         ) : (
           <AdminTable

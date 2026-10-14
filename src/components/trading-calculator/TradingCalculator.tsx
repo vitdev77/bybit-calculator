@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import CoinSelector from "./CoinSelector";
@@ -8,6 +9,7 @@ import ResultsDisplay from "./ResultsDisplay";
 import MarketTicker from "./MarketTicker";
 import ListingManagerModal from "./ListingManagerModal";
 import { cn } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 
 export type OrderType = "MARKET" | "LIMIT";
 export type PositionSide = "BUY" | "SELL";
@@ -71,6 +73,7 @@ function useTabTicker(
     document.title = "Bybit Futures Calculator";
   }, [coin]);
 }
+
 interface CalculatorProps {
   selectedCoin: string;
   setSelectedCoin: (coin: string) => void;
@@ -78,8 +81,8 @@ interface CalculatorProps {
   onPriceUpdate?: (price: number) => void;
   externalPartsCount: number;
   setExternalPartsCount: (v: number) => void;
+  onSyncStatusChange?: (v: boolean) => void;
 }
-
 export default function TradingCalculator({
   selectedCoin,
   setSelectedCoin,
@@ -87,6 +90,7 @@ export default function TradingCalculator({
   onPriceUpdate,
   externalPartsCount,
   setExternalPartsCount,
+  onSyncStatusChange,
 }: CalculatorProps) {
   const [balance, setBalance] = useState(100);
   const [riskPercent, setRiskPercent] = useState(2);
@@ -106,6 +110,7 @@ export default function TradingCalculator({
   );
   const [tickerRegistry, setTickerRegistry] = useState<Record<string, any>>({});
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDbSyncing, setIsDbSyncing] = useState(false);
 
   const partsCount = externalPartsCount;
   const setPartsCount = setExternalPartsCount;
@@ -168,23 +173,35 @@ export default function TradingCalculator({
       if (savedState) {
         try {
           parsed = JSON.parse(savedState);
-          if (parsed.selectedCoin) loadedCoin = parsed.selectedCoin;
+          if (parsed.selectedCoin) {
+            loadedCoin = parsed.selectedCoin;
+          }
           if (parsed.balance) {
             setBalance(parsed.balance);
             onBalanceChange?.(parsed.balance);
           }
-          if (parsed.riskPercent) setRiskPercent(parsed.riskPercent);
+          if (parsed.riskPercent) {
+            setRiskPercent(parsed.riskPercent);
+          }
           if (parsed.riskRewardRatio) {
             setRiskRewardRatio(parsed.riskRewardRatio);
           }
-          if (parsed.orderType) setOrderType(parsed.orderType);
-          if (parsed.entryPrice) setEntryPrice(parsed.entryPrice);
+          if (parsed.orderType) {
+            setOrderType(parsed.orderType);
+          }
+          if (parsed.entryPrice) {
+            setEntryPrice(parsed.entryPrice);
+          }
           if (parsed.stopLossPercent) {
             setStopLossPercent(parsed.stopLossPercent);
           }
-          if (parsed.leverage) setLeverage(Number(parsed.leverage));
+          if (parsed.leverage) {
+            setLeverage(Number(parsed.leverage));
+          }
           if (parsed.side) setSide(parsed.side);
-          if (parsed.partsCount) setPartsCount(Number(parsed.partsCount));
+          if (parsed.partsCount) {
+            setPartsCount(Number(parsed.partsCount));
+          }
         } catch (e) {
           console.error(e);
         }
@@ -215,7 +232,7 @@ export default function TradingCalculator({
         const res = await fetch("/api/coins");
         if (!res.ok) throw new Error();
         const data = await res.json();
-        let fetchedCoins: DBAssetCoin[] = data.coins || [];
+        let fetchedCoins = data.coins || [];
 
         let eventCoin: string | null = null;
         let eventFav: boolean | null = null;
@@ -230,9 +247,11 @@ export default function TradingCalculator({
         }
 
         if (eventCoin) {
-          const exists = fetchedCoins.some((c) => c.coin === eventCoin);
+          const exists = fetchedCoins.some(
+            (c: DBAssetCoin) => c.coin === eventCoin,
+          );
           if (exists) {
-            fetchedCoins = fetchedCoins.map((c) =>
+            fetchedCoins = fetchedCoins.map((c: DBAssetCoin) =>
               c.coin === eventCoin
                 ? {
                     ...c,
@@ -246,7 +265,7 @@ export default function TradingCalculator({
 
         setAvailableCoinsList((prevList) => {
           const currentCoinInFetched = fetchedCoins.some(
-            (c) => c.coin === selectedCoin,
+            (c: DBAssetCoin) => c.coin === selectedCoin,
           );
           const merged = [...fetchedCoins];
 
@@ -353,7 +372,6 @@ export default function TradingCalculator({
     const ideal = getCalculatedIdealLeverage();
     setLeverage(ideal);
   }, [partsCount, isInitialLoad, getCalculatedIdealLeverage]);
-
   const fetchLiveTicker = useCallback(
     async (coin: string, isFirstInit: boolean, isCurrent: () => boolean) => {
       try {
@@ -365,6 +383,10 @@ export default function TradingCalculator({
         const data = await res.json();
         if (!isCurrent()) return;
         setTickerData(data);
+        if (data.isDbSyncing !== undefined) {
+          setIsDbSyncing(!!data.isDbSyncing);
+          onSyncStatusChange?.(!!data.isDbSyncing);
+        }
         if (onPriceUpdate && data.lastPrice) {
           onPriceUpdate(data.lastPrice);
         }
@@ -384,7 +406,7 @@ export default function TradingCalculator({
         }
       }
     },
-    [onPriceUpdate],
+    [onPriceUpdate, onSyncStatusChange],
   );
 
   const handlePriceApply = (price: number) => {
@@ -460,7 +482,6 @@ export default function TradingCalculator({
     partsCount,
     isLoaded,
   ]);
-
   useEffect(() => {
     if (entryPrice <= 0 || stopLossPercent <= 0 || balance <= 0) return;
     const isLong = side === "BUY";
@@ -535,20 +556,25 @@ export default function TradingCalculator({
     maxSafeLeverage,
     partsCount,
   ]);
+
   const cardCls = cn(
-    "shadow-sm border flex flex-col border-border/40",
-    "bg-background rounded-xl sm:rounded-2xl",
+    "shadow-sm border flex flex-col " +
+      "border-border/40 bg-background " +
+      "rounded-xl sm:rounded-2xl",
   );
-  const headCls = cn("py-2 px-2.5 border-b border-border/40 sm:py-2.5 sm:px-4");
+  const headCls = cn(
+    "py-2 px-2.5 border-b " + "border-border/40 sm:py-2.5 sm:px-4",
+  );
   const titCls = cn(
-    "text-[11px] sm:text-xs font-semibold uppercase",
-    "tracking-wider text-muted-foreground",
+    "text-[11px] sm:text-xs font-semibold " +
+      "uppercase tracking-wider " +
+      "text-muted-foreground",
   );
-  const contCls = cn("space-y-3.5 p-2.5 flex-1 sm:space-y-4 sm:p-4");
-  const repCls = cn("p-2.5 flex-1 flex flex-col justify-between sm:p-4");
+  const contCls = cn("space-y-3.5 p-2.5 flex-1 " + "sm:space-y-4 sm:p-4");
+  const repCls = cn("p-2.5 flex-1 flex flex-col " + "justify-between sm:p-4");
 
   return (
-    <div className="w-full p-0">
+    <div className="w-full p-0 relative">
       <div className={cn("p-1.5 sm:p-4", "space-y-3 w-full")}>
         <MarketTicker
           data={tickerData}
@@ -564,8 +590,9 @@ export default function TradingCalculator({
 
         <div
           className={cn(
-            "grid grid-cols-1 md:grid-cols-2 md:items-stretch",
-            "gap-3 sm:gap-4 items-start",
+            "grid grid-cols-1 md:grid-cols-2 " +
+              "md:items-stretch gap-3 " +
+              "sm:gap-4 items-start",
           )}
         >
           <Card className={cardCls}>
@@ -613,6 +640,7 @@ export default function TradingCalculator({
               />
             </CardContent>
           </Card>
+
           <Card className={cardCls}>
             <CardHeader className={headCls}>
               <CardTitle className={titCls}>Торговый отчет</CardTitle>
@@ -628,6 +656,7 @@ export default function TradingCalculator({
             </CardContent>
           </Card>
         </div>
+
         <ListingManagerModal
           availableCoinsList={availableCoinsList}
           setAvailableCoinsList={setAvailableCoinsList}

@@ -45,7 +45,8 @@ VARCHAR(50);
     await sql`
 ALTER TABLE coins 
 ADD COLUMN IF NOT EXISTS listed_at 
-TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+TIMESTAMP WITH TIME ZONE 
+DEFAULT CURRENT_TIMESTAMP;
 `;
     await sql`
 CREATE TABLE IF NOT EXISTS sys_settings (
@@ -78,9 +79,15 @@ export async function GET(request: Request) {
     const action = searchParams.get("action");
 
     if (action === "backup") {
-      const allDeals = await sql`SELECT * FROM deals;`;
-      const allCoins = await sql`SELECT * FROM coins;`;
-      const allSettings = await sql`SELECT * FROM sys_settings;`;
+      const allDeals = await sql`
+SELECT * FROM deals;
+`;
+      const allCoins = await sql`
+SELECT * FROM coins;
+`;
+      const allSettings = await sql`
+SELECT * FROM sys_settings;
+`;
       return NextResponse.json({
         success: true,
         timestamp: Date.now(),
@@ -102,7 +109,8 @@ export async function GET(request: Request) {
 
     try {
       const metaRes = await sql`
-SELECT value FROM sys_settings WHERE key = 'last_sync_meta' LIMIT 1;
+SELECT value FROM sys_settings 
+WHERE key = 'last_sync_meta' LIMIT 1;
 `;
       if (metaRes && metaRes.length > 0) {
         syncMeta = metaRes[0].value;
@@ -113,8 +121,9 @@ SELECT value FROM sys_settings WHERE key = 'last_sync_meta' LIMIT 1;
 
     if (table === "coins") {
       rows = await sql`
-SELECT coin, decimals, is_favorite, is_active, 
-is_delisted, fullname, logo_slug, listed_at 
+SELECT coin, decimals, is_favorite, 
+is_active, is_delisted, fullname, 
+logo_slug, listed_at 
 FROM coins 
 ORDER BY coin ASC;
 `;
@@ -218,6 +227,13 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "No backup data" }, { status: 400 });
       }
 
+      await sql`
+INSERT INTO sys_settings (key, value)
+VALUES ('db_lock_status', '{"is_locked":true}')
+ON CONFLICT (key) DO UPDATE 
+SET value = EXCLUDED.value;
+`;
+
       await sql`TRUNCATE TABLE deals CASCADE;`;
       await sql`TRUNCATE TABLE coins CASCADE;`;
       await sql`TRUNCATE TABLE sys_settings CASCADE;`;
@@ -270,18 +286,32 @@ true
 );
 `;
 
+      await sql`
+INSERT INTO sys_settings (key, value)
+VALUES ('db_lock_status', '{"is_locked":false}')
+ON CONFLICT (key) DO UPDATE 
+SET value = EXCLUDED.value;
+`;
+
       return NextResponse.json({
         success: true,
-        message: "Database successfully restored from backup",
+        message: "Database successfully restored",
       });
     }
 
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch (err: any) {
+    try {
+      await sql`
+INSERT INTO sys_settings (key, value)
+VALUES ('db_lock_status', '{"is_locked":false}')
+ON CONFLICT (key) DO UPDATE 
+SET value = EXCLUDED.value;
+`;
+    } catch (e) {}
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
-
 export async function DELETE(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
@@ -300,22 +330,50 @@ export async function DELETE(request: Request) {
     const { searchParams } = new URL(request.url);
     const table = searchParams.get("table");
 
+    await sql`
+INSERT INTO sys_settings (key, value)
+VALUES ('db_lock_status', '{"is_locked":true}')
+ON CONFLICT (key) DO UPDATE 
+SET value = EXCLUDED.value;
+`;
+
     if (table === "coins") {
       await sql`TRUNCATE TABLE coins CASCADE;`;
     } else if (table === "deals") {
       await sql`TRUNCATE TABLE deals CASCADE;`;
     } else {
+      await sql`
+INSERT INTO sys_settings (key, value)
+VALUES ('db_lock_status', '{"is_locked":false}')
+ON CONFLICT (key) DO UPDATE 
+SET value = EXCLUDED.value;
+`;
       return NextResponse.json(
         { error: "Unknown table targeted" },
         { status: 400 },
       );
     }
 
+    await sql`
+INSERT INTO sys_settings (key, value)
+VALUES ('db_lock_status', '{"is_locked":false}')
+ON CONFLICT (key) DO UPDATE 
+SET value = EXCLUDED.value;
+`;
+
     return NextResponse.json({
       success: true,
       message: `Table ${table} successfully truncated`,
     });
   } catch (err: any) {
+    try {
+      await sql`
+INSERT INTO sys_settings (key, value)
+VALUES ('db_lock_status', '{"is_locked":false}')
+ON CONFLICT (key) DO UPDATE 
+SET value = EXCLUDED.value;
+`;
+    } catch (e) {}
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
