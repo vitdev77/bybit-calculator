@@ -236,7 +236,11 @@ SET value = EXCLUDED.value;
 
       await sql`TRUNCATE TABLE deals CASCADE;`;
       await sql`TRUNCATE TABLE coins CASCADE;`;
-      await sql`TRUNCATE TABLE sys_settings CASCADE;`;
+
+      await sql`
+DELETE FROM sys_settings 
+WHERE key != 'db_lock_status';
+`;
 
       const coins = backupData.coins || [];
       for (const c of coins) {
@@ -254,6 +258,7 @@ ${c.logo_slug}, ${c.listed_at}
 
       const sys_settings = backupData.sys_settings || [];
       for (const s of sys_settings) {
+        if (s.key === "db_lock_status") continue;
         await sql`
 INSERT INTO sys_settings (key, value) 
 VALUES (${s.key}, ${JSON.stringify(s.value)});
