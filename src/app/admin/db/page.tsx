@@ -174,12 +174,8 @@ export default function AdminDbPage() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
 
-      const now = new Date();
-      const date = now.toISOString().slice(0, 10);
-      const time = now.toTimeString().slice(0, 8).replace(/:/g, "-");
-
       link.href = url;
-      link.download = `bybit_calc_db_backup_${date}_${time}.json`;
+      link.download = `bybit_calc_db_backup_${new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 19).replace("T", "_").replace(/:/g, "-")}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
