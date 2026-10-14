@@ -457,7 +457,9 @@ justify-end"
               <ButtonGroup>
                 <Button
                   type="button"
-                  disabled={actionLoading || isLoading || rows.length === 0}
+                  disabled={
+                    actionLoading || isLoading || rows.length === 0 || isSyncing
+                  }
                   onClick={handleBackupExport}
                   size={"icon"}
                   variant={"secondary"}
@@ -467,7 +469,7 @@ justify-end"
                 </Button>
                 <Button
                   type="button"
-                  disabled={actionLoading || isLoading}
+                  disabled={actionLoading || isLoading || isSyncing}
                   onClick={() => fileInputRef.current?.click()}
                   size={"icon"}
                   variant={"secondary"}
@@ -480,7 +482,7 @@ justify-end"
                   ref={fileInputRef}
                   accept=".json"
                   onChange={handleBackupImport}
-                  disabled={actionLoading || isLoading}
+                  disabled={actionLoading || isLoading || isSyncing}
                   className="hidden"
                 />
               </ButtonGroup>
@@ -488,13 +490,18 @@ justify-end"
                 {activeTable === "deals" && (
                   <Button
                     type="button"
-                    disabled={actionLoading || isLoading}
+                    disabled={
+                      actionLoading ||
+                      isLoading ||
+                      isSyncing ||
+                      rows.length === 0
+                    }
                     onClick={handleReloadTable}
                     size={"icon"}
                     variant={"secondary"}
                     title="Обновить таблицу журнала сделок"
                   >
-                    {isLoading ? <Spinner /> : <RefreshCcwIcon />}
+                    {isLoading || isSyncing ? <Spinner /> : <RefreshCcwIcon />}
                   </Button>
                 )}
 
@@ -519,7 +526,10 @@ justify-end"
                         {...triggerProps}
                         type="button"
                         disabled={
-                          actionLoading || isLoading || rows.length === 0
+                          actionLoading ||
+                          isLoading ||
+                          rows.length === 0 ||
+                          isSyncing
                         }
                         size={"icon"}
                         className={
@@ -614,7 +624,9 @@ border-input p-0.5 rounded-lg overflow-hidden flex-1 *:h-7
             >
               <Button
                 type="button"
-                disabled={isLoading || actionLoading || rows.length === 0}
+                disabled={
+                  isLoading || actionLoading || rows.length === 0 || isSyncing
+                }
                 variant={filterType === "ALL" ? "default" : "ghost"}
                 onClick={() => setFilterType("ALL")}
               >
@@ -622,7 +634,9 @@ border-input p-0.5 rounded-lg overflow-hidden flex-1 *:h-7
               </Button>
               <Button
                 type="button"
-                disabled={isLoading || actionLoading || rows.length === 0}
+                disabled={
+                  isLoading || actionLoading || rows.length === 0 || isSyncing
+                }
                 variant={filterType === "LIQ" ? "default" : "ghost"}
                 className="text-emerald-500"
                 onClick={() => setFilterType("LIQ")}
@@ -631,7 +645,9 @@ border-input p-0.5 rounded-lg overflow-hidden flex-1 *:h-7
               </Button>
               <Button
                 type="button"
-                disabled={isLoading || actionLoading || rows.length === 0}
+                disabled={
+                  isLoading || actionLoading || rows.length === 0 || isSyncing
+                }
                 variant={filterType === "MID" ? "default" : "ghost"}
                 className="text-blue-500"
                 onClick={() => setFilterType("MID")}
@@ -640,7 +656,9 @@ border-input p-0.5 rounded-lg overflow-hidden flex-1 *:h-7
               </Button>
               <Button
                 type="button"
-                disabled={isLoading || actionLoading || rows.length === 0}
+                disabled={
+                  isLoading || actionLoading || rows.length === 0 || isSyncing
+                }
                 variant={filterType === "RISK" ? "default" : "ghost"}
                 className="text-amber-500"
                 onClick={() => setFilterType("RISK")}
@@ -649,7 +667,9 @@ border-input p-0.5 rounded-lg overflow-hidden flex-1 *:h-7
               </Button>
               <Button
                 type="button"
-                disabled={isLoading || actionLoading || rows.length === 0}
+                disabled={
+                  isLoading || actionLoading || rows.length === 0 || isSyncing
+                }
                 variant={filterType === "NEW" ? "default" : "ghost"}
                 className="text-cyan-500"
                 onClick={() => setFilterType("NEW")}
@@ -658,7 +678,9 @@ border-input p-0.5 rounded-lg overflow-hidden flex-1 *:h-7
               </Button>
               <Button
                 type="button"
-                disabled={isLoading || actionLoading || rows.length === 0}
+                disabled={
+                  isLoading || actionLoading || rows.length === 0 || isSyncing
+                }
                 variant={filterType === "DELIS" ? "default" : "ghost"}
                 className="text-rose-500"
                 onClick={() => setFilterType("DELIS")}
@@ -671,21 +693,21 @@ border-input p-0.5 rounded-lg overflow-hidden flex-1 *:h-7
       </div>
 
       <Card className="border border-border/40 bg-background mt-1 py-0!">
-        {isLoading || actionLoading ? (
+        {isLoading || actionLoading || isSyncing ? (
           <div
             className="p-12 flex gap-2 items-center justify-center 
 text-muted-foreground"
           >
             <Spinner className="text-violet-500" />
             <span className="text-xs font-medium">
-              {isLoading
-                ? "Data loading, please wait..."
-                : "Recovering data, please wait..."}
+              {isLoading && !isSyncing && "Data loading, please wait..."}
+              {actionLoading && !isLoading && "Recovering data, please wait..."}
+              {isSyncing && "Synchronizing data, please wait..."}
             </span>
           </div>
         ) : displayedRows.length === 0 ? (
           <div className="p-12 text-center text-xs text-muted-foreground">
-            No data.
+            No data found
           </div>
         ) : (
           <AdminTable

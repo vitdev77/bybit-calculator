@@ -285,7 +285,7 @@ export default function TradingJournal({
     link.setAttribute("href", url);
     link.setAttribute(
       "download",
-      `journal_${new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 19).replace("T", "_").replace(/:/g, "-")}.csv`,
+      `trading_journal_export_${new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 19).replace("T", "_").replace(/:/g, "-")}.csv`,
     );
     document.body.appendChild(link);
     link.click();
