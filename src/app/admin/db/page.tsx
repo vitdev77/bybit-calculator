@@ -153,7 +153,7 @@ export default function AdminDbPage() {
       setIsClearOpen(false);
       toast.add({
         title: "Таблица очищена",
-        description: `Все данные из ${activeTable} успешно стерты.`,
+        description: `Все данные из таблицы ${activeTable} успешно стерты.`,
         type: "success",
       });
     } catch (err: any) {
@@ -184,11 +184,11 @@ export default function AdminDbPage() {
       link.click();
       document.body.removeChild(link);
 
-      toast.add({
-        title: "Бэкап создан",
-        description: "Файл резервной копии успешно скачан.",
-        type: "success",
-      });
+      // toast.add({
+      //   title: "Бэкап создан",
+      //   description: "Файл резервной копии успешно скачан.",
+      //   type: "success",
+      // });
     } catch (err) {
       console.error(err);
       toast.add({
@@ -461,17 +461,17 @@ justify-end"
               <ButtonGroup>
                 <Button
                   type="button"
-                  disabled={actionLoading}
+                  disabled={actionLoading || isLoading || rows.length === 0}
                   onClick={handleBackupExport}
                   size={"icon"}
                   variant={"secondary"}
-                  title="Выгрузить полный бэкап базы данных (JSON)"
+                  title="Бэкап базы данных в формате JSON"
                 >
                   <DownloadIcon className="size-4" />
                 </Button>
                 <Button
                   type="button"
-                  disabled={actionLoading}
+                  disabled={actionLoading || isLoading}
                   onClick={() => fileInputRef.current?.click()}
                   size={"icon"}
                   variant={"secondary"}
@@ -484,20 +484,19 @@ justify-end"
                   ref={fileInputRef}
                   accept=".json"
                   onChange={handleBackupImport}
-                  disabled={actionLoading}
+                  disabled={actionLoading || isLoading}
                   className="hidden"
                 />
               </ButtonGroup>
-
               <ButtonGroup>
                 {activeTable === "deals" && (
                   <Button
                     type="button"
-                    disabled={isLoading}
+                    disabled={actionLoading || isLoading}
                     onClick={handleReloadTable}
                     size={"icon"}
                     variant={"secondary"}
-                    title="Перезагрузить таблицу журнала сделок"
+                    title="Обновить таблицу журнала сделок"
                   >
                     {isLoading ? <Spinner /> : <RefreshCcwIcon />}
                   </Button>
@@ -506,7 +505,7 @@ justify-end"
                 {activeTable === "coins" && (
                   <Button
                     type="button"
-                    disabled={isSyncing}
+                    disabled={actionLoading || isSyncing || isLoading}
                     onClick={handleSyncBybit}
                     size={"icon"}
                     variant={"secondary"}
@@ -523,7 +522,9 @@ justify-end"
                       <Button
                         {...triggerProps}
                         type="button"
-                        disabled={isLoading || rows.length === 0}
+                        disabled={
+                          actionLoading || isLoading || rows.length === 0
+                        }
                         size={"icon"}
                         className={
                           "bg-rose-700 hover:bg-rose-600 text-white font-bold"
@@ -543,7 +544,7 @@ justify-end"
                       <AlertDialogDescription className="text-xs">
                         {activeTable === "deals"
                           ? "Это действие безвозвратно удалит всю историю Вашей торговли из БД."
-                          : "Данным действием все пары будут безвозвратно удалены из БД."}
+                          : "Это действие безвозвратно удалит все пары монет из БД."}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter className="gap-1.5">
@@ -570,19 +571,10 @@ text-white font-bold"
             className="text-[10px] font-semibold text-muted-foreground/60 
 leading-none px-0.5 mt-1"
           >
-            Листинг Bybit актуален. Синхронизировано:{" "}
+            Листинг Bybit синхронизирован:{" "}
             <span className="text-foreground/80 font-bold">
               {new Date(syncMeta.timestamp).toLocaleString("ru-RU")}
-            </span>{" "}
-            | Всего:{" "}
-            <span className="text-foreground/80 font-bold">
-              {syncMeta.totalCoins}
-            </span>{" "}
-            пар (Активных:{" "}
-            <span className="text-emerald-500 font-bold">
-              {syncMeta.liveCount}
             </span>
-            )
           </div>
         )}
 
@@ -601,6 +593,9 @@ shrink-0"
                 placeholder="Search..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                disabled={
+                  isLoading || actionLoading || displayedRows.length === 0
+                }
                 className="pl-8 pr-8 h-8 text-xs bg-background/50 border-border/40 
 rounded-lg w-full"
               />
@@ -623,6 +618,7 @@ border-input p-0.5 rounded-lg overflow-hidden flex-1 *:h-7
             >
               <Button
                 type="button"
+                disabled={isLoading || actionLoading || rows.length === 0}
                 variant={filterType === "ALL" ? "default" : "ghost"}
                 onClick={() => setFilterType("ALL")}
               >
@@ -630,6 +626,7 @@ border-input p-0.5 rounded-lg overflow-hidden flex-1 *:h-7
               </Button>
               <Button
                 type="button"
+                disabled={isLoading || actionLoading || rows.length === 0}
                 variant={filterType === "LIQ" ? "default" : "ghost"}
                 className="text-emerald-500"
                 onClick={() => setFilterType("LIQ")}
@@ -638,6 +635,7 @@ border-input p-0.5 rounded-lg overflow-hidden flex-1 *:h-7
               </Button>
               <Button
                 type="button"
+                disabled={isLoading || actionLoading || rows.length === 0}
                 variant={filterType === "MID" ? "default" : "ghost"}
                 className="text-blue-500"
                 onClick={() => setFilterType("MID")}
@@ -646,6 +644,7 @@ border-input p-0.5 rounded-lg overflow-hidden flex-1 *:h-7
               </Button>
               <Button
                 type="button"
+                disabled={isLoading || actionLoading || rows.length === 0}
                 variant={filterType === "RISK" ? "default" : "ghost"}
                 className="text-amber-500"
                 onClick={() => setFilterType("RISK")}
@@ -654,6 +653,7 @@ border-input p-0.5 rounded-lg overflow-hidden flex-1 *:h-7
               </Button>
               <Button
                 type="button"
+                disabled={isLoading || actionLoading || rows.length === 0}
                 variant={filterType === "NEW" ? "default" : "ghost"}
                 className="text-cyan-500"
                 onClick={() => setFilterType("NEW")}
@@ -662,6 +662,7 @@ border-input p-0.5 rounded-lg overflow-hidden flex-1 *:h-7
               </Button>
               <Button
                 type="button"
+                disabled={isLoading || actionLoading || rows.length === 0}
                 variant={filterType === "DELIS" ? "default" : "ghost"}
                 className="text-rose-500"
                 onClick={() => setFilterType("DELIS")}
@@ -674,14 +675,16 @@ border-input p-0.5 rounded-lg overflow-hidden flex-1 *:h-7
       </div>
 
       <Card className="border border-border/40 bg-background mt-1 py-0!">
-        {isLoading ? (
+        {isLoading || actionLoading ? (
           <div
-            className="p-16 flex gap-2 items-center justify-center 
+            className="p-12 flex gap-2 items-center justify-center 
 text-muted-foreground"
           >
             <Spinner className="text-violet-500" />
             <span className="text-xs font-medium">
-              Data loading, please wait...
+              {isLoading
+                ? "Data loading, please wait..."
+                : "Recovering data, please wait..."}
             </span>
           </div>
         ) : displayedRows.length === 0 ? (

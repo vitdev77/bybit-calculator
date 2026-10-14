@@ -63,8 +63,9 @@ export function AdminStats({
         <div className="flex items-center gap-3 mt-2.5 z-10">
           <Layers className="size-5 text-violet-500 shrink-0" />
           <div className="flex flex-col leading-tight min-w-0">
-            <span className="text-xs font-black uppercase text-foreground truncate">
-              table: {activeTable}
+            <span className="text-xs text-foreground truncate">
+              Таблица{" "}
+              <span className="font-black uppercase">{activeTable}</span>
             </span>
             <span className="text-[10px] text-muted-foreground/70 font-semibold mt-0.5">
               Строк:{" "}

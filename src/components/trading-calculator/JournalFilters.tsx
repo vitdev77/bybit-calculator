@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { X, Download, Trash2, SearchIcon } from "lucide-react";
+import { X, SearchIcon, DownloadIcon, Trash2Icon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -100,14 +100,12 @@ export function JournalFilters({
         {totalDeals > 0 ? (
           <Button
             onClick={exportToCSV}
-            variant="outline"
-            className="h-9 sm:h-7.5 w-full sm:w-auto px-2.5 rounded-lg text-muted-foreground border-border/60 bg-transparent hover:text-foreground hover:bg-muted/40 transition-colors shadow-none shrink-0"
-            title="Выгрузить журнал в формате CSV"
+            variant={"secondary"}
+            className="h-9 sm:h-7.5"
+            title="Сохранить журнал в формате CSV"
+            size={"icon"}
           >
-            <Download className="size-3.5 mr-1.5 shrink-0" />
-            <span className="text-[10px] font-black uppercase tracking-wider">
-              Экспорт
-            </span>
+            <DownloadIcon />
           </Button>
         ) : (
           <div className="hidden sm:block" />
@@ -117,16 +115,13 @@ export function JournalFilters({
           <AlertDialog open={isClearOpen} onOpenChange={setIsClearOpen}>
             <AlertDialogTrigger
               className={buttonVariants({
-                variant: "outline",
                 className:
-                  "h-9 sm:h-7.5 w-full sm:w-auto px-2.5 text-rose-600 border-rose-500/20 hover:bg-rose-600 hover:text-white rounded-lg transition-colors shadow-none bg-transparent shrink-0 flex items-center justify-center cursor-pointer",
+                  "h-9 sm:h-7.5 bg-rose-700 hover:bg-rose-600 text-white",
+                size: "icon",
               })}
-              title="Полная очистка облачной базы данных"
+              title="Полная очистка журнала сделок"
             >
-              <Trash2 className="size-3.5 mr-1.5 shrink-0" />
-              <span className="text-[10px] font-black uppercase tracking-wider">
-                Очистить
-              </span>
+              <Trash2Icon />
             </AlertDialogTrigger>
 
             <AlertDialogContent className="rounded-2xl max-w-xs sm:max-w-sm bg-popover/70 dark:bg-zinc-950/70 backdrop-blur-md border border-border/40 dark:border-white/10 shadow-2xl">

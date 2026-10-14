@@ -1,16 +1,16 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import {
-  CheckCircle2,
-  XCircle,
-  Trash2,
-  Check,
+  CheckCircle2Icon,
+  XCircleIcon,
+  Trash2Icon,
+  CheckIcon,
   X,
-  LogOut,
-  Pause,
-  Clock,
-  ShieldAlert,
-  ShieldCheck,
+  LogOutIcon,
+  PauseIcon,
+  ClockIcon,
+  ShieldAlertIcon,
+  ShieldCheckIcon,
 } from "lucide-react";
 import { TableCell, TableRow } from "@/components/ui/table";
 import {
@@ -209,7 +209,7 @@ export function JournalRow({
             "flex flex-col text-right select-none opacity-45 relative w-full pl-5 sm:pl-6",
           )}
         >
-          <Pause
+          <PauseIcon
             className={cn(
               "size-2 text-muted-foreground absolute left-0.5 top-1.5",
             )}
@@ -367,11 +367,11 @@ export function JournalRow({
         />
         <div className="flex items-start gap-1">
           {deal.status?.toUpperCase() === "PROFIT" ? (
-            <CheckCircle2 className="size-3 text-emerald-500 mt-0.5" />
+            <CheckCircle2Icon className="size-3 text-emerald-500 mt-0.5" />
           ) : deal.status?.toUpperCase() === "LOSS" ? (
-            <XCircle className="size-3 text-rose-500 mt-0.5" />
+            <XCircleIcon className="size-3 text-rose-500 mt-0.5" />
           ) : deal.status?.toUpperCase() === "CLOSED" ? (
-            <Clock className="size-3 text-muted-foreground mt-0.5 opacity-60" />
+            <ClockIcon className="size-3 text-muted-foreground mt-0.5 opacity-60" />
           ) : (
             <span className="relative flex h-1.5 w-1.5 mt-1.5 mx-0.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75" />
@@ -477,7 +477,7 @@ export function JournalRow({
                     className="h-7 w-7 text-amber-500 hover:bg-amber-500 hover:text-white rounded-md"
                     title="Перенести Stop Loss в БУ"
                   >
-                    <ShieldAlert className="size-3.5" />
+                    <ShieldAlertIcon className="size-3.5" />
                   </Button>
                 )}
               {isAlreadyInBreakeven && isOpen && (
@@ -485,7 +485,7 @@ export function JournalRow({
                   className="h-7 w-7 flex items-center justify-center text-emerald-500"
                   title="Позиция защищена (в БУ)"
                 >
-                  <ShieldCheck className="size-3.5" />
+                  <ShieldCheckIcon className="size-3.5" />
                 </div>
               )}
               <Button
@@ -495,7 +495,7 @@ export function JournalRow({
                 className="h-7 w-7 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-md"
                 title="Закрыть по тейку"
               >
-                <Check className="size-3.5" />
+                <CheckIcon className="size-3.5" />
               </Button>
               <Button
                 size="icon"
@@ -511,7 +511,7 @@ export function JournalRow({
                 onOpenChange={setIsManualCloseModalOpen}
               >
                 <AlertDialogTrigger className="h-7 w-7 text-muted-foreground hover:bg-muted hover:text-foreground rounded-md cursor-pointer flex items-center justify-center">
-                  <LogOut className="size-3" />
+                  <LogOutIcon className="size-3" />
                 </AlertDialogTrigger>
                 <AlertDialogContent
                   size="default"
@@ -568,7 +568,7 @@ export function JournalRow({
             onOpenChange={(o) => setActiveDeleteId(o ? deal.id : null)}
           >
             <AlertDialogTrigger className="h-7 w-7 text-muted-foreground hover:text-rose-500 flex items-center justify-center">
-              <Trash2 className="size-3" />
+              <Trash2Icon className="size-3" />
             </AlertDialogTrigger>
             <AlertDialogContent
               size="default"
@@ -577,8 +577,8 @@ export function JournalRow({
               <AlertDialogHeader>
                 <AlertDialogTitle>Удалить сделку?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Вы действительно хотите удалить сделку по паре {deal.coin} из
-                  журнала?
+                  Вы действительно хотите удалить эту сделку по паре {deal.coin}{" "}
+                  из журнала?
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -587,7 +587,8 @@ export function JournalRow({
                 </AlertDialogCancel>
                 <AlertDialogAction
                   onClick={() => handleDeleteDeal(deal.id)}
-                  className="rounded-xl text-white bg-rose-600 border-none text-xs h-9 cursor-pointer"
+                  className="rounded-xl text-xs h-9 bg-rose-700 hover:bg-rose-600 
+text-white font-bold"
                 >
                   Удалить
                 </AlertDialogAction>

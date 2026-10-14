@@ -250,6 +250,7 @@ export default function ListingManagerModal({
               placeholder="Search..."
               value={modalSearch}
               onChange={(e) => setModalSearch(e.target.value)}
+              disabled={isLoading}
               className="pl-8 pr-8 h-8 text-xs bg-muted/20 w-full rounded-lg border-border/40"
             />
             {modalSearch.length > 0 && (
@@ -272,6 +273,7 @@ export default function ListingManagerModal({
               type="button"
               variant={filterType === "ALL" ? "default" : "ghost"}
               onClick={() => setFilterType("ALL")}
+              disabled={isLoading}
             >
               <span className="md:hidden flex items-center gap-0.5">
                 <Coins className="size-3" />({allRows.length})
@@ -283,6 +285,7 @@ export default function ListingManagerModal({
               variant={filterType === "LIQ" ? "default" : "ghost"}
               className="text-emerald-500"
               onClick={() => setFilterType("LIQ")}
+              disabled={isLoading}
             >
               <span className="md:hidden flex items-center gap-0.5">
                 <Zap className="size-3" />({liqRows.length})
@@ -294,6 +297,7 @@ export default function ListingManagerModal({
               variant={filterType === "MID" ? "default" : "ghost"}
               className="text-blue-500"
               onClick={() => setFilterType("MID")}
+              disabled={isLoading}
             >
               <span className="md:hidden flex items-center gap-0.5">
                 <Activity className="size-3" />({midRows.length})
@@ -305,6 +309,7 @@ export default function ListingManagerModal({
               variant={filterType === "RISK" ? "default" : "ghost"}
               className="text-amber-500"
               onClick={() => setFilterType("RISK")}
+              disabled={isLoading}
             >
               <span className="md:hidden flex items-center gap-0.5">
                 <AlertTriangle className="size-3" />({riskRows.length})
@@ -316,6 +321,7 @@ export default function ListingManagerModal({
               variant={filterType === "DELIS" ? "default" : "ghost"}
               className="text-rose-500"
               onClick={() => setFilterType("DELIS")}
+              disabled={isLoading}
             >
               <span className="md:hidden flex items-center gap-0.5">
                 <Flame className="size-3" />({delisRows.length})
