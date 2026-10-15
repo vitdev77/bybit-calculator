@@ -2,7 +2,7 @@
 import React from "react";
 import { StarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { DBAssetCoin } from "./TradingCalculator";
+import { DBAssetCoin } from "./TradingCalculatorWS";
 
 interface RowProps {
   item: DBAssetCoin;

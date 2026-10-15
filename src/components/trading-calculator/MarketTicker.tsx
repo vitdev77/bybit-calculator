@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
-import { DBAssetCoin } from "./TradingCalculator";
+import { DBAssetCoin } from "./TradingCalculatorWS";
 
 interface TickerData {
   lastPrice: number;

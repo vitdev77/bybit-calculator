@@ -10,7 +10,7 @@ import {
   ActivityIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { DBAssetCoin } from "./TradingCalculator";
+import { DBAssetCoin } from "./TradingCalculatorWS";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";

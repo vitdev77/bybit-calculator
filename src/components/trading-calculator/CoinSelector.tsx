@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { StarIcon, SettingsIcon } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
-import { OrderType } from "./TradingCalculator";
+import { OrderType } from "./TradingCalculatorWS";
 import { Select, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";

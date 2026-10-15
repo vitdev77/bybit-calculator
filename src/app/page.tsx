@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { ChevronUpIcon, ChevronDownIcon, DatabaseIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import TradingCalculator from "@/components/trading-calculator/TradingCalculator";
+import TradingCalculator from "@/components/trading-calculator/TradingCalculatorWS";
 import TradingViewChart from "@/components/trading-calculator/TradingViewChart";
 import TradingJournal from "@/components/trading-calculator/TradingJournal";
 import { ModeToggle } from "@/components/ModeToggle";

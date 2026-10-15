@@ -9,7 +9,7 @@ import {
 import { SearchIcon, XIcon } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { CoinSelectorItem } from "./CoinSelectorItem";
-import { DBAssetCoin } from "./TradingCalculator";
+import { DBAssetCoin } from "./TradingCalculatorWS";
 import { cn } from "@/lib/utils";
 
 interface DropProps {

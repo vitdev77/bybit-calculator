@@ -101,11 +101,11 @@ export function JournalFilters({
           <Button
             onClick={exportToCSV}
             variant={"secondary"}
-            className="h-9 sm:h-7.5"
+            className="h-9 sm:size-7.5 gap-2"
             title="Сохранить журнал в формате CSV"
-            size={"icon"}
           >
             <DownloadIcon />
+            <span className="sm:hidden">Сохранить</span>
           </Button>
         ) : (
           <div className="hidden sm:block" />
@@ -116,12 +116,12 @@ export function JournalFilters({
             <AlertDialogTrigger
               className={buttonVariants({
                 className:
-                  "h-9 sm:h-7.5 bg-rose-700 hover:bg-rose-600 text-white",
-                size: "icon",
+                  "h-9 sm:size-7.5 bg-rose-700 hover:bg-rose-600 text-white",
               })}
               title="Полная очистка журнала сделок"
             >
               <Trash2Icon />
+              <span className="sm:hidden">Очистить</span>
             </AlertDialogTrigger>
 
             <AlertDialogContent className="rounded-2xl max-w-xs sm:max-w-sm bg-popover/70 dark:bg-zinc-950/70 backdrop-blur-md border border-border/40 dark:border-white/10 shadow-2xl">
