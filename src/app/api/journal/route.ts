@@ -93,7 +93,6 @@ d.created_at DESC;
           calculatedPrecision = Math.max(2, Math.min(8, cleanFraction.length));
         }
       }
-
       return {
         ...d,
         entry_price: ep,
@@ -111,11 +110,13 @@ d.created_at DESC;
     let lastManualClosedDeal = null;
 
     if (activeCoin) {
-      activeOpenDeal =
-        parsedDeals.find((d) => d.coin === activeCoin && d.status === "OPEN") ||
-        null;
+      const activeOpenDealsForCoin = parsedDeals.filter(
+        (d) => d.coin === activeCoin && d.status === "OPEN",
+      );
 
-      if (!activeOpenDeal) {
+      if (activeOpenDealsForCoin.length > 0) {
+        activeOpenDeal = activeOpenDealsForCoin[0];
+      } else {
         lastManualClosedDeal =
           parsedDeals.find(
             (d) => d.coin === activeCoin && d.status === "CLOSED",
@@ -132,7 +133,6 @@ d.created_at DESC;
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
-
 export async function POST(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
@@ -177,7 +177,6 @@ AND ABS(entry_price - ${entry_price}) < ${priceEpsilon}
 AND ABS(stop_loss - ${stop_loss}) < ${priceEpsilon}
 AND ABS(take_profit - ${take_profit}) < ${priceEpsilon};
 `;
-
     if (existingDuplicates && existingDuplicates.length > 0) {
       return NextResponse.json(
         { error: "Duplicate detected" },
@@ -207,6 +206,7 @@ RETURNING *;
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
 export async function PATCH(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
@@ -223,7 +223,6 @@ export async function PATCH(request: Request) {
     }
 
     const targetId = parseInt(body.id, 10);
-
     if (body.action === "MOVE_TO_BREAKEVEN" && body.stop_loss !== undefined) {
       const nextSl = Number(body.stop_loss);
       const result = await sql`
