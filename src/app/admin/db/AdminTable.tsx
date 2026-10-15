@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Table,
   TableBody,
@@ -9,9 +9,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Star,
-  Loader2,
-  ExternalLink,
+  StarIcon,
+  ExternalLinkIcon,
   CheckIcon,
   CopyIcon,
   CircleSmallIcon,
@@ -28,6 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Spinner } from "@/components/ui/spinner";
 
 interface TableProps {
   activeTable: "deals" | "coins";
@@ -40,16 +40,42 @@ interface TableProps {
 }
 
 const STORAGE_KEY = "bybit_calculator_state_v14";
+
 export function AdminTable({
   activeTable,
   activeHeaders,
-  displayedRows,
+  displayedRows = [],
   getRowStyles,
   isNumericColumn,
   topGainers = [],
   topLosers = [],
 }: TableProps) {
   const [copiedCoin, setCopiedCoin] = useState<string | null>(null);
+
+  const [visibleCount, setVisibleCount] = useState(50);
+  const [isIncrementalLoading, setIsIncrementalLoading] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setVisibleCount(50);
+    if (containerRef.current) {
+      containerRef.current.scrollTop = 0;
+    }
+  }, [activeTable, displayedRows]);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const container = e.currentTarget;
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    if (scrollHeight - scrollTop - clientHeight < 50) {
+      if (visibleCount < displayedRows.length && !isIncrementalLoading) {
+        setIsIncrementalLoading(true);
+        setTimeout(() => {
+          setVisibleCount((prev) => prev + 50);
+          setIsIncrementalLoading(false);
+        }, 200);
+      }
+    }
+  };
 
   const handleCopyCoin = (e: React.MouseEvent, coinName: string) => {
     e.preventDefault();
@@ -77,6 +103,7 @@ export function AdminTable({
       window.open("/", "_blank", "noopener,noreferrer");
     }
   };
+
   const formatValue = (val: any, col: string, decimals: number = 2) => {
     if (val === null || val === undefined) return "--";
     const c = col.toLowerCase();
@@ -164,7 +191,7 @@ export function AdminTable({
                   )}
                   title="Открыть в калькуляторе"
                 >
-                  <ExternalLink className="size-3 shrink-0" />
+                  <ExternalLinkIcon className="size-3 shrink-0" />
                 </button>
               </span>
             )}
@@ -295,9 +322,9 @@ export function AdminTable({
     ) {
       if (c === "is_favorite") {
         return val ? (
-          <Star className="size-4 text-amber-500 fill-amber-500" />
+          <StarIcon className="size-4 text-amber-500 fill-amber-500" />
         ) : (
-          <Star className="text-muted-foreground/10 size-4" />
+          <StarIcon className="text-muted-foreground/10 size-4" />
         );
       }
       if (c === "is_active") {
@@ -333,8 +360,15 @@ export function AdminTable({
 
     return formatValue(val, col, currentPrecision);
   };
+
+  const slicedRows = displayedRows.slice(0, visibleCount);
+
   return (
-    <div className="overflow-x-auto max-h-140 scrollbar-thin touch-pan-x w-full">
+    <div
+      ref={containerRef}
+      onScroll={handleScroll}
+      className="overflow-x-auto max-h-130 scrollbar-thin touch-pan-x w-full relative"
+    >
       <Table className="text-[11px] font-medium border-collapse min-w-150 w-full">
         <TableHeader className="bg-muted/30 sticky top-0 z-20 backdrop-blur-md border-b">
           <TableRow>
@@ -379,7 +413,7 @@ export function AdminTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {displayedRows.map((row, idx) => (
+          {slicedRows.map((row, idx) => (
             <TableRow
               key={row.id || row.coin || idx}
               className={cn(
@@ -405,9 +439,16 @@ export function AdminTable({
           ))}
         </TableBody>
       </Table>
+      {isIncrementalLoading && (
+        <div className="flex p-2.5 gap-2 items-center justify-center text-muted-foreground border-t bg-muted/5 text-[10px] select-none font-medium sticky bottom-0 left-0 right-0 z-40">
+          <Spinner className="text-amber-500 size-3" />
+          <span>Подгрузка строк...</span>
+        </div>
+      )}
     </div>
   );
 }
+
 function LogoSlugCell({
   coin,
   initialValue,
@@ -500,9 +541,7 @@ function LogoSlugCell({
         )}
         placeholder={isDelisted ? "НЕДОСТУПНО" : "Напр. BTC"}
       />
-      {isSaving && (
-        <Loader2 className="size-3 animate-spin text-amber-500 shrink-0" />
-      )}
+      {isSaving && <Spinner className="size-3 text-amber-500 shrink-0" />}
       {isSuccess && <CheckIcon className="size-3 text-emerald-500 shrink-0" />}
       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
         <AlertDialogContent className="rounded-2xl max-w-sm">
@@ -525,8 +564,8 @@ function LogoSlugCell({
             <AlertDialogAction
               onClick={handleConfirmSaveWrapper}
               className={cn(
-                "rounded-xl text-xs h-9 bg-amber-500 border-none",
-                "text-white font-bold cursor-pointer",
+                "rounded-xl text-xs h-9 bg-amber-600 hover:bg-amber-500",
+                "text-white font-bold",
               )}
             >
               Подтвердить

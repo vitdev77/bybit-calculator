@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { Copy, Check, PlusCircle } from "lucide-react";
+import { CopyIcon, CheckIcon, PlusCircleIcon } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
@@ -340,9 +340,9 @@ export default function ResultsDisplay({
                 )}
               >
                 {copiedEntry ? (
-                  <Check className={cn("size-3.5", "text-emerald-500")} />
+                  <CheckIcon className={cn("size-3.5", "text-emerald-500")} />
                 ) : (
-                  <Copy className="size-3.5" />
+                  <CopyIcon className="size-3.5" />
                 )}
               </button>
             </div>
@@ -377,9 +377,9 @@ export default function ResultsDisplay({
                 )}
               >
                 {copiedVolume ? (
-                  <Check className={cn("size-3.5", "text-emerald-500")} />
+                  <CheckIcon className={cn("size-3.5", "text-emerald-500")} />
                 ) : (
-                  <Copy className="size-3.5" />
+                  <CopyIcon className="size-3.5" />
                 )}
               </button>
             </div>
@@ -412,9 +412,9 @@ export default function ResultsDisplay({
                 )}
               >
                 {copiedTP ? (
-                  <Check className={cn("size-3.5", "text-emerald-500")} />
+                  <CheckIcon className={cn("size-3.5", "text-emerald-500")} />
                 ) : (
-                  <Copy className="size-3.5" />
+                  <CopyIcon className="size-3.5" />
                 )}
               </button>
             </div>
@@ -447,9 +447,9 @@ export default function ResultsDisplay({
                 )}
               >
                 {copiedSL ? (
-                  <Check className={cn("size-3.5", "text-emerald-500")} />
+                  <CheckIcon className={cn("size-3.5", "text-emerald-500")} />
                 ) : (
-                  <Copy className="size-3.5" />
+                  <CopyIcon className="size-3.5" />
                 )}
               </button>
             </div>
@@ -615,7 +615,7 @@ export default function ResultsDisplay({
           {isSaving ? (
             <Spinner className="shrink-0" />
           ) : (
-            <PlusCircle className={cn("size-4 shrink-0")} />
+            <PlusCircleIcon className={cn("size-4 shrink-0")} />
           )}
           <span>{isSaving ? "Сохранение..." : "Зафиксировать в журнал"}</span>
         </button>

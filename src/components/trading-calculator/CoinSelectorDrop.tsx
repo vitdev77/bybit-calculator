@@ -6,7 +6,7 @@ import {
   SelectItem,
   SelectLabel,
 } from "@/components/ui/select";
-import { Search, X } from "lucide-react";
+import { SearchIcon, XIcon } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { CoinSelectorItem } from "./CoinSelectorItem";
 import { DBAssetCoin } from "./TradingCalculator";
@@ -50,7 +50,7 @@ export function CoinSelectorDrop({
         {isSearching ? (
           <Spinner className="text-amber-500" />
         ) : (
-          <Search className="size-3 text-muted-foreground/60 ml-1" />
+          <SearchIcon className="size-3 text-muted-foreground/60 ml-1" />
         )}
         <input
           id="coin-search-input"
@@ -76,7 +76,7 @@ export function CoinSelectorDrop({
               "text-muted-foreground cursor-pointer",
             )}
           >
-            <X className="size-3" />
+            <XIcon className="size-3" />
           </button>
         )}
       </div>

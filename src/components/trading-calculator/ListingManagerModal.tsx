@@ -1,13 +1,13 @@
 "use client";
 import React, { useEffect, useState, useRef } from "react";
 import {
-  X,
-  Search,
-  Coins,
-  Zap,
-  Flame,
-  AlertTriangle,
-  Activity,
+  XIcon,
+  SearchIcon,
+  CoinsIcon,
+  ZapIcon,
+  FlameIcon,
+  AlertTriangleIcon,
+  ActivityIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DBAssetCoin } from "./TradingCalculator";
@@ -233,7 +233,7 @@ export default function ListingManagerModal({
               "justify-end cursor-pointer sm:self-start",
             )}
           >
-            <X className="size-4" />
+            <XIcon className="size-4" />
           </AlertDialogCancel>
         </AlertDialogHeader>
 
@@ -244,7 +244,7 @@ export default function ListingManagerModal({
           )}
         >
           <div className="relative w-full md:w-64 flex items-center group shrink-0">
-            <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground/60" />
+            <SearchIcon className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground/60" />
             <Input
               type="text"
               placeholder="Search..."
@@ -258,7 +258,7 @@ export default function ListingManagerModal({
                 onClick={() => setModalSearch("")}
                 className="absolute right-2.5 text-muted-foreground/60 hover:text-foreground bg-transparent border-none p-0 cursor-pointer"
               >
-                <X className="size-3.5" />
+                <XIcon className="size-3.5" />
               </button>
             )}
           </div>
@@ -276,7 +276,7 @@ export default function ListingManagerModal({
               disabled={isLoading}
             >
               <span className="md:hidden flex items-center gap-0.5">
-                <Coins className="size-3" />({allRows.length})
+                <CoinsIcon className="size-3" />({allRows.length})
               </span>
               <span className="hidden md:inline">ALL ({allRows.length})</span>
             </Button>
@@ -288,7 +288,7 @@ export default function ListingManagerModal({
               disabled={isLoading}
             >
               <span className="md:hidden flex items-center gap-0.5">
-                <Zap className="size-3" />({liqRows.length})
+                <ZapIcon className="size-3" />({liqRows.length})
               </span>
               <span className="hidden md:inline">LIQ ({liqRows.length})</span>
             </Button>
@@ -300,7 +300,7 @@ export default function ListingManagerModal({
               disabled={isLoading}
             >
               <span className="md:hidden flex items-center gap-0.5">
-                <Activity className="size-3" />({midRows.length})
+                <ActivityIcon className="size-3" />({midRows.length})
               </span>
               <span className="hidden md:inline">MID ({midRows.length})</span>
             </Button>
@@ -312,7 +312,7 @@ export default function ListingManagerModal({
               disabled={isLoading}
             >
               <span className="md:hidden flex items-center gap-0.5">
-                <AlertTriangle className="size-3" />({riskRows.length})
+                <AlertTriangleIcon className="size-3" />({riskRows.length})
               </span>
               <span className="hidden md:inline">RISK ({riskRows.length})</span>
             </Button>
@@ -324,7 +324,7 @@ export default function ListingManagerModal({
               disabled={isLoading}
             >
               <span className="md:hidden flex items-center gap-0.5">
-                <Flame className="size-3" />({delisRows.length})
+                <FlameIcon className="size-3" />({delisRows.length})
               </span>
               <span className="hidden md:inline">DEL ({delisRows.length})</span>
             </Button>

@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
-import { Star, Settings } from "lucide-react";
+import { StarIcon, SettingsIcon } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { OrderType } from "./TradingCalculator";
@@ -416,7 +416,7 @@ export default function CoinSelector({
             className={btnFavClass}
             title={isCurrentFavorite ? "Из избранного" : "В избранное"}
           >
-            <Star
+            <StarIcon
               className="size-4 shrink-0"
               fill={isCurrentFavorite ? "currentColor" : "none"}
             />
@@ -427,7 +427,7 @@ export default function CoinSelector({
             className={btnSetClass}
             title="Просмотр статистики"
           >
-            <Settings className="size-4" />
+            <SettingsIcon className="size-4" />
           </button>
         </div>
       </div>

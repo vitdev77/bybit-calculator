@@ -5,7 +5,7 @@ import {
   XCircleIcon,
   Trash2Icon,
   CheckIcon,
-  X,
+  XIcon,
   LogOutIcon,
   PauseIcon,
   ClockIcon,
@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 
 interface Deal {
   id: number;
@@ -504,7 +504,7 @@ export function JournalRow({
                 className="h-7 w-7 text-rose-600 hover:bg-rose-600 hover:text-white rounded-md"
                 title="Закрыть по стопу"
               >
-                <X className="size-3.5" />
+                <XIcon className="size-3.5" />
               </Button>
               <AlertDialog
                 open={isManualCloseModalOpen}

@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { LogIn, ShieldCheck, Rocket } from "lucide-react";
-import { cn } from "cn";
+import { LogInIcon, RocketIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface OrderRuntimeMapProps {
   focusedDeal: any;
@@ -300,7 +300,7 @@ export function OrderRuntimeMap({
               style={{ left: `${closePct}%`, transform: "translateX(-50%)" }}
             >
               <div className="p-1 bg-blue-500 text-white rounded-full shadow-[0_0_12px_rgba(59,130,246,0.6)] border border-background dark:border-neutral-900 animate-bounce">
-                <Rocket className="size-3.5 block shrink-0" />
+                <RocketIcon className="size-3.5 block shrink-0" />
               </div>
               <div className="absolute top-7 bg-blue-600 text-white border border-blue-400/20 font-black rounded-lg px-2 py-0.5 text-[10px] sm:text-xs shadow-[0_4px_12px_rgba(59,130,246,0.3)] whitespace-nowrap">
                 EXIT:{" "}
@@ -396,7 +396,7 @@ export function OrderRuntimeMap({
             }}
           >
             <span className="h-full px-1.5 flex items-center bg-primary text-primary-foreground dark:bg-neutral-800">
-              <LogIn className="size-3 shrink-0" />
+              <LogInIcon className="size-3 shrink-0" />
             </span>
             <span className="px-1.5 font-bold text-foreground/90">
               {focusedDeal.entry_price.toFixed(precision)}

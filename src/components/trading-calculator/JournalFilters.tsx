@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { X, SearchIcon, DownloadIcon, Trash2Icon } from "lucide-react";
+import { XIcon, SearchIcon, DownloadIcon, Trash2Icon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -58,7 +58,7 @@ export function JournalFilters({
               onClick={() => setSearchQuery("")}
               className="absolute right-2.5 text-muted-foreground/60 hover:text-foreground bg-transparent border-none p-0 cursor-pointer"
             >
-              <X className="size-3.5" />
+              <XIcon className="size-3.5" />
             </button>
           )}
         </div>

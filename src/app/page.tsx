@@ -1,12 +1,13 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { ChevronUp, ChevronDown, Database, Loader2 } from "lucide-react";
+import { ChevronUpIcon, ChevronDownIcon, DatabaseIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import TradingCalculator from "@/components/trading-calculator/TradingCalculator";
 import TradingViewChart from "@/components/trading-calculator/TradingViewChart";
 import TradingJournal from "@/components/trading-calculator/TradingJournal";
 import { ModeToggle } from "@/components/ModeToggle";
+import { Spinner } from "@/components/ui/spinner";
 
 const STORAGE_KEY_LAYOUT = "bybit_calculator_layout_v1";
 
@@ -114,9 +115,7 @@ export default function Home() {
             "transition-all duration-300",
           )}
         >
-          <Loader2
-            className={cn("size-12 text-amber-500 ", "animate-spin mb-4")}
-          />
+          <Spinner className={cn("size-12 text-amber-500 ", "mb-4")} />
           <span
             className={cn(
               "text-base font-black uppercase ",
@@ -185,7 +184,7 @@ export default function Home() {
             )}
             title="Открыть проводник СУБД"
           >
-            <Database className="h-[1.2rem] w-[1.2rem]" />
+            <DatabaseIcon className="h-[1.2rem] w-[1.2rem]" />
           </Link>
 
           <div
@@ -236,9 +235,9 @@ export default function Home() {
               </div>
               <div className={cn("text-muted-foreground")}>
                 {isCalcExpanded ? (
-                  <ChevronUp className="size-4" />
+                  <ChevronUpIcon className="size-4" />
                 ) : (
-                  <ChevronDown className="size-4" />
+                  <ChevronDownIcon className="size-4" />
                 )}
               </div>
             </div>
@@ -299,9 +298,9 @@ export default function Home() {
               </div>
               <div className={cn("text-muted-foreground")}>
                 {isChartExpanded ? (
-                  <ChevronUp className="size-4" />
+                  <ChevronUpIcon className="size-4" />
                 ) : (
-                  <ChevronDown className="size-4" />
+                  <ChevronDownIcon className="size-4" />
                 )}
               </div>
             </div>
@@ -347,9 +346,9 @@ export default function Home() {
               </div>
               <div className={cn("text-muted-foreground")}>
                 {isJournalExpanded ? (
-                  <ChevronUp className="size-4" />
+                  <ChevronUpIcon className="size-4" />
                 ) : (
-                  <ChevronDown className="size-4" />
+                  <ChevronDownIcon className="size-4" />
                 )}
               </div>
             </div>

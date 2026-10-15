@@ -1,14 +1,13 @@
 "use client";
 import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Layers,
-  TrendingUp,
-  TrendingDown,
-  Activity,
-  Star,
-  AlertOctagon,
-  Wallet,
+  LayersIcon,
+  TrendingUpIcon,
+  TrendingDownIcon,
+  ActivityIcon,
+  StarIcon,
+  AlertOctagonIcon,
+  WalletIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -46,7 +45,7 @@ export function AdminStats({
           "from-violet-500/10 via-violet-500/2 to-transparent border-violet-500/20",
         )}
       >
-        <Layers
+        <LayersIcon
           className={cn(
             "absolute right-3.5 top-3.5 size-14 opacity-5 pointer-events-none",
             "stroke-[1.5] text-violet-500",
@@ -61,7 +60,7 @@ export function AdminStats({
           Структура СУБД
         </span>
         <div className="flex items-center gap-3 mt-2.5 z-10">
-          <Layers className="size-5 text-violet-500 shrink-0" />
+          <LayersIcon className="size-5 text-violet-500 shrink-0" />
           <div className="flex flex-col leading-tight min-w-0">
             <span className="text-xs text-foreground truncate">
               Таблица{" "}
@@ -91,14 +90,14 @@ export function AdminStats({
             )}
           >
             {dm.totalPnl >= 0 ? (
-              <TrendingUp
+              <TrendingUpIcon
                 className={cn(
                   "absolute right-3.5 top-3.5 size-14 opacity-5 pointer-events-none",
                   "stroke-[1.5] text-emerald-500",
                 )}
               />
             ) : (
-              <TrendingDown
+              <TrendingDownIcon
                 className={cn(
                   "absolute right-3.5 top-3.5 size-14 opacity-5 pointer-events-none",
                   "stroke-[1.5] text-rose-500",
@@ -114,7 +113,7 @@ export function AdminStats({
               Финансовый результат
             </span>
             <div className="flex items-center gap-3 mt-2.5 z-10">
-              <Wallet
+              <WalletIcon
                 className={cn(
                   "size-5 shrink-0",
                   dm.totalPnl >= 0 ? "text-emerald-500" : "text-rose-500",
@@ -151,7 +150,7 @@ export function AdminStats({
               "from-amber-500/12 via-amber-500/2 to-transparent border-amber-500/20",
             )}
           >
-            <Activity
+            <ActivityIcon
               className={cn(
                 "absolute right-3.5 top-3.5 size-14 opacity-5 pointer-events-none",
                 "stroke-[1.5] text-amber-500",
@@ -161,7 +160,7 @@ export function AdminStats({
               Торговая активность
             </span>
             <div className="flex items-center gap-3 mt-2.5 z-10">
-              <Activity className="size-5 text-amber-500 shrink-0" />
+              <ActivityIcon className="size-5 text-amber-500 shrink-0" />
               <div className="flex flex-col leading-tight min-w-0">
                 <span className="text-sm font-black text-foreground">
                   {dm.openCount}{" "}
@@ -190,7 +189,7 @@ export function AdminStats({
               "from-amber-500/12 via-amber-500/2 to-transparent border-amber-500/20",
             )}
           >
-            <Star
+            <StarIcon
               className={cn(
                 "absolute right-3.5 top-3.5 size-14 opacity-5 pointer-events-none",
                 "stroke-[1.5] text-amber-400 fill-amber-400/20",
@@ -200,7 +199,7 @@ export function AdminStats({
               Мониторинг пар
             </span>
             <div className="flex items-center gap-3 mt-2.5 z-10">
-              <Star className="size-5 text-amber-400 fill-amber-400 shrink-0" />
+              <StarIcon className="size-5 text-amber-400 fill-amber-400 shrink-0" />
               <div className="flex flex-col leading-tight min-w-0">
                 <span className="text-sm font-black text-foreground">
                   {favCount}{" "}
@@ -223,7 +222,7 @@ export function AdminStats({
               "from-rose-500/12 via-rose-500/2 to-transparent border-rose-500/20",
             )}
           >
-            <AlertOctagon
+            <AlertOctagonIcon
               className={cn(
                 "absolute right-3.5 top-3.5 size-14 opacity-5 pointer-events-none",
                 "stroke-[1.5] text-rose-500",
@@ -233,7 +232,7 @@ export function AdminStats({
               Статус инструментов
             </span>
             <div className="flex items-center gap-3 mt-2.5 z-10">
-              <AlertOctagon className="size-5 text-rose-500 shrink-0" />
+              <AlertOctagonIcon className="size-5 text-rose-500 shrink-0" />
               <div className="flex flex-col leading-tight min-w-0">
                 <span className="text-sm font-black text-rose-500">
                   {delistedCount}{" "}

@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Star } from "lucide-react";
+import { StarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface DBAssetCoin {
@@ -108,7 +108,7 @@ export function CoinSelectorItem({
         )}
         title={asset.is_favorite ? "Из избранного" : "В избранное"}
       >
-        <Star
+        <StarIcon
           className="size-3.5 shrink-0"
           fill={asset.is_favorite ? "currentColor" : "none"}
         />

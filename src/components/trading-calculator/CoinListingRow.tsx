@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { Star } from "lucide-react";
+import { StarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DBAssetCoin } from "./TradingCalculator";
 
@@ -102,7 +102,7 @@ export function CoinListingRow({
             item.is_favorite ? "text-amber-500!" : "",
           )}
         >
-          <Star
+          <StarIcon
             className="size-3.5"
             fill={item.is_favorite ? "currentColor" : "none"}
           />

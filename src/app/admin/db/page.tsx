@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import {
-  X,
+  XIcon,
   TrashIcon,
   RefreshCcwIcon,
   SettingsIcon,
@@ -578,8 +578,8 @@ export default function AdminDbPage() {
                       </AlertDialogTitle>
                       <AlertDialogDescription className={cn("text-xs")}>
                         {activeTable === "deals"
-                          ? "Удалить историю Вашей торговли."
-                          : "Удалить все пары монет из БД."}
+                          ? "Историю Вашей торговли будет полностью удалена из базы данных."
+                          : "Все пары монет будут безвозвратно удалены из базы данных."}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter className="gap-1.5">
@@ -669,7 +669,7 @@ export default function AdminDbPage() {
                     "p-0 cursor-pointer",
                   )}
                 >
-                  <X className="size-3.5" />
+                  <XIcon className="size-3.5" />
                 </button>
               )}
             </div>

@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import Link from "next/link";
-import { ArrowLeft, Database } from "lucide-react";
+import { ArrowLeftIcon, DatabaseIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/ModeToggle";
 import { cn } from "@/lib/utils";
@@ -21,7 +21,7 @@ export function AdminHeader({ activeTable, onTableChange }: HeaderProps) {
             size="sm"
             className="h-8 text-xs font-bold rounded-xl flex items-center gap-1.5 px-2.5"
           >
-            <ArrowLeft className="size-3.5" /> Калькулятор
+            <ArrowLeftIcon className="size-3.5" /> Калькулятор
           </Button>
         </Link>
         <ModeToggle />
@@ -33,7 +33,7 @@ export function AdminHeader({ activeTable, onTableChange }: HeaderProps) {
         )}
       >
         <div className="flex items-center gap-2">
-          <Database className="size-4.5 text-violet-500 shrink-0" />
+          <DatabaseIcon className="size-4.5 text-violet-500 shrink-0" />
           <h1 className="text-xs sm:text-sm font-black uppercase tracking-wider">
             Администрирование СУБД
           </h1>

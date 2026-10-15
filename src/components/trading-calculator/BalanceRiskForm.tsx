@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RotateCcw } from "lucide-react";
+import { RotateCcwIcon } from "lucide-react";
 import { Label } from "@/components/ui/label";
 
 interface BalanceRiskFormProps {
@@ -220,7 +220,7 @@ export default function BalanceRiskForm({
                 className="absolute right-0.5 h-8 w-7 p-0 text-amber-500 hover:text-amber-600 bg-transparent flex items-center justify-center rounded-md hover:bg-amber-500/10 transition-colors"
                 title="Вернуть расчетное идеальное плечо"
               >
-                <RotateCcw className="size-3.5 shrink-0" />
+                <RotateCcwIcon className="size-3.5 shrink-0" />
               </Button>
             )}
           </div>

@@ -2,15 +2,15 @@
 
 import React from "react";
 import {
-  Wallet,
-  Flame,
-  History,
-  ArrowUpRight,
-  ArrowDownRight,
-  Activity,
-  TrendingDown,
+  WalletIcon,
+  FlameIcon,
+  HistoryIcon,
+  ArrowUpRightIcon,
+  ArrowDownRightIcon,
+  ActivityIcon,
+  TrendingDownIcon,
 } from "lucide-react";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 
 interface Deal {
   id: number;
@@ -113,13 +113,13 @@ export function JournalStats({ deals = [] }: JournalStatsProps) {
           )}
         >
           {/* ФОНОВАЯ ИКОНКА ДЛЯ ГЛУБИНЫ ИНТЕРФЕЙСА */}
-          <Activity className="absolute right-3.5 top-3.5 size-12 opacity-3 pointer-events-none stroke-[1.5]" />
+          <ActivityIcon className="absolute right-3.5 top-3.5 size-12 opacity-3 pointer-events-none stroke-[1.5]" />
 
           <div className="flex items-center w-full justify-between h-full z-10 min-w-0">
             {/* ЛЕВАЯ ЧАСТЬ: ЧИСТЫЙ ДОХОД И ДИНАМИЧЕСКАЯ ИКОНКА КОШЕЛЬКА */}
             <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
               {/* СВЕТОВАЯ ИНДИКАЦИЯ: Иконка Wallet теперь сочно красится в цвет твоего текущего PnL */}
-              <Wallet
+              <WalletIcon
                 className={cn(
                   "size-4.5 shrink-0 transition-colors duration-300",
                   netPnL > 0.005
@@ -136,9 +136,9 @@ export function JournalStats({ deals = [] }: JournalStatsProps) {
                 <div className="flex items-baseline gap-1 mt-0.5 min-w-0 flex-wrap">
                   <span className="font-sans font-black text-sm sm:text-base leading-none tracking-tight flex items-center gap-0.5 truncate">
                     {netPnL > 0.005 ? (
-                      <ArrowUpRight className="size-3.5 shrink-0 text-emerald-500 inline-block align-middle" />
+                      <ArrowUpRightIcon className="size-3.5 shrink-0 text-emerald-500 inline-block align-middle" />
                     ) : netPnL < -0.005 ? (
-                      <ArrowDownRight className="size-3.5 shrink-0 text-rose-500 inline-block align-middle" />
+                      <ArrowDownRightIcon className="size-3.5 shrink-0 text-rose-500 inline-block align-middle" />
                     ) : null}
                     {netPnL > 0.005 ? "+" : ""}
                     {netPnL.toFixed(2)}
@@ -168,7 +168,7 @@ export function JournalStats({ deals = [] }: JournalStatsProps) {
 
             {/* ПРАВАЯ ЧАСТЬ: НАКОПЛЕННЫЙ УБЫТОК И ИКОНКА ТРЕНДА DOWN */}
             <div className="flex items-center gap-2 flex-1 min-w-0 pl-3">
-              <TrendingDown className="size-4.5 text-rose-500/70 dark:text-rose-400/70 shrink-0" />
+              <TrendingDownIcon className="size-4.5 text-rose-500/70 dark:text-rose-400/70 shrink-0" />
               <div className="flex flex-col min-w-0 w-full">
                 <span className="text-[9px] font-black uppercase tracking-wider text-rose-500/60 dark:text-rose-500/70 leading-none block">
                   Накопленный Убыток
@@ -196,7 +196,7 @@ export function JournalStats({ deals = [] }: JournalStatsProps) {
 
         {/* КАРТОЧКА 2: СРАБАТЫВАНИЯ УРОВНЕЙ (Оригинальный чистый стиль) */}
         <div className="flex items-center gap-3.5 px-4 py-3 rounded-2xl bg-muted/30 dark:bg-neutral-900/40 border border-border/20 text-muted-foreground justify-start h-14 sm:h-14 w-full shadow-xs col-span-1 lg:col-span-1">
-          <Flame className="size-4.5 text-amber-500/80 shrink-0" />
+          <FlameIcon className="size-4.5 text-amber-500/80 shrink-0" />
           <div className="flex flex-col min-w-0">
             <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 leading-none truncate">
               Срабатывания
@@ -219,7 +219,7 @@ export function JournalStats({ deals = [] }: JournalStatsProps) {
 
         {/* КАРТОЧКА 3: ВСЕГО В ЖУРНАЛЕ (Оригинальный чистый стиль) */}
         <div className="flex items-center gap-3.5 px-4 py-3 rounded-2xl bg-muted/30 dark:bg-neutral-900/40 border border-border/20 text-muted-foreground justify-start h-14 sm:h-14 w-full shadow-xs col-span-1 lg:col-span-1">
-          <History className="size-4.5 text-violet-500/80 shrink-0" />
+          <HistoryIcon className="size-4.5 text-violet-500/80 shrink-0" />
           <div className="flex flex-col min-w-0">
             <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 leading-none truncate">
               Всего записей

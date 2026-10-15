@@ -5,7 +5,6 @@ import { JournalStats } from "./JournalStats";
 import { JournalTable } from "./JournalTable";
 import { JournalRow } from "./JournalRow";
 import { OrderRuntimeMap } from "./OrderRuntimeMap";
-import { cn } from "cn";
 import { DBAssetCoin } from "./TradingCalculator";
 
 interface Deal {

@@ -4,8 +4,8 @@ import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { buttonVariants } from "@/components/ui/button";
-import { Zap } from "lucide-react";
-import { cn } from "cn";
+import { ZapIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -117,9 +117,9 @@ export default function PriceLevelsForm({
                     ? "text-emerald-500 hover:text-emerald-600"
                     : "text-amber-500 hover:text-amber-600",
                 )}
-                title={`Рынок: ${formattedLive}. Нажмите для выравнивания цене.`}
+                title={`Рынок: ${formattedLive}. Нажмите для выравнивания по цене.`}
               >
-                <Zap className="size-3.5 fill-current" />
+                <ZapIcon className="size-3.5 fill-current" />
               </button>
             )}
           </div>
