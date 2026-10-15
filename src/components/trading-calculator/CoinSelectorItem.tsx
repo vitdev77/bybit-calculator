@@ -58,9 +58,8 @@ export function CoinSelectorItem({
     const activeSlug = (dbSlug || fallbackTicker).toUpperCase();
     finalImgUrl = `${defaultCryptoBase}/crypto/XTVC${activeSlug}.svg`;
   }
-
   return (
-    <div className="flex items-center justify-between w-full font-sans">
+    <div className="flex items-center justify-between w-full font-sans pr-12 relative">
       <div className="flex items-center gap-2 min-w-0">
         {isLoadFailed ? (
           <div
@@ -101,9 +100,9 @@ export function CoinSelectorItem({
         type="button"
         onClick={(e) => onToggleFav(e, asset.coin)}
         className={cn(
-          "absolute right-2 p-1 border-none bg-transparent outline-none",
+          "absolute right-1 p-1 border-none bg-transparent outline-none",
           "transition-colors cursor-pointer text-muted-foreground/30",
-          "hover:text-amber-500",
+          "hover:text-amber-500 z-30",
           asset.is_favorite ? "text-amber-500!" : "",
         )}
         title={asset.is_favorite ? "Из избранного" : "В избранное"}

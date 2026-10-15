@@ -169,9 +169,12 @@ export function AdminTable({
                 <button
                   type="button"
                   onClick={(e) => handleCopyCoin(e, row.coin)}
+                  disabled={row.is_delisted}
                   className={cn(
                     "p-1 hover:bg-muted rounded text-muted-foreground/40",
                     "hover:text-foreground cursor-pointer transition-colors",
+                    row.is_delisted &&
+                      "cursor-not-allowed hover:text-muted-foreground/40 hover:bg-inherit",
                   )}
                   title="Копировать тикер"
                 >
@@ -184,10 +187,12 @@ export function AdminTable({
                 <button
                   type="button"
                   onClick={(e) => handleNavigateToMain(e, row.coin)}
+                  disabled={row.is_delisted}
                   className={cn(
                     "p-1 hover:bg-muted rounded text-muted-foreground/40",
-                    "hover:text-foreground cursor-pointer transition-colors flex",
-                    "items-center justify-center bg-transparent border-none",
+                    "hover:text-foreground cursor-pointer transition-colors",
+                    row.is_delisted &&
+                      "cursor-not-allowed hover:text-muted-foreground/40 hover:bg-inherit",
                   )}
                   title="Открыть в калькуляторе"
                 >
@@ -442,7 +447,7 @@ export function AdminTable({
       {isIncrementalLoading && (
         <div className="flex p-2.5 gap-2 items-center justify-center text-muted-foreground border-t bg-muted/5 text-[10px] select-none font-medium sticky bottom-0 left-0 right-0 z-40">
           <Spinner className="text-amber-500 size-3" />
-          <span>Подгрузка строк...</span>
+          <span>Loading data...</span>
         </div>
       )}
     </div>
