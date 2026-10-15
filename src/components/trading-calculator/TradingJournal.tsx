@@ -300,7 +300,7 @@ export default function TradingJournal({
       setActiveDeleteId(null);
       toast.add({
         title: "Сделка удалена",
-        description: "Запись успешно стерта из облачной базы данных.",
+        description: "Запись успешно удалена из базы данных.",
         type: "error",
       });
     } catch (e) {
