@@ -354,7 +354,7 @@ export default function Home() {
             </div>
             <div
               className={cn(
-                "journal-container-grid grid p-3",
+                "journal-container-grid grid",
                 "transition-all duration-300",
                 "ease-in-out overflow-hidden",
                 isJournalExpanded

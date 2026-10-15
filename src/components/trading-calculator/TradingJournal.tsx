@@ -339,7 +339,7 @@ export default function TradingJournal({
   const hasDealsForPosition = deals.some((d) => d.coin === activeCoin);
 
   return (
-    <div className="w-full bg-transparent flex flex-col px-0 space-y-4">
+    <div className="w-full bg-transparent flex flex-col p-3 space-y-4">
       <div className="py-3 border-b border-border/40 flex justify-between">
         <JournalStats deals={deals} />
       </div>
