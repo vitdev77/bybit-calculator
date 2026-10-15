@@ -69,7 +69,7 @@ export function JournalTable({
       </div>
       <div
         className={cn(
-          "w-full",
+          "w-full max-h-96",
           "overflow-x-auto",
           "overflow-y-auto",
           "scrollbar-thin",

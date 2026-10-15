@@ -372,7 +372,7 @@ export function AdminTable({
     <div
       ref={containerRef}
       onScroll={handleScroll}
-      className="overflow-x-auto max-h-130 scrollbar-thin touch-pan-x w-full relative"
+      className="overflow-x-auto scrollbar-thin touch-pan-x w-full relative"
     >
       <Table className="text-[11px] font-medium border-collapse min-w-150 w-full">
         <TableHeader className="bg-muted/30 sticky top-0 z-20 backdrop-blur-md border-b">
@@ -445,7 +445,7 @@ export function AdminTable({
         </TableBody>
       </Table>
       {isIncrementalLoading && (
-        <div className="flex p-2.5 gap-2 items-center justify-center text-muted-foreground border-t bg-muted/5 text-[10px] select-none font-medium sticky bottom-0 left-0 right-0 z-40">
+        <div className="flex p-2.5 gap-2 items-center justify-center text-muted-foreground bg-background/70 backdrop-blur-md text-[10px] select-none font-medium sticky bottom-0 left-0 right-0 z-40">
           <Spinner className="text-amber-500 size-3" />
           <span>Loading data...</span>
         </div>

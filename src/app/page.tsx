@@ -178,9 +178,9 @@ export default function Home() {
             className={cn(
               "inline-flex items-center",
               "justify-center h-9 w-9",
-              "rounded-md text-amber-500",
+              "rounded-md text-violet-500",
               "transition-all cursor-pointer",
-              "hover:bg-amber-500/10",
+              "hover:bg-violet-500/10",
             )}
             title="Открыть проводник СУБД"
           >

@@ -430,7 +430,12 @@ export default function AdminDbPage() {
 
   const activeHeaders = activeTable === "deals" ? dealsHeaders : coinsHeaders;
   return (
-    <div className={cn("w-full max-w-5xl mx-auto ", "p-2.5 sm:p-6 space-y-4")}>
+    <div
+      className={cn(
+        "w-full max-h-screen max-w-5xl mx-auto flex flex-col",
+        "p-2.5 sm:p-6 space-y-4",
+      )}
+    >
       <AdminHeader
         activeTable={activeTable}
         onTableChange={handleTableChange}
@@ -754,7 +759,10 @@ export default function AdminDbPage() {
       </div>
 
       <Card
-        className={cn("border border-border/40 ", "bg-background mt-1 py-0!")}
+        className={cn(
+          "border grow border-border/40",
+          "bg-background mt-1 py-0!",
+        )}
       >
         {isLoading || actionLoading || isSyncing ? (
           <div
