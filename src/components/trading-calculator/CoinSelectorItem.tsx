@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { StarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 interface DBAssetCoin {
   coin: string;
@@ -59,7 +60,7 @@ export function CoinSelectorItem({
     finalImgUrl = `${defaultCryptoBase}/crypto/XTVC${activeSlug}.svg`;
   }
   return (
-    <div className="flex items-center justify-between w-full font-sans pr-12 relative">
+    <div className="flex items-center justify-between w-full font-sans pr-8 relative">
       <div className="flex items-center gap-2 min-w-0">
         {isLoadFailed ? (
           <div
@@ -72,9 +73,11 @@ export function CoinSelectorItem({
             {displaySeed.slice(0, 2)}
           </div>
         ) : (
-          <img
+          <Image
             src={finalImgUrl}
-            alt={displaySeed}
+            alt={displaySeed.toLowerCase()}
+            width={16}
+            height={16}
             loading="lazy"
             className="size-4 shrink-0 rounded-full bg-neutral-100 dark:bg-zinc-800"
             onError={() => setIsLoadFailed(true)}
@@ -82,11 +85,12 @@ export function CoinSelectorItem({
         )}
         <span
           className={cn(
-            "truncate text-xs sm:text-sm transition-colors",
+            "truncate text-xs sm:text-sm transition-colors max-w-32",
             isCurrent
               ? "font-black text-amber-500"
               : "font-medium text-foreground",
           )}
+          title={asset.coin}
         >
           {asset.coin}
         </span>

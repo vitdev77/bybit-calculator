@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { CoinSelectorDrop } from "./CoinSelectorDrop";
+import Image from "next/image";
 
 export interface DBAssetCoin {
   coin: string;
@@ -116,9 +117,11 @@ function CoinIcon({
   }
 
   return (
-    <img
+    <Image
       src={finalImgUrl}
-      alt={displaySeed}
+      alt={displaySeed.toLowerCase()}
+      width={16}
+      height={16}
       loading="lazy"
       className="size-4 shrink-0 rounded-full bg-neutral-100 dark:bg-zinc-800"
       onError={() => setIsLoadFailed(true)}
@@ -383,7 +386,7 @@ export default function CoinSelector({
                     logoSlug={currentLogoSlug}
                     liveSlug={liveTickerData?.logo_slug}
                   />
-                  <SelectValue placeholder="Монета" />
+                  <SelectValue placeholder="Торговая пара" />
                 </div>
               </SelectTrigger>
               <CoinSelectorDrop

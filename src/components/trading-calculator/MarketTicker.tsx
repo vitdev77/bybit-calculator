@@ -3,6 +3,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { DBAssetCoin } from "./TradingCalculatorWS";
+import Image from "next/image";
 
 interface TickerData {
   lastPrice: number;
@@ -251,9 +252,11 @@ export default function MarketTicker({
             {!mounted ? (
               <div className="w-full h-full rounded-full bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
             ) : !isLoadFailed ? (
-              <img
+              <Image
                 src={finalImgUrl}
-                alt={displaySeed}
+                width={36}
+                height={36}
+                alt={displaySeed.toLowerCase()}
                 className="w-full h-full rounded-full bg-neutral-100 dark:bg-zinc-800"
                 onError={() => setIsLoadFailed(true)}
               />

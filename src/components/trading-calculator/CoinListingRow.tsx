@@ -1,6 +1,13 @@
 "use client";
 import React from "react";
-import { StarIcon } from "lucide-react";
+import {
+  CircleMinusIcon,
+  CircleOffIcon,
+  CircleXIcon,
+  StarIcon,
+  StarMinusIcon,
+  XIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DBAssetCoin } from "./TradingCalculatorWS";
 
@@ -95,17 +102,21 @@ export function CoinListingRow({
           disabled={favLoading || item.is_delisted}
           onClick={(e) => onToggleFav(e, item.coin, item.is_favorite)}
           className={cn(
-            "p-1 bg-transparent border-none outline-none transition-colors shrink-0",
+            "p-1 bg-transparent border-none outline-none transition-colors text-muted-foreground/30 shrink-0",
             item.is_delisted
-              ? "hidden"
-              : "cursor-pointer text-muted-foreground/30 hover:text-amber-500",
+              ? "cursor-not-allowed hover:text-muted-foreground/30"
+              : "cursor-pointer hover:text-amber-500",
             item.is_favorite ? "text-amber-500!" : "",
           )}
         >
-          <StarIcon
-            className="size-3.5"
-            fill={item.is_favorite ? "currentColor" : "none"}
-          />
+          {item.is_delisted ? (
+            <CircleXIcon className="size-3.5" />
+          ) : (
+            <StarIcon
+              className="size-3.5"
+              fill={item.is_favorite ? "currentColor" : "none"}
+            />
+          )}
         </button>
 
         <div className="flex items-center gap-2 min-w-0 flex-1 leading-none">
@@ -117,14 +128,19 @@ export function CoinListingRow({
             {isMid && renderBadge("MID")}
             {isRisk && renderBadge("RISK")}
           </div>
-          <span
-            className={cn(
-              "font-bold text-xs truncate pl-0.5",
-              isActiveCoin ? "text-amber-500 font-black" : "text-foreground",
-            )}
-          >
-            {item.coin}
-          </span>
+          <div className="flex flex-col">
+            <span
+              className={cn(
+                "font-bold text-xs truncate",
+                isActiveCoin ? "text-amber-500 font-black" : "text-foreground",
+              )}
+            >
+              {item.coin}
+            </span>
+            <span className="text-[10px] text-muted-foreground/60 font-medium">
+              {item.fullname}
+            </span>
+          </div>
         </div>
       </div>
 
