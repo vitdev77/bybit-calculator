@@ -8,6 +8,7 @@ import ResultsDisplay from "./ResultsDisplay";
 import MarketTicker from "./MarketTicker";
 import ListingManagerModal from "./ListingManagerModal";
 import { cn } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 
 export type OrderType = "MARKET" | "LIMIT";
 export type PositionSide = "BUY" | "SELL";
@@ -108,7 +109,6 @@ export default function TradingCalculator({
   );
   const [tickerRegistry, setTickerRegistry] = useState<Record<string, any>>({});
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isDbSyncing, setIsDbSyncing] = useState(false);
 
   const partsCount = externalPartsCount;
   const setPartsCount = setExternalPartsCount;
@@ -343,6 +343,21 @@ export default function TradingCalculator({
     if (!isLoaded) return;
     let active = true;
     let ws: WebSocket | null = null;
+    let lockInterval: NodeJS.Timeout | null = null;
+
+    const checkDbLockStatus = async () => {
+      try {
+        const res = await fetch(`/api/bybit?symbol=${selectedCoin}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!active) return;
+        if (data.isDbSyncing !== undefined) {
+          onSyncStatusChange?.(!!data.isDbSyncing);
+        }
+      } catch (e) {
+        console.error("Lock check error:", e);
+      }
+    };
 
     const fetchMetaAndInit = async () => {
       try {
@@ -353,7 +368,6 @@ export default function TradingCalculator({
         if (!active) return;
         setTickerData(data);
         if (data.isDbSyncing !== undefined) {
-          setIsDbSyncing(!!data.isDbSyncing);
           onSyncStatusChange?.(!!data.isDbSyncing);
         }
         if (onPriceUpdate && data.lastPrice) onPriceUpdate(data.lastPrice);
@@ -366,6 +380,7 @@ export default function TradingCalculator({
         }
         setTickerLoading(false);
         connectWebSocket();
+        lockInterval = setInterval(checkDbLockStatus, 5000);
       } catch (err) {
         console.error("Meta fetch error:", err);
         if (active) setTickerLoading(false);
@@ -433,6 +448,7 @@ export default function TradingCalculator({
 
     return () => {
       active = false;
+      if (lockInterval) clearInterval(lockInterval);
       if (ws) {
         if (ws.readyState === WebSocket.OPEN) {
           const unsubscribeMsg = {
@@ -501,6 +517,7 @@ export default function TradingCalculator({
     partsCount,
     isLoaded,
   ]);
+
   useEffect(() => {
     if (entryPrice <= 0 || stopLossPercent <= 0 || balance <= 0) return;
     const isLong = side === "BUY";
@@ -573,7 +590,6 @@ export default function TradingCalculator({
     maxSafeLeverage,
     partsCount,
   ]);
-
   const cardCls = cn(
     "shadow-sm border flex flex-col " +
       "border-border/40 bg-background " +
