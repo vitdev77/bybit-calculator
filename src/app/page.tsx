@@ -15,6 +15,7 @@ interface DealsCount {
   open: number;
   closed: number;
 }
+
 export default function Home() {
   const [selectedCoin, setSelectedCoin] = useState("BTCUSDT");
   const [currentBalance, setCurrentBalance] = useState(100);
@@ -51,7 +52,6 @@ export default function Home() {
       setIsMounted(true);
     }
   }, []);
-
   useEffect(() => {
     if (!isMounted) return;
     const layoutState = {
@@ -78,16 +78,6 @@ export default function Home() {
     setClosedCount(summary.closed || 0);
   };
 
-  const headClass = cn(
-    "sticky top-0 z-50 w-full",
-    "px-4 sm:px-6 bg-background/60",
-    "backdrop-blur-xl border-b",
-    "border-white/5 shadow-xs py-3",
-    "mb-4 select-none flex",
-    "items-center",
-    "justify-between gap-4",
-  );
-
   const badgeClass = cn(
     "inline-flex items-center",
     "gap-1.5 bg-neutral-500/10",
@@ -97,14 +87,9 @@ export default function Home() {
     "sm:text-xs",
     "text-foreground/90",
   );
+
   return (
-    <main
-      className={cn(
-        "min-h-screen pt-0 pb-6 relative",
-        "max-w-[2000px] mx-auto",
-        "px-2 sm:px-6 w-full",
-      )}
-    >
+    <div className="min-h-screen bg-background flex flex-col w-full">
       {isDbSyncing && (
         <div
           className={cn(
@@ -130,250 +115,272 @@ export default function Home() {
         </div>
       )}
 
-      <div className={headClass}>
-        <div className={cn("flex flex-col min-w-0")}>
-          <h1
-            className={cn(
-              "text-sm sm:text-base",
-              "font-black tracking-tight",
-              "text-foreground truncate",
-            )}
-          >
-            Bybit Futures{" "}
-            <span className={cn("text-muted-foreground", "font-normal")}>
-              / Calculator
-            </span>
-          </h1>
-          <div className={cn("flex items-center", "gap-2 mt-0.5")}>
-            <span className={cn("relative flex h-1.5 w-1.5")}>
-              <span
-                className={cn(
-                  "animate-ping absolute",
-                  "inline-flex h-full w-full ",
-                  "rounded-full bg-emerald-400",
-                  "opacity-75",
-                )}
-              />
-              <span
-                className={cn(
-                  "relative inline-flex",
-                  "rounded-full h-1.5 w-1.5 ",
-                  "bg-emerald-500",
-                )}
-              />
-            </span>
-            <p className={badgeClass}>
-              Изолированная маржа 1/{partsCount} •{" "}
-              <span className={cn("font-bold", "text-amber-500")}>
-                {(currentBalance / partsCount).toFixed(2)}
-              </span>{" "}
-              USDT
-            </p>
+      {/* ШАПКА РАСТЯНУТА НА ВСЮ ШИРИНУ ЭКРАНА С БЛЮРОМ */}
+      <header
+        className={cn(
+          "sticky top-0 z-50 w-full bg-background/60",
+          "backdrop-blur-xl border-b border-white/5",
+          "shadow-xs py-3 select-none",
+        )}
+      >
+        {/* ВНУТРЕННИЙ ОГРАНИЧИТЕЛЬ ВЫРАВНИВАНИЯ ДЛЯ ДЕСКТОПА И МОБИЛКИ */}
+        <div
+          className={cn(
+            "max-w-[2000px] mx-auto w-full",
+            "px-4 sm:px-6 flex items-center",
+            "justify-between gap-4",
+          )}
+        >
+          <div className="flex flex-col min-w-0">
+            <h1
+              className={cn(
+                "text-sm sm:text-base",
+                "font-black tracking-tight",
+                "text-foreground truncate",
+              )}
+            >
+              Bybit Futures{" "}
+              <span className={cn("text-muted-foreground", "font-normal")}>
+                / Calculator
+              </span>
+            </h1>
+            <div className={cn("flex items-center", "gap-2 mt-0.5")}>
+              <span className={cn("relative flex h-1.5 w-1.5")}>
+                <span
+                  className={cn(
+                    "animate-ping absolute",
+                    "inline-flex h-full w-full ",
+                    "rounded-full bg-emerald-400",
+                    "opacity-75",
+                  )}
+                />
+                <span
+                  className={cn(
+                    "relative inline-flex",
+                    "rounded-full h-1.5 w-1.5 ",
+                    "bg-emerald-500",
+                  )}
+                />
+              </span>
+              <p className={badgeClass}>
+                Изолированная маржа 1/{partsCount} •{" "}
+                <span className={cn("font-bold", "text-amber-500")}>
+                  {(currentBalance / partsCount).toFixed(2)}
+                </span>{" "}
+                USDT
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0 ml-auto">
+            <Link
+              href="/admin/db"
+              className={cn(
+                "inline-flex items-center",
+                "justify-center h-9 w-9",
+                "rounded-md text-violet-500",
+                "transition-all cursor-pointer",
+                "hover:bg-violet-500/10",
+              )}
+              title="Открыть проводник СУБД"
+            >
+              <DatabaseIcon className="h-[1.2rem] w-[1.2rem]" />
+            </Link>
+            <div
+              className={cn(
+                "h-5 w-px shrink-0",
+                "bg-neutral-200",
+                "dark:bg-neutral-800",
+              )}
+            />
+            <ModeToggle />
           </div>
         </div>
-
-        <div className={cn("flex items-center", "gap-3 shrink-0 ml-auto")}>
-          <Link
-            href="/admin/db"
-            className={cn(
-              "inline-flex items-center",
-              "justify-center h-9 w-9",
-              "rounded-md text-violet-500",
-              "transition-all cursor-pointer",
-              "hover:bg-violet-500/10",
-            )}
-            title="Открыть проводник СУБД"
-          >
-            <DatabaseIcon className="h-[1.2rem] w-[1.2rem]" />
-          </Link>
-
-          <div
-            className={cn(
-              "h-5 w-px shrink-0",
-              "bg-neutral-200",
-              "dark:bg-neutral-800",
-            )}
-          />
-
-          <ModeToggle />
-        </div>
-      </div>
-      <div
+      </header>
+      <main
         className={cn(
-          "grid grid-cols-1 xl:grid-cols-12",
-          "gap-6 items-start w-full ",
-          "overflow-hidden",
+          "pt-4 pb-6 relative",
+          "max-w-[2000px] mx-auto",
+          "px-2 sm:px-6 w-full flex-1",
         )}
       >
         <div
-          className={cn("xl:col-span-5 order-first", "xl:order-last w-full")}
-        >
-          <div
-            className={cn(
-              "border border-border/40",
-              "bg-background rounded-2xl p-1",
-              "transition-all",
-            )}
-          >
-            <div
-              onClick={() => setIsCalcExpanded(!isCalcExpanded)}
-              className={cn(
-                "flex items-center justify-between",
-                "px-3 py-2 cursor-pointer ",
-                "select-none",
-              )}
-            >
-              <div className={cn("flex flex-col min-w-0 pr-2")}>
-                <h2
-                  className={cn(
-                    "text-xs font-bold uppercase",
-                    "tracking-wider text-muted-foreground",
-                  )}
-                >
-                  Калькулятор Позиций
-                </h2>
-              </div>
-              <div className={cn("text-muted-foreground")}>
-                {isCalcExpanded ? (
-                  <ChevronUpIcon className="size-4" />
-                ) : (
-                  <ChevronDownIcon className="size-4" />
-                )}
-              </div>
-            </div>
-            <div
-              className={cn(
-                "calc-container-grid grid",
-                "transition-all duration-300",
-                "ease-in-out overflow-hidden",
-                isCalcExpanded
-                  ? "grid-rows-[1fr] opacity-100"
-                  : "grid-rows-[0fr] opacity-0",
-              )}
-            >
-              <div className={cn("min-h-0 w-full")}>
-                <TradingCalculator
-                  selectedCoin={selectedCoin}
-                  setSelectedCoin={setSelectedCoin}
-                  onBalanceChange={setCurrentBalance}
-                  onPriceUpdate={setCurrentCoinPrice}
-                  externalPartsCount={partsCount}
-                  setExternalPartsCount={setPartsCount}
-                  onSyncStatusChange={setIsDbSyncing}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-        <div
           className={cn(
-            "xl:col-span-7 grid grid-cols-1",
-            "gap-6 w-full min-w-0",
+            "grid grid-cols-1 xl:grid-cols-12",
+            "gap-6 items-start w-full ",
+            "overflow-hidden",
           )}
         >
           <div
-            className={cn(
-              "border border-border/40",
-              "bg-background rounded-2xl p-1",
-              "transition-all",
-            )}
+            className={cn("xl:col-span-5 order-first", "xl:order-last w-full")}
           >
             <div
-              onClick={() => setIsChartExpanded(!isChartExpanded)}
               className={cn(
-                "flex items-center justify-between",
-                "px-3 py-2 cursor-pointer ",
-                "select-none",
+                "border border-border/40",
+                "bg-background rounded-2xl p-1",
+                "transition-all",
               )}
             >
-              <div className={cn("flex flex-col min-w-0 pr-2")}>
-                <h2
-                  className={cn(
-                    "text-xs font-bold uppercase",
-                    "tracking-wider text-muted-foreground",
-                  )}
-                >
-                  Интерактивный Живой График
-                </h2>
-              </div>
-              <div className={cn("text-muted-foreground")}>
-                {isChartExpanded ? (
-                  <ChevronUpIcon className="size-4" />
-                ) : (
-                  <ChevronDownIcon className="size-4" />
+              <div
+                onClick={() => setIsCalcExpanded(!isCalcExpanded)}
+                className={cn(
+                  "flex items-center justify-between",
+                  "px-3 py-2 cursor-pointer ",
+                  "select-none",
                 )}
+              >
+                <div className={cn("flex flex-col min-w-0 pr-2")}>
+                  <h2
+                    className={cn(
+                      "text-xs font-bold uppercase",
+                      "tracking-wider text-muted-foreground",
+                    )}
+                  >
+                    Калькулятор Позиций
+                  </h2>
+                </div>
+                <div className={cn("text-muted-foreground")}>
+                  {isCalcExpanded ? (
+                    <ChevronUpIcon className="size-4" />
+                  ) : (
+                    <ChevronDownIcon className="size-4" />
+                  )}
+                </div>
               </div>
-            </div>
-            <div
-              className={cn(
-                "chart-container-grid grid",
-                "transition-all duration-300",
-                "ease-in-out overflow-hidden",
-                isChartExpanded
-                  ? "grid-rows-[1fr] opacity-100"
-                  : "grid-rows-[0fr] opacity-0",
-              )}
-            >
-              <div className={cn("min-h-0 w-full")}>
-                <TradingViewChart coin={selectedCoin} />
+              <div
+                className={cn(
+                  "calc-container-grid grid",
+                  "transition-all duration-300",
+                  "ease-in-out overflow-hidden",
+                  isCalcExpanded
+                    ? "grid-rows-[1fr] opacity-100"
+                    : "grid-rows-[0fr] opacity-0",
+                )}
+              >
+                <div className={cn("min-h-0 w-full")}>
+                  <TradingCalculator
+                    selectedCoin={selectedCoin}
+                    setSelectedCoin={setSelectedCoin}
+                    onBalanceChange={setCurrentBalance}
+                    onPriceUpdate={setCurrentCoinPrice}
+                    externalPartsCount={partsCount}
+                    setExternalPartsCount={setPartsCount}
+                    onSyncStatusChange={setIsDbSyncing}
+                  />
+                </div>
               </div>
             </div>
           </div>
           <div
             className={cn(
-              "border border-border/40",
-              "bg-background rounded-2xl p-1",
-              "transition-all",
+              "xl:col-span-7 grid grid-cols-1",
+              "gap-6 w-full min-w-0",
             )}
           >
             <div
-              onClick={() => setIsJournalExpanded(!isJournalExpanded)}
               className={cn(
-                "flex items-center justify-between",
-                "px-3 py-2 cursor-pointer ",
-                "select-none",
+                "border border-border/40",
+                "bg-background rounded-2xl p-1",
+                "transition-all",
               )}
             >
-              <div className={cn("flex flex-col min-w-0 pr-2 ", "flex-1")}>
-                <h2
-                  className={cn(
-                    "text-xs font-bold uppercase",
-                    "tracking-wider text-muted-foreground",
-                  )}
-                >
-                  Журнал сделок
-                </h2>
-              </div>
-              <div className={cn("text-muted-foreground")}>
-                {isJournalExpanded ? (
-                  <ChevronUpIcon className="size-4" />
-                ) : (
-                  <ChevronDownIcon className="size-4" />
+              <div
+                onClick={() => setIsChartExpanded(!isChartExpanded)}
+                className={cn(
+                  "flex items-center justify-between",
+                  "px-3 py-2 cursor-pointer ",
+                  "select-none",
                 )}
+              >
+                <div className={cn("flex flex-col min-w-0 pr-2")}>
+                  <h2
+                    className={cn(
+                      "text-xs font-bold uppercase",
+                      "tracking-wider text-muted-foreground",
+                    )}
+                  >
+                    Интерактивный Живой График
+                  </h2>
+                </div>
+                <div className={cn("text-muted-foreground")}>
+                  {isChartExpanded ? (
+                    <ChevronUpIcon className="size-4" />
+                  ) : (
+                    <ChevronDownIcon className="size-4" />
+                  )}
+                </div>
+              </div>
+              <div
+                className={cn(
+                  "chart-container-grid grid",
+                  "transition-all duration-300",
+                  "ease-in-out overflow-hidden",
+                  isChartExpanded
+                    ? "grid-rows-[1fr] opacity-100"
+                    : "grid-rows-[0fr] opacity-0",
+                )}
+              >
+                <div className={cn("min-h-0 w-full")}>
+                  <TradingViewChart coin={selectedCoin} />
+                </div>
               </div>
             </div>
             <div
               className={cn(
-                "journal-container-grid grid",
-                "transition-all duration-300",
-                "ease-in-out overflow-hidden",
-                isJournalExpanded
-                  ? "grid-rows-[1fr] opacity-100"
-                  : "grid-rows-[0fr] opacity-0",
+                "border border-border/40",
+                "bg-background rounded-2xl p-1",
+                "transition-all",
               )}
             >
-              <div className={cn("min-h-0 w-full overflow-hidden")}>
-                <TradingJournal
-                  onDealsCountChange={handleDealsCountChange}
-                  livePrice={currentCoinPrice}
-                  activeCoin={selectedCoin}
-                  onCoinSelect={setSelectedCoin}
-                />
+              <div
+                onClick={() => setIsJournalExpanded(!isJournalExpanded)}
+                className={cn(
+                  "flex items-center justify-between",
+                  "px-3 py-2 cursor-pointer ",
+                  "select-none",
+                )}
+              >
+                <div className={cn("flex flex-col min-w-0 pr-2 ", "flex-1")}>
+                  <h2
+                    className={cn(
+                      "text-xs font-bold uppercase",
+                      "tracking-wider text-muted-foreground",
+                    )}
+                  >
+                    Журнал сделок
+                  </h2>
+                </div>
+                <div className={cn("text-muted-foreground")}>
+                  {isJournalExpanded ? (
+                    <ChevronUpIcon className="size-4" />
+                  ) : (
+                    <ChevronDownIcon className="size-4" />
+                  )}
+                </div>
+              </div>
+              <div
+                className={cn(
+                  "journal-container-grid grid",
+                  "transition-all duration-300",
+                  "ease-in-out overflow-hidden",
+                  isJournalExpanded
+                    ? "grid-rows-[1fr] opacity-100"
+                    : "grid-rows-[0fr] opacity-0",
+                )}
+              >
+                <div className={cn("min-h-0 w-full overflow-hidden")}>
+                  <TradingJournal
+                    onDealsCountChange={handleDealsCountChange}
+                    livePrice={currentCoinPrice}
+                    activeCoin={selectedCoin}
+                    onCoinSelect={setSelectedCoin}
+                  />
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }

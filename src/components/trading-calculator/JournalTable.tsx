@@ -3,6 +3,7 @@ import React from "react";
 import { Table, TableBody, TableRow } from "@/components/ui/table";
 import { JournalHeader } from "./JournalHeader";
 import { JournalFilters } from "./JournalFilters";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
 interface JTableProps {
@@ -17,6 +18,7 @@ interface JTableProps {
   setIsClearOpen: (open: boolean) => void;
   exportToCSV: () => void;
   handleClearAllDeals: () => void;
+  isLoading?: boolean;
 }
 
 export function JournalTable({
@@ -31,6 +33,7 @@ export function JournalTable({
   setIsClearOpen,
   exportToCSV,
   handleClearAllDeals,
+  isLoading = false,
 }: JTableProps) {
   return (
     <div
@@ -86,7 +89,24 @@ export function JournalTable({
         >
           <JournalHeader />
           <TableBody>
-            {filteredDeals.length === 0 ? (
+            {isLoading ? (
+              <TableRow>
+                <td
+                  colSpan={9}
+                  className={cn(
+                    "p-8 text-center",
+                    "text-xs",
+                    "text-muted-foreground",
+                    "font-medium",
+                  )}
+                >
+                  <div className="flex gap-2 items-center justify-center">
+                    <Spinner className="text-amber-500" />
+                    <span>Загрузка журнала сделок...</span>
+                  </div>
+                </td>
+              </TableRow>
+            ) : filteredDeals.length === 0 ? (
               <TableRow>
                 <td
                   colSpan={9}

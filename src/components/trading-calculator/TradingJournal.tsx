@@ -80,6 +80,7 @@ export default function TradingJournal({
 
   const fetchJournal = useCallback(async () => {
     try {
+      setLoading(true);
       const url = activeCoin
         ? `/api/journal?activeCoin=${activeCoin}`
         : "/api/journal";
@@ -156,6 +157,7 @@ export default function TradingJournal({
       setLoading(false);
     }
   }, [onDealsCountChange, activeCoin, statusFilter]);
+
   const handleUpdateStatus = useCallback(
     async (
       id: number,
@@ -177,7 +179,6 @@ export default function TradingJournal({
     },
     [livePrice, fetchJournal],
   );
-
   useEffect(() => {
     if (livePrice <= 0 || !activeCoin || deals.length === 0 || isChangingCoin)
       return;
@@ -372,6 +373,7 @@ export default function TradingJournal({
           setIsClearOpen={setIsClearOpen}
           exportToCSV={exportToCSV}
           handleClearAllDeals={handleClearAllDeals}
+          isLoading={loading}
           renderDealRow={(deal) => {
             const rowPrecision = deal.precision || 2;
             return (
