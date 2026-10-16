@@ -760,7 +760,7 @@ export default function AdminDbPage() {
 
       <Card
         className={cn(
-          "border grow border-border/40",
+          "border min-h-240 md:min-h-auto md:grow border-border/40",
           "bg-background mt-1 py-0!",
         )}
       >
