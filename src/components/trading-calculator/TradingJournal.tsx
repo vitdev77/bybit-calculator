@@ -33,6 +33,7 @@ interface TJournalProps {
   onCoinSelect?: (coin: string) => void;
   availableCoinsList?: DBAssetCoin[];
 }
+
 export default function TradingJournal({
   onDealsCountChange,
   livePrice = 0,
@@ -80,7 +81,6 @@ export default function TradingJournal({
   const fetchJournal = useCallback(
     async (isInitial = false) => {
       try {
-        // ФИКС: Показываем лоадер только при первой загрузке или релоаде
         if (isInitial) {
           setLoading(true);
         }
@@ -127,8 +127,9 @@ export default function TradingJournal({
         setActiveOpenDeal(currentOpen);
         setLastManualClosedDeal(currentClosed);
         setFocusedDeal((prev) => {
+          if (currentOpen) return currentOpen;
           if (prev && prev.coin !== activeCoin) {
-            return currentOpen || anyLastClosedDeal || null;
+            return anyLastClosedDeal || null;
           }
           if (isUserInteractedRef.current && prev) {
             const freshData = cleanArray.find((d: Deal) => d.id === prev.id);
@@ -138,7 +139,7 @@ export default function TradingJournal({
           if (statusFilter === "CLOSED") {
             return anyLastClosedDeal || null;
           }
-          return currentOpen || anyLastClosedDeal || null;
+          return anyLastClosedDeal || null;
         });
         const openCount = cleanArray.filter(
           (d: Deal) => d.status?.toUpperCase() === "OPEN",
@@ -184,6 +185,7 @@ export default function TradingJournal({
     },
     [livePrice, fetchJournal],
   );
+
   useEffect(() => {
     if (livePrice <= 0 || !activeCoin || deals.length === 0 || isChangingCoin)
       return;
@@ -239,12 +241,10 @@ export default function TradingJournal({
   ]);
 
   useEffect(() => {
-    // Вызываем фоновое обновление при переключении фильтров/монет
     fetchJournal(false);
   }, [statusFilter, activeCoin, fetchJournal]);
 
   useEffect(() => {
-    // Первичный триггер при полной инициализации страницы
     fetchJournal(true);
   }, []);
 
@@ -296,10 +296,14 @@ export default function TradingJournal({
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute(
-      "download",
-      `trading_journal_export_${new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 19).replace("T", "_").replace(/:/g, "-")}.csv`,
-    );
+    const dateStamp = new Date(
+      Date.now() - new Date().getTimezoneOffset() * 60000,
+    )
+      .toISOString()
+      .slice(0, 19)
+      .replace("T", "_")
+      .replace(/:/g, "-");
+    link.setAttribute("download", `trading_journal_export_${dateStamp}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -336,7 +340,6 @@ export default function TradingJournal({
       console.error(e);
     }
   };
-
   const filteredDeals = deals.filter(
     (d) =>
       d.coin.toLowerCase().includes(searchQuery.toLowerCase()) &&
@@ -352,12 +355,23 @@ export default function TradingJournal({
 
   const hasDealsForPosition = deals.some((d) => d.coin === activeCoin);
 
+  const shouldShowRuntimeMap = () => {
+    if (!hasDealsForPosition) return false;
+    if (statusFilter === "OPEN") {
+      return activeOpenDeal !== null;
+    }
+    if (statusFilter === "CLOSED") {
+      return deals.some((d) => d.coin === activeCoin && d.status !== "OPEN");
+    }
+    return true;
+  };
+
   return (
     <div className="w-full bg-transparent flex flex-col p-3 space-y-4">
       <div className="py-3 border-b border-border/40 flex justify-between">
         <JournalStats deals={deals} />
       </div>
-      {hasDealsForPosition && (
+      {shouldShowRuntimeMap() && (
         <div className="w-full min-w-0">
           <OrderRuntimeMap
             focusedDeal={focusedDeal}
