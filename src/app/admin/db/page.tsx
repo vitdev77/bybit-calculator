@@ -760,14 +760,14 @@ export default function AdminDbPage() {
 
       <Card
         className={cn(
-          "border min-h-240 md:min-h-auto md:grow border-border/40",
+          "border min-h-32 md:min-h-auto md:grow border-border/40",
           "bg-background mt-1 py-0!",
         )}
       >
         {isLoading || actionLoading || isSyncing ? (
           <div
             className={cn(
-              "p-12 flex gap-2 items-center ",
+              "w-full h-32 flex gap-2 items-center ",
               "justify-center text-muted-foreground",
             )}
           >

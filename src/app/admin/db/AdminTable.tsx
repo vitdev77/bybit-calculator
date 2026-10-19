@@ -372,7 +372,7 @@ export function AdminTable({
     <div
       ref={containerRef}
       onScroll={handleScroll}
-      className="overflow-x-auto scrollbar-thin touch-pan-x w-full relative"
+      className="overflow-x-auto scrollbar-thin touch-pan-x w-full relative min-h-32"
     >
       <Table className="text-[11px] font-medium border-collapse min-w-150 w-full">
         <TableHeader className="bg-muted/30 sticky top-0 z-20 backdrop-blur-md border-b">

@@ -343,6 +343,7 @@ export default function TradingCalculator({
     if (!isLoaded) return;
     let active = true;
     let ws: WebSocket | null = null;
+    let reconnectTimeout: NodeJS.Timeout | null = null;
     let lockInterval: NodeJS.Timeout | null = null;
 
     const checkDbLockStatus = async () => {
@@ -440,7 +441,7 @@ export default function TradingCalculator({
 
       ws.onerror = (err) => console.warn("WS Error:", err);
       ws.onclose = () => {
-        if (active) setTimeout(connectWebSocket, 3000);
+        if (active) reconnectTimeout = setTimeout(connectWebSocket, 3000);
       };
     };
 
@@ -449,6 +450,7 @@ export default function TradingCalculator({
     return () => {
       active = false;
       if (lockInterval) clearInterval(lockInterval);
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
       if (ws) {
         if (ws.readyState === WebSocket.OPEN) {
           const unsubscribeMsg = {
