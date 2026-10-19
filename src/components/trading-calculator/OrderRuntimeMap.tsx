@@ -19,33 +19,29 @@ export function OrderRuntimeMap({
   isChangingCoin = false,
   storedPnL = { pnl: 0, roi: 0 },
 }: OrderRuntimeMapProps) {
+  // Переносим проверку загрузки на самый верх, до валидации focusedDeal
   if (isChangingCoin) {
     return (
-      <div className="w-full space-y-2.5 pt-2 select-none animate-pulse">
-        <div className="flex items-center justify-between h-5 w-full">
-          <div className="flex items-center gap-3">
-            <div className="size-2 bg-muted rounded-full" />
-            <div className="h-3.5 bg-muted rounded w-24" />
-            <div className="h-3.5 bg-muted rounded w-28 opacity-60" />
-            <div className="h-3.5 bg-muted rounded w-16 opacity-40" />
+      <div className="w-full pt-2 select-none">
+        {/* Стабильный каркас шапки ордера для защиты от вертикальных прыжков верстки */}
+        <div className="flex items-center justify-between h-5 mb-2.5 text-xs font-semibold bg-transparent px-0.5 animate-pulse">
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-muted-foreground/20" />
+            <div className="h-4 w-20 rounded bg-muted-foreground/15" />
+            <div className="h-4 w-22 rounded bg-muted-foreground/15" />
+            <div className="h-4 w-18 rounded bg-muted-foreground/15" />
           </div>
         </div>
         <div
-          className="relative w-full border border-border/30 rounded-2xl h-52 flex flex-col items-center justify-center p-6 shadow-xs overflow-hidden"
+          className="relative w-full bg-linear-to-b from-muted/20 to-muted/5 dark:from-neutral-900/60 dark:to-neutral-950/90 border border-border/40 rounded-2xl h-52 flex items-center justify-center shadow-xs overflow-hidden"
           style={{
-            backgroundImage: `
-              radial-gradient(circle at 50% 50%, var(--color-muted) 0%, transparent 70%),
-              linear-gradient(rgba(120, 119, 198, 0.03) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(120, 119, 198, 0.03) 1px, transparent 1px)
-            `,
+            backgroundImage: `radial-gradient(circle at 50% 50%, rgba(245, 158, 11, 0.04) 0%, transparent 65%), linear-gradient(rgba(120, 119, 198, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(120, 119, 198, 0.04) 1px, transparent 1px)`,
             backgroundSize: "100% 100%, 16px 16px, 16px 16px",
           }}
         >
-          <div className="w-full h-0.75 bg-muted rounded-full relative" />
-          <div className="flex gap-16 justify-center w-full">
-            <div className="h-5 bg-muted rounded w-16" />
-            <div className="h-5 bg-muted rounded w-20" />
-            <div className="h-5 bg-muted rounded w-16" />
+          <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium animate-pulse">
+            <div className="size-3.5 border-2 border-amber-500/30 border-t-amber-500 rounded-full animate-spin shrink-0" />
+            <span>Загрузка графика...</span>
           </div>
         </div>
       </div>

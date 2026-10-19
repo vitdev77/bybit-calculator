@@ -66,6 +66,11 @@ export default function TradingJournal({
 
   useEffect(() => {
     if (!activeCoin || !isChangingCoin) return;
+    // Если мы переключились на закрытые, сокет-цена для графика не нужна, гасим лоадер сразу
+    if (statusFilter === "CLOSED") {
+      setIsChangingCoin(false);
+      return;
+    }
     if (!activeOpenDeal || activeOpenDeal.coin !== activeCoin) {
       setIsChangingCoin(false);
       return;
@@ -127,19 +132,27 @@ export default function TradingJournal({
         setActiveOpenDeal(currentOpen);
         setLastManualClosedDeal(currentClosed);
         setFocusedDeal((prev) => {
-          if (currentOpen) return currentOpen;
-          if (prev && prev.coin !== activeCoin) {
-            return anyLastClosedDeal || null;
-          }
-          if (isUserInteractedRef.current && prev) {
-            const freshData = cleanArray.find((d: Deal) => d.id === prev.id);
-            if (freshData) return freshData;
-          }
-          isUserInteractedRef.current = false;
+          // Если мы на вкладке Закрытые — не показываем открытую сделку
           if (statusFilter === "CLOSED") {
-            return anyLastClosedDeal || null;
+            if (isUserInteractedRef.current && prev && prev.status !== "OPEN") {
+              return (
+                cleanArray.find((d: Deal) => d.id === prev.id) ||
+                currentClosed ||
+                anyLastClosedDeal
+              );
+            }
+            return currentClosed || anyLastClosedDeal;
           }
-          return anyLastClosedDeal || null;
+          // Для вкладок ALL и OPEN приоритет всегда у активной открытой сделки
+          if (currentOpen) return currentOpen;
+          if (isUserInteractedRef.current && prev) {
+            return (
+              cleanArray.find((d: Deal) => d.id === prev.id) ||
+              currentClosed ||
+              anyLastClosedDeal
+            );
+          }
+          return currentClosed || anyLastClosedDeal;
         });
         const openCount = cleanArray.filter(
           (d: Deal) => d.status?.toUpperCase() === "OPEN",
@@ -241,12 +254,18 @@ export default function TradingJournal({
   ]);
 
   useEffect(() => {
-    fetchJournal(false);
+    setIsChangingCoin(true);
+    const timer = setTimeout(() => {
+      fetchJournal(false);
+    }, 150);
+    return () => clearTimeout(timer);
   }, [statusFilter, activeCoin, fetchJournal]);
 
   useEffect(() => {
-    fetchJournal(true);
-  }, []);
+    if (activeCoin) {
+      fetchJournal(true);
+    }
+  }, [activeCoin]);
 
   useEffect(() => {
     const handleTrigger = () => fetchJournal(false);
@@ -356,14 +375,18 @@ export default function TradingJournal({
   const hasDealsForPosition = deals.some((d) => d.coin === activeCoin);
 
   const shouldShowRuntimeMap = () => {
+    // Если идет процесс переключения — принудительно оставляем блок в DOM для показа лоадера
+    if (isChangingCoin) return true;
     if (!hasDealsForPosition) return false;
     if (statusFilter === "OPEN") {
       return activeOpenDeal !== null;
     }
     if (statusFilter === "CLOSED") {
-      return deals.some((d) => d.coin === activeCoin && d.status !== "OPEN");
+      // Показываем карту, только если выбранная сфокусированная сделка РЕАЛЬНО закрыта
+      return focusedDeal !== null && focusedDeal.status !== "OPEN";
     }
-    return true;
+    // Для вкладки ALL показываем, если есть хоть что-то в фокусе
+    return focusedDeal !== null;
   };
 
   return (

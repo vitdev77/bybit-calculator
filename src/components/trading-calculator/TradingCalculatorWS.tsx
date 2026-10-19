@@ -8,7 +8,6 @@ import ResultsDisplay from "./ResultsDisplay";
 import MarketTicker from "./MarketTicker";
 import ListingManagerModal from "./ListingManagerModal";
 import { cn } from "@/lib/utils";
-import { Loader2 } from "lucide-react";
 
 export type OrderType = "MARKET" | "LIMIT";
 export type PositionSide = "BUY" | "SELL";
