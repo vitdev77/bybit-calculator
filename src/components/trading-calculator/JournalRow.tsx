@@ -159,7 +159,7 @@ export function JournalRow({
     pnlDisplay = (
       <div
         className={cn(
-          "flex flex-col text-right select-none relative w-full pl-5 sm:pl-6",
+          "flex flex-col text-right select-none relative w-full pl-4 font-mono",
         )}
       >
         <span className="absolute left-1 top-1.5 flex h-1.5 w-1.5">
@@ -178,7 +178,7 @@ export function JournalRow({
         </span>
         <span
           className={cn(
-            "font-sans font-black text-[11px] sm:text-xs",
+            "font-black text-[11px] sm:text-xs",
             isLiveProfit
               ? "text-emerald-600 dark:text-emerald-400"
               : "text-rose-600 dark:text-rose-400",
@@ -206,7 +206,7 @@ export function JournalRow({
       pnlDisplay = (
         <div
           className={cn(
-            "flex flex-col text-right select-none opacity-45 relative w-full pl-5 sm:pl-6",
+            "flex flex-col text-right select-none opacity-45 relative w-full pl-4 font-mono",
           )}
         >
           <PauseIcon
@@ -257,10 +257,10 @@ export function JournalRow({
       const isFinalProfit = finalPnlUsdt >= 0;
 
       pnlDisplay = (
-        <div className="flex flex-col text-right opacity-65 w-full">
+        <div className="flex flex-col text-right opacity-65 w-full font-mono">
           <span
             className={cn(
-              "font-sans font-black text-[11px] sm:text-xs",
+              "font-black text-[11px] sm:text-xs",
               isFinalProfit
                 ? "text-emerald-600 dark:text-emerald-400"
                 : "text-rose-600 dark:text-rose-400",
@@ -456,10 +456,10 @@ export function JournalRow({
           </div>
         </div>
       </TableCell>
-      <TableCell className="py-2 px-1.5 sm:px-3 relative min-w-22 sm:min-w-26.25">
+      <TableCell className="py-2 px-1.5 sm:px-2 relative w-28.75 min-w-28.75 max-w-28.75 shrink-0">
         {pnlDisplay}
       </TableCell>
-      <TableCell className="py-2 px-1.5 sm:px-3 text-right whitespace-nowrap">
+      <TableCell className="py-2 px-1.5 sm:px-2 text-right whitespace-nowrap w-35 min-w-35 max-w-45 shrink-0">
         <div className="flex items-center justify-end gap-0.5">
           {isOpen && (
             <>

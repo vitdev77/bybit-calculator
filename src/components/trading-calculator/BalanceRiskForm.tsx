@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -40,55 +40,21 @@ export default function BalanceRiskForm({
   isLeverageModified,
 }: BalanceRiskFormProps) {
   const partsPresets = [1, 2, 3, 5, 10];
+  const handleBalanceWheel = (e: React.WheelEvent<HTMLInputElement>) => {
+    const step = e.deltaY < 0 ? 10 : -10;
+    setBalance(Math.max(0, balance + step));
+  };
 
-  const balanceRef = useRef<HTMLInputElement>(null);
-  const riskRef = useRef<HTMLInputElement>(null);
-  const leverageRef = useRef<HTMLInputElement>(null);
+  const handleRiskWheel = (e: React.WheelEvent<HTMLInputElement>) => {
+    const step = e.deltaY < 0 ? 0.1 : -0.1;
+    const next = parseFloat((riskPercent + step).toFixed(1));
+    setRiskPercent(Math.max(0, Math.min(100, next)));
+  };
 
-  useEffect(() => {
-    const handleBalanceWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      const step = e.deltaY < 0 ? 10 : -10;
-      setBalance(Math.max(0, balance + step));
-    };
-
-    const handleRiskWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      const step = e.deltaY < 0 ? 0.1 : -0.1;
-      const next = parseFloat((riskPercent + step).toFixed(1));
-      setRiskPercent(Math.max(0, Math.min(100, next)));
-    };
-
-    const handleLeverageWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      const step = e.deltaY < 0 ? 1 : -1;
-      setLeverage(Math.max(1, Math.min(maxSafeLeverage, leverage + step)));
-    };
-
-    const bEl = balanceRef.current;
-    const rEl = riskRef.current;
-    const lEl = leverageRef.current;
-
-    if (bEl)
-      bEl.addEventListener("wheel", handleBalanceWheel, { passive: false });
-    if (rEl) rEl.addEventListener("wheel", handleRiskWheel, { passive: false });
-    if (lEl)
-      lEl.addEventListener("wheel", handleLeverageWheel, { passive: false });
-
-    return () => {
-      if (bEl) bEl.removeEventListener("wheel", handleBalanceWheel);
-      if (rEl) rEl.removeEventListener("wheel", handleRiskWheel);
-      if (lEl) lEl.removeEventListener("wheel", handleLeverageWheel);
-    };
-  }, [
-    balance,
-    riskPercent,
-    leverage,
-    maxSafeLeverage,
-    setBalance,
-    setRiskPercent,
-    setLeverage,
-  ]);
+  const handleLeverageWheel = (e: React.WheelEvent<HTMLInputElement>) => {
+    const step = e.deltaY < 0 ? 1 : -1;
+    setLeverage(Math.max(1, Math.min(maxSafeLeverage, leverage + step)));
+  };
   return (
     <div className="space-y-4">
       {/* КНОПКИ НАПРАВЛЕНИЯ ПОЗИЦИИ (LONG / SHORT крупнее, BUY / SELL под ними мелким) */}
@@ -139,7 +105,6 @@ export default function BalanceRiskForm({
           </Label>
           <Input
             id="deposit"
-            ref={balanceRef}
             type="number"
             min="0"
             value={balance === 0 ? "0" : balance || ""}
@@ -147,6 +112,7 @@ export default function BalanceRiskForm({
               const val = parseFloat(e.target.value);
               setBalance(isNaN(val) || val < 0 ? 0 : val);
             }}
+            onWheel={handleBalanceWheel}
             className={`h-9.5 sm:h-9 text-xs font-bold transition-all ${
               balance <= 0
                 ? "border-rose-500/60 ring-2 ring-rose-500/20 text-rose-500 bg-rose-500/5"
@@ -165,7 +131,6 @@ export default function BalanceRiskForm({
           </Label>
           <Input
             id="risk-percent"
-            ref={riskRef}
             type="number"
             step="0.1"
             min="0"
@@ -175,6 +140,7 @@ export default function BalanceRiskForm({
               const val = parseFloat(e.target.value);
               setRiskPercent(isNaN(val) || val < 0 ? 0 : val);
             }}
+            onWheel={handleRiskWheel}
             className={`h-9.5 sm:h-9 text-xs font-bold transition-all ${
               riskPercent > 5
                 ? "border-rose-500/60 ring-2 ring-rose-500/20 text-rose-500 bg-rose-500/5"
@@ -196,7 +162,6 @@ export default function BalanceRiskForm({
           <div className="relative flex items-center w-full">
             <Input
               id="leverage"
-              ref={leverageRef}
               type="number"
               min="1"
               max={maxSafeLeverage}
@@ -206,6 +171,7 @@ export default function BalanceRiskForm({
                 if (val > maxSafeLeverage) val = maxSafeLeverage;
                 setLeverage(val);
               }}
+              onWheel={handleLeverageWheel}
               className={`h-9.5 sm:h-9 text-xs font-bold transition-all bg-muted/20 border-border/40 ${
                 isLeverageModified
                   ? "border-amber-500/60 ring-2 ring-amber-500/20 text-amber-500 pr-7"

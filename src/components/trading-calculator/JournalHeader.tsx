@@ -25,10 +25,10 @@ export function JournalHeader() {
         <TableHead className="sticky top-0 z-20 h-8 font-black uppercase text-[10px] tracking-wider text-muted-foreground/80 py-1 bg-muted/90 dark:bg-zinc-900/90 backdrop-blur-xs">
           TP / SL
         </TableHead>
-        <TableHead className="sticky top-0 z-20 h-8 font-black text-[10px] tracking-wider text-muted-foreground/80 py-1 bg-muted/90 dark:bg-zinc-900/90 backdrop-blur-xs text-right pr-6">
+        <TableHead className="sticky top-0 z-20 h-8 font-black text-[10px] tracking-wider text-muted-foreground/80 py-1 bg-muted/90 dark:bg-zinc-900/90 backdrop-blur-xs text-right pr-4 w-28.75 min-w-28.75 max-w-28.75">
           PnL
         </TableHead>
-        <TableHead className="sticky top-0 z-20 h-8 font-black uppercase text-[10px] tracking-wider text-muted-foreground/80 py-1 bg-muted/90 dark:bg-zinc-900/90 backdrop-blur-xs text-right pr-4">
+        <TableHead className="sticky top-0 z-20 h-8 font-black uppercase text-[10px] tracking-wider text-muted-foreground/80 py-1 bg-muted/90 dark:bg-zinc-900/90 backdrop-blur-xs text-right pr-4 w-35 min-w-35 max-w-45">
           Действия
         </TableHead>
       </TableRow>

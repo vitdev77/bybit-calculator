@@ -194,8 +194,7 @@ export default function PriceLevelsForm({
                   onReset();
                   setIsOpen(false);
                 }}
-                variant="destructive"
-                className="rounded-xl text-xs h-9 bg-rose-600 hover:bg-rose-700 text-white cursor-pointer border-none flex items-center justify-center"
+                className="rounded-xl text-xs h-9 bg-rose-600 hover:bg-rose-700 text-white cursor-pointer flex items-center justify-center"
               >
                 Сбросить
               </AlertDialogAction>
