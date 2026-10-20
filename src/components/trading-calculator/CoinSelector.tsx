@@ -320,7 +320,7 @@ export default function CoinSelector({
   );
 
   return (
-    <div className="space-y-3.5 w-full font-sans">
+    <div className="space-y-3.5 w-full">
       <div className="space-y-1 flex-1">
         <Label className={lblCls}>Тип ордера</Label>
         <ButtonGroup className="w-full flex h-9.5">

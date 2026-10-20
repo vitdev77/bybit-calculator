@@ -134,7 +134,7 @@ export function JournalStats({ deals = [] }: JournalStatsProps) {
                   Чистый доход
                 </span>
                 <div className="flex items-baseline gap-1 mt-0.5 min-w-0 flex-wrap">
-                  <span className="font-sans font-black text-sm sm:text-base leading-none tracking-tight flex items-center gap-0.5 truncate">
+                  <span className="font-black text-sm sm:text-base leading-none tracking-tight flex items-center gap-0.5 truncate">
                     {netPnL > 0.005 ? (
                       <ArrowUpRightIcon className="size-3.5 shrink-0 text-emerald-500 inline-block align-middle" />
                     ) : netPnL < -0.005 ? (
@@ -174,7 +174,7 @@ export function JournalStats({ deals = [] }: JournalStatsProps) {
                   Накопленный Убыток
                 </span>
                 <div className="flex items-center gap-1.5 mt-0.5 min-w-0 justify-between w-full">
-                  <span className="font-sans font-bold text-xs sm:text-sm leading-none text-rose-500 truncate">
+                  <span className="font-bold text-xs sm:text-sm leading-none text-rose-500 truncate">
                     -{totalGrossLoss.toFixed(2)}{" "}
                     <span className="text-[9px] font-medium opacity-60">
                       USDT
@@ -201,7 +201,7 @@ export function JournalStats({ deals = [] }: JournalStatsProps) {
             <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 leading-none truncate">
               Срабатывания
             </span>
-            <span className="font-sans font-bold text-sm sm:text-base leading-none mt-1 text-foreground/90 flex items-baseline gap-1 truncate">
+            <span className="font-bold text-sm sm:text-base leading-none mt-1 text-foreground/90 flex items-baseline gap-1 truncate">
               <span className="text-emerald-500 font-black">
                 {profitDeals}{" "}
                 <span className="text-[9px] opacity-60 font-semibold">TP</span>
@@ -224,7 +224,7 @@ export function JournalStats({ deals = [] }: JournalStatsProps) {
             <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 leading-none truncate">
               Всего записей
             </span>
-            <span className="font-sans font-black text-sm sm:text-base leading-none mt-1 text-foreground/90 truncate">
+            <span className="font-black text-sm sm:text-base leading-none mt-1 text-foreground/90 truncate">
               {totalDeals}
               <span className="text-[10px] font-semibold text-muted-foreground/60 hidden sm:inline ml-1">
                 (Ручные: {manualClosedDeals})

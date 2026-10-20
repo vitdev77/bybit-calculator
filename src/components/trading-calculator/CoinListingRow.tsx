@@ -69,7 +69,7 @@ export function CoinListingRow({
       <span
         className={cn(
           "flex px-1 py-0.5 text-center shrink-0 font-black tracking-wider",
-          "rounded border text-[9px] font-sans w-9 justify-center",
+          "rounded border text-[9px] w-9 justify-center",
           colorCls,
         )}
       >
@@ -166,7 +166,7 @@ export function CoinListingRow({
           <span
             className={cn(
               "px-2 py-0.5 font-black text-[9px] uppercase tracking-wider",
-              "bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded font-sans",
+              "bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded",
             )}
           >
             DELISTED

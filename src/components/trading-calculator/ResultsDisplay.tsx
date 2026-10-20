@@ -322,7 +322,7 @@ export default function ResultsDisplay({
                 className={cn(
                   "font-bold text-foreground",
                   "bg-muted/40 px-1.5",
-                  "py-0.5 rounded text-sm",
+                  "py-0.5 rounded text-sm font-mono",
                 )}
               >
                 {entryPrice.toFixed(results.decimals)}
@@ -357,7 +357,7 @@ export default function ResultsDisplay({
                 className={cn(
                   "font-bold bg-muted/40",
                   "text-foreground border",
-                  "text-sm shadow-sm rounded",
+                  "text-sm shadow-sm rounded font-mono",
                 )}
               >
                 {results.positionSizeUsdt.toFixed(1)}
@@ -392,7 +392,7 @@ export default function ResultsDisplay({
               <span
                 style={{ padding: "0px 4px" }}
                 className={cn(
-                  "font-black bg-emerald-500",
+                  "font-black bg-emerald-500 font-mono",
                   "text-white rounded border",
                   "text-sm shadow-sm",
                 )}
@@ -429,7 +429,7 @@ export default function ResultsDisplay({
                 className={cn(
                   "font-black bg-rose-500",
                   "text-white rounded border",
-                  "text-sm shadow-sm",
+                  "text-sm shadow-sm font-mono",
                 )}
               >
                 {results.stopLossPrice.toFixed(results.decimals)}
@@ -471,7 +471,7 @@ export default function ResultsDisplay({
                 className={cn(
                   "font-normal bg-amber-500",
                   "text-white rounded border",
-                  "text-sm shadow-sm",
+                  "text-sm shadow-sm font-mono",
                 )}
               >
                 {breakevenPrice.toFixed(results.decimals)}
@@ -493,7 +493,7 @@ export default function ResultsDisplay({
                 className={cn(
                   "font-normal bg-rose-600",
                   "text-white rounded",
-                  "text-sm shadow-sm",
+                  "text-sm shadow-sm font-mono",
                 )}
               >
                 {results.liquidationPrice > 0

@@ -60,7 +60,7 @@ export function CoinSelectorItem({
     finalImgUrl = `${defaultCryptoBase}/crypto/XTVC${activeSlug}.svg`;
   }
   return (
-    <div className="flex items-center justify-between w-full font-sans pr-8 relative">
+    <div className="flex items-center justify-between w-full pr-8 relative">
       <div className="flex items-center gap-2 min-w-0">
         {isLoadFailed ? (
           <div
