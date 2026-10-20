@@ -169,7 +169,7 @@ export function OrderRuntimeMap({
   return (
     <div className="w-full space-y-2.5 pt-2 select-none">
       <div className="flex items-center justify-between h-5 text-xs font-semibold bg-transparent px-0.5">
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap font-mono">
           <span className="relative flex h-1.5 w-1.5 shrink-0">
             <span
               className={cn(
@@ -225,10 +225,10 @@ export function OrderRuntimeMap({
                 )}
               >
                 {isHeaderProfit ? "+" : ""}
-                {storedPnL.roi.toFixed(2)}%
+                {storedPnL.pnl.toFixed(2)} USDT
                 <span className="text-[10px] font-semibold opacity-75 ml-1">
                   ({isHeaderProfit ? "+" : ""}
-                  {storedPnL.pnl.toFixed(2)} USDT)
+                  {storedPnL.roi.toFixed(2)}%)
                 </span>
               </span>
             </>

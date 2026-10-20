@@ -185,7 +185,7 @@ export function JournalRow({
           )}
         >
           {isLiveProfit ? "+" : ""}
-          {livePnlUsdt.toFixed(pnlDecimalSteps)} USDT
+          {livePnlUsdt.toFixed(2)} USDT
         </span>
         <span
           className={cn(
@@ -223,7 +223,7 @@ export function JournalRow({
             )}
           >
             {isLastProfit ? "+" : ""}
-            {lastKnown.pnl.toFixed(pnlDecimalSteps)} USDT
+            {lastKnown.pnl.toFixed(2)} USDT
           </span>
           <span
             className={cn(
@@ -267,7 +267,7 @@ export function JournalRow({
             )}
           >
             {isFinalProfit ? "+" : ""}
-            {finalPnlUsdt.toFixed(pnlDecimalSteps)} USDT
+            {finalPnlUsdt.toFixed(2)} USDT
           </span>
           <span
             className={cn(
@@ -541,7 +541,7 @@ export function JournalRow({
                           )}
                         >
                           {isLiveProfit ? "+" : ""}
-                          {livePnlUsdt.toFixed(pnlDecimalSteps)} USDT (
+                          {livePnlUsdt.toFixed(2)} USDT (
                           {isLiveProfit ? "+" : ""}
                           {liveRoi.toFixed(2)}%)
                         </div>
