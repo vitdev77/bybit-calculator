@@ -159,7 +159,7 @@ export function JournalRow({
     pnlDisplay = (
       <div
         className={cn(
-          "flex flex-col text-right select-none relative w-full pl-4 font-mono",
+          "flex flex-col text-right select-none relative w-full pl-4",
         )}
       >
         <span className="absolute left-1 top-1.5 flex h-1.5 w-1.5">
@@ -206,7 +206,7 @@ export function JournalRow({
       pnlDisplay = (
         <div
           className={cn(
-            "flex flex-col text-right select-none opacity-45 relative w-full pl-4 font-mono",
+            "flex flex-col text-right select-none opacity-45 relative w-full pl-4",
           )}
         >
           <PauseIcon
@@ -257,7 +257,7 @@ export function JournalRow({
       const isFinalProfit = finalPnlUsdt >= 0;
 
       pnlDisplay = (
-        <div className="flex flex-col text-right opacity-65 w-full font-mono">
+        <div className="flex flex-col text-right opacity-65 w-full">
           <span
             className={cn(
               "font-black text-[11px] sm:text-xs",
@@ -354,7 +354,10 @@ export function JournalRow({
   const shouldShowSlTouch = deal.sl_touched && !isManualClosedStatus;
   return (
     <TableRow
-      className={cn("transition-all border-b border-border/10", baseRowStyle)}
+      className={cn(
+        "transition-all border-b border-border/10 font-mono",
+        baseRowStyle,
+      )}
     >
       <TableCell className="py-2 px-1.5 sm:px-3 relative pl-3.5 sm:pl-5">
         <div
@@ -459,7 +462,7 @@ export function JournalRow({
       <TableCell className="py-2 px-1.5 sm:px-2 relative w-28.75 min-w-28.75 max-w-28.75 shrink-0">
         {pnlDisplay}
       </TableCell>
-      <TableCell className="py-2 px-1.5 sm:px-2 text-right whitespace-nowrap w-35 min-w-35 max-w-45 shrink-0">
+      <TableCell className="py-2 px-1.5 sm:px-2 text-right whitespace-nowrap w-45 min-w-45 max-w-45 shrink-0">
         <div className="flex items-center justify-end gap-0.5">
           {isOpen && (
             <>

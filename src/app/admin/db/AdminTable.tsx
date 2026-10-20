@@ -374,7 +374,7 @@ export function AdminTable({
       onScroll={handleScroll}
       className="overflow-x-auto scrollbar-thin touch-pan-x w-full relative min-h-32"
     >
-      <Table className="text-[11px] font-medium border-collapse min-w-150 w-full">
+      <Table className="text-[11px] font-medium border-collapse min-w-150 w-full font-mono">
         <TableHeader className="bg-muted/30 sticky top-0 z-20 backdrop-blur-md border-b">
           <TableRow>
             <TableHead
@@ -433,7 +433,7 @@ export function AdminTable({
                 <TableCell
                   key={col}
                   className={cn(
-                    "p-3 max-w-44 truncate text-foreground/90 font-sans whitespace-nowrap",
+                    "p-3 max-w-44 truncate text-foreground/90 whitespace-nowrap",
                     isNumericColumn(col) ? "font-semibold" : "",
                   )}
                 >
