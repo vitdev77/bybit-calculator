@@ -3,6 +3,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ActivityIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTheme } from "next-themes";
 
 interface TradingViewChartProps {
   coin: string;
@@ -13,6 +14,7 @@ const WIDGET_ID = "tradingview_chart_widget";
 
 export default function TradingViewChart({ coin }: TradingViewChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { theme } = useTheme();
   const [isChartLoading, setIsChartLoading] = useState(true);
 
   useEffect(() => {
@@ -44,7 +46,7 @@ export default function TradingViewChart({ coin }: TradingViewChartProps) {
           symbol: `BYBIT:${coin}.P`,
           interval: "15",
           timezone: "Etc/UTC",
-          theme: "dark",
+          theme: theme === "dark" ? "dark" : "light",
           style: "1",
           locale: "ru",
           enable_publishing: false,
@@ -82,7 +84,7 @@ export default function TradingViewChart({ coin }: TradingViewChartProps) {
       if (observer) observer.disconnect();
       if (containerRef.current) containerRef.current.innerHTML = "";
     };
-  }, [coin]);
+  }, [coin, theme]);
   return (
     <div
       className={cn(

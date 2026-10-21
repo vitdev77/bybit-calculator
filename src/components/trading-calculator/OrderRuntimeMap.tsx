@@ -289,13 +289,7 @@ export function OrderRuntimeMap({
               style={{ left: `${closePct}%`, transform: "translateX(-50%)" }}
             >
               <div className="p-1 bg-blue-500 text-white rounded-full shadow-[0_0_12px_rgba(59,130,246,0.6)] border border-background dark:border-neutral-900 animate-bounce">
-                <div
-                  className="size-3.5 bg-white rounded-full shrink-0"
-                  style={{
-                    clipPath:
-                      "polygon(40% 10%, 90% 50%, 40% 90%, 20% 70%, 50% 50%, 20% 30%)",
-                  }}
-                />
+                <RocketIcon className="size-3.5 block shrink-0" />
               </div>
               <div className="absolute top-7 bg-blue-600 text-white border border-blue-400/20 font-black rounded-lg px-2 py-0.5 text-[10px] sm:text-xs shadow-[0_4px_12px_rgba(59,130,246,0.3)] whitespace-nowrap">
                 EXIT:{" "}
