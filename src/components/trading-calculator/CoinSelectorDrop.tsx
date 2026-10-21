@@ -56,7 +56,7 @@ export function CoinSelectorDrop({
           id="coin-search-input"
           name="coin_search"
           type="text"
-          placeholder="Search..."
+          placeholder="Search"
           value={inpValue}
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}

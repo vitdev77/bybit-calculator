@@ -577,7 +577,7 @@ export default function AdminDbPage() {
                     )}
                   >
                     <AlertDialogHeader>
-                      <AlertDialogTitle className="text-sm">
+                      <AlertDialogTitle className="text-sm font-mono">
                         Очистить таблицу{" "}
                         <span className="uppercase">{activeTable}</span>?
                       </AlertDialogTitle>
@@ -651,7 +651,7 @@ export default function AdminDbPage() {
               />
               <Input
                 type="text"
-                placeholder="Search..."
+                placeholder="Search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 disabled={

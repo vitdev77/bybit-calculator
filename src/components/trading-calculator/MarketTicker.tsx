@@ -4,6 +4,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { DBAssetCoin } from "./TradingCalculatorWS";
 import Image from "next/image";
+import { PlayIcon } from "lucide-react";
 
 interface TickerData {
   lastPrice: number;
@@ -288,22 +289,26 @@ export default function MarketTicker({
         </div>
         <div className="block md:hidden w-px h-8 bg-border/60 mx-1.5 shrink-0" />
         <div
-          className="cursor-copy w-auto md:w-full text-right md:text-left mt-0 md:mt-2"
+          className="cursor-copy flex flex-row gap-1 items-center w-auto md:w-full text-right md:text-left mt-0 md:mt-2"
           onClick={() => onPriceClick?.(data.lastPrice)}
         >
           <span
             className={cn(
-              "text-3xl font-black tracking-tight whitespace-nowrap",
-              "inline-block leading-none",
+              "flex flex-row gap-1.5 items-baseline",
+              "leading-none",
               priceColor,
             )}
           >
-            {tickDirection === "up"
-              ? "▲ "
-              : tickDirection === "down"
-                ? "▼ "
-                : "• "}
-            {data.lastPrice}
+            <span className="text-2xl">
+              {tickDirection === "up"
+                ? "▲"
+                : tickDirection === "down"
+                  ? "▼"
+                  : "▪"}
+            </span>
+            <span className="text-3xl font-black tracking-tight whitespace-nowrap">
+              {data.lastPrice}
+            </span>
           </span>
         </div>
       </div>

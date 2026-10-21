@@ -48,7 +48,7 @@ export function JournalFilters({
           <SearchIcon className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground/60 pointer-events-none" />
           <Input
             type="text"
-            placeholder="Search..."
+            placeholder="Search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-8 pr-8 h-9 sm:h-7.5 text-xs bg-muted/20 border-border/40 rounded-lg w-full"
@@ -126,7 +126,7 @@ export function JournalFilters({
 
             <AlertDialogContent className="rounded-2xl max-w-xs sm:max-w-sm bg-popover/70 dark:bg-zinc-950/70 backdrop-blur-md border border-border/40 dark:border-white/10 shadow-2xl">
               <AlertDialogHeader>
-                <AlertDialogTitle className="text-sm sm:text-base">
+                <AlertDialogTitle className="text-sm sm:text-base font-mono">
                   Очистить журнал сделок?
                 </AlertDialogTitle>
                 <AlertDialogDescription className="text-[11px] sm:text-xs">

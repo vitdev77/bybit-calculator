@@ -521,7 +521,9 @@ export function JournalRow({
                   className="bg-popover/70 dark:bg-zinc-950/70 backdrop-blur-md border border-border/40 dark:border-white/10 shadow-2xl"
                 >
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Закрыть сделку вручную?</AlertDialogTitle>
+                    <AlertDialogTitle className="font-mono">
+                      Закрыть сделку вручную?
+                    </AlertDialogTitle>
                     <AlertDialogDescription
                       render={<div />}
                       className="space-y-2 pt-1 text-xs text-balance text-muted-foreground"
@@ -578,7 +580,9 @@ export function JournalRow({
               className="bg-popover/70 dark:bg-zinc-950/70 backdrop-blur-md border border-border/40 dark:border-white/10 shadow-2xl"
             >
               <AlertDialogHeader>
-                <AlertDialogTitle>Удалить сделку?</AlertDialogTitle>
+                <AlertDialogTitle className="font-mono">
+                  Удалить сделку?
+                </AlertDialogTitle>
                 <AlertDialogDescription>
                   Вы действительно хотите удалить эту сделку по паре {deal.coin}{" "}
                   из журнала?

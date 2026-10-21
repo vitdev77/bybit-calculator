@@ -99,7 +99,7 @@ export default function BalanceRiskForm({
         <div className="space-y-1">
           <Label
             htmlFor="deposit"
-            className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block select-none"
+            className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-muted-foreground/50 block select-none"
           >
             Депозит
           </Label>
@@ -125,7 +125,7 @@ export default function BalanceRiskForm({
         <div className="space-y-1">
           <Label
             htmlFor="risk-percent"
-            className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block select-none"
+            className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-muted-foreground/50 block select-none"
           >
             Риск (%)
           </Label>
@@ -155,7 +155,7 @@ export default function BalanceRiskForm({
         <div className="space-y-1">
           <Label
             htmlFor="leverage"
-            className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block select-none"
+            className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-muted-foreground/50 block select-none"
           >
             Плечо
           </Label>
@@ -197,7 +197,7 @@ export default function BalanceRiskForm({
       <div className="space-y-1.5 pt-1">
         <Label
           htmlFor="parts-count"
-          className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block select-none"
+          className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-muted-foreground/50 block select-none"
         >
           Распределение депозита
         </Label>

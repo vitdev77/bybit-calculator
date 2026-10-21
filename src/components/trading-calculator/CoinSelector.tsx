@@ -300,8 +300,8 @@ export default function CoinSelector({
   const sortedLetters = Object.keys(groupedCoins).sort();
 
   const lblCls = cn(
-    "text-[10px] font-bold sm:text-xs uppercase",
-    "text-muted-foreground tracking-wider block",
+    "text-[10px] sm:text-xs font-bold uppercase",
+    "text-muted-foreground/50 tracking-wider block",
   );
 
   const btnFavClass = cn(
@@ -355,7 +355,7 @@ export default function CoinSelector({
           htmlFor="coin-select"
           className={cn(
             "text-[10px] sm:text-xs font-bold truncate",
-            "text-muted-foreground block uppercase tracking-wider",
+            "text-muted-foreground/50 block uppercase tracking-wider",
           )}
         >
           Торговая пара

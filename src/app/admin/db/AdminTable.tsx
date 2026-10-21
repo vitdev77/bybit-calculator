@@ -551,7 +551,7 @@ function LogoSlugCell({
       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
         <AlertDialogContent className="rounded-2xl max-w-sm">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-sm">
+            <AlertDialogTitle className="text-sm font-mono">
               Изменить слаг иконки?
             </AlertDialogTitle>
             <AlertDialogDescription className="text-xs">

@@ -246,7 +246,7 @@ export function OrderRuntimeMap({
       >
         <div
           className={cn(
-            "absolute inset-0 flex items-start justify-center pt-5 pointer-events-none font-black text-4xl sm:text-7xl tracking-tighter uppercase z-0 select-none",
+            "absolute inset-0 flex items-start justify-center pt-5 pointer-events-none font-black font-sans text-4xl sm:text-7xl tracking-tighter uppercase z-0 select-none",
             watermarkColorClass,
           )}
         >

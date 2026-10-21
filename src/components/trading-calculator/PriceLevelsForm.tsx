@@ -80,7 +80,7 @@ export default function PriceLevelsForm({
         <div className="space-y-1">
           <Label
             htmlFor="entryPrice"
-            className="text-[11px] sm:text-sm px-0.5 font-bold uppercase tracking-wider text-muted-foreground/90"
+            className="text-[10px] sm:text-xs px-0.5 font-bold uppercase tracking-wider text-muted-foreground/50"
           >
             Цена (USDT)
           </Label>
@@ -129,7 +129,7 @@ export default function PriceLevelsForm({
         <div className="space-y-1">
           <Label
             htmlFor="rr-preset-select"
-            className="text-[11px] sm:text-sm px-0.5 font-bold uppercase tracking-wider text-muted-foreground/90"
+            className="text-[10px] sm:text-xs px-0.5 font-bold uppercase tracking-wider text-muted-foreground/50"
           >
             Режим (R:R)
           </Label>
@@ -176,7 +176,7 @@ export default function PriceLevelsForm({
           </AlertDialogTrigger>
           <AlertDialogContent className="rounded-2xl max-w-xs sm:max-w-sm">
             <AlertDialogHeader>
-              <AlertDialogTitle className="text-sm sm:text-base">
+              <AlertDialogTitle className="text-sm sm:text-base font-mono">
                 Сбросить калькулятор?
               </AlertDialogTitle>
               <AlertDialogDescription className="text-[11px] sm:text-xs">

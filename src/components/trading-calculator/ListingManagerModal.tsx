@@ -223,7 +223,7 @@ export default function ListingManagerModal({
             "pb-2 shrink-0",
           )}
         >
-          <AlertDialogTitle className="text-sm font-black uppercase tracking-wider">
+          <AlertDialogTitle className="text-sm font-black font-mono uppercase tracking-wider">
             Листинг пар Bybit
           </AlertDialogTitle>
           <AlertDialogCancel
@@ -247,7 +247,7 @@ export default function ListingManagerModal({
             <SearchIcon className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground/60" />
             <Input
               type="text"
-              placeholder="Search..."
+              placeholder="Search"
               value={modalSearch}
               onChange={(e) => setModalSearch(e.target.value)}
               disabled={isLoading}
