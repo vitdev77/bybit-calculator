@@ -1,23 +1,13 @@
 "use client";
 import React from "react";
-import {
-  CircleMinusIcon,
-  CircleOffIcon,
-  CircleXIcon,
-  StarIcon,
-  StarMinusIcon,
-  XIcon,
-} from "lucide-react";
+import { CircleXIcon, StarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DBAssetCoin } from "./TradingCalculatorWS";
 
 interface RowProps {
   item: DBAssetCoin;
   idx: number;
-  liveStats: {
-    price24hPcnt: number;
-    turnover24h: number;
-  };
+  liveStats: { price24hPcnt: number; turnover24h: number };
   favLoading: boolean;
   onSelect: (coin: string, del: boolean) => void;
   onToggleFav: (e: React.MouseEvent, coin: string, fav: boolean) => void;
@@ -34,12 +24,9 @@ export function CoinListingRow({
   isActiveCoin,
 }: RowProps) {
   const isUp = liveStats.price24hPcnt > 0;
-
-  const isMem =
-    item.coin.includes("DOGE") ||
-    item.coin.includes("SHIB") ||
-    item.coin.includes("PEPE") ||
-    item.coin.includes("BONK");
+  const isMem = ["DOGE", "SHIB", "PEPE", "BONK"].some((t) =>
+    item.coin.includes(t),
+  );
 
   const isHighLiq = !item.is_delisted && liveStats.turnover24h >= 50000000;
   const isRisk =
@@ -57,19 +44,16 @@ export function CoinListingRow({
   }
 
   const renderBadge = (type: "LIQ" | "MID" | "RISK") => {
-    let colorCls = "";
-    if (type === "LIQ") {
-      colorCls = "bg-emerald-500/10 border-emerald-500/20 text-emerald-500";
-    } else if (type === "MID") {
-      colorCls = "bg-blue-500/10 border-blue-500/20 text-blue-500";
-    } else {
-      colorCls = "bg-amber-500/10 border-amber-500/20 text-amber-500";
-    }
+    let colorCls =
+      type === "LIQ"
+        ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500"
+        : type === "MID"
+          ? "bg-blue-500/10 border-blue-500/20 text-blue-500"
+          : "bg-amber-500/10 border-amber-500/20 text-amber-500";
     return (
       <span
         className={cn(
-          "flex px-1 py-0.5 text-center shrink-0 font-black tracking-wider",
-          "rounded border text-[9px] w-9 justify-center",
+          "flex px-1 py-0.5 text-center shrink-0 font-black tracking-wider rounded border text-[9px] w-9 justify-center",
           colorCls,
         )}
       >
@@ -79,12 +63,10 @@ export function CoinListingRow({
   };
 
   const getContainerStyle = () => {
-    if (item.is_delisted) {
+    if (item.is_delisted)
       return "border-rose-500/10 opacity-56 bg-rose-500/2 cursor-not-allowed";
-    }
-    if (isActiveCoin) {
+    if (isActiveCoin)
       return "border-amber-500/80 bg-amber-500/5 shadow-md shadow-amber-500/5 cursor-pointer";
-    }
     return "border-border/30 cursor-pointer hover:bg-muted/30 hover:border-amber-500/30";
   };
 
@@ -118,7 +100,6 @@ export function CoinListingRow({
             />
           )}
         </button>
-
         <div className="flex items-center gap-2 min-w-0 flex-1 leading-none">
           <span className="text-[10px] font-bold min-w-4 text-muted-foreground/40 font-mono">
             {idx + 1}.
@@ -143,7 +124,6 @@ export function CoinListingRow({
           </div>
         </div>
       </div>
-
       <div className="col-span-4 flex flex-col items-end justify-center text-right min-w-0 font-mono">
         {!item.is_delisted ? (
           <div className="flex flex-col items-end min-w-0">
@@ -163,12 +143,7 @@ export function CoinListingRow({
             </span>
           </div>
         ) : (
-          <span
-            className={cn(
-              "px-2 py-0.5 font-black text-[9px] uppercase tracking-wider",
-              "bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded",
-            )}
-          >
+          <span className="px-2 py-0.5 font-black text-[9px] uppercase tracking-wider bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded">
             DELISTED
           </span>
         )}

@@ -42,7 +42,6 @@ export function JournalFilters({
 }: JournalFiltersProps) {
   return (
     <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 w-full text-xs">
-      {/* ЛЕВАЯ ЧАСТЬ */}
       <div className="grid grid-cols-2 sm:flex sm:items-center gap-2.5 w-full sm:w-auto flex-1 sm:flex-none min-w-0">
         <div className="relative w-full sm:w-56 flex items-center group">
           <SearchIcon className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground/60 pointer-events-none" />
@@ -62,7 +61,6 @@ export function JournalFilters({
             </button>
           )}
         </div>
-        {/* ТАБЫ ФИЛЬТРОВ С АДАПТИВНЫМ СОКРАЩЕНИЕМ СЛОВ */}
         <Tabs
           value={statusFilter}
           onValueChange={(val) => setStatusFilter(val || "ALL")}
@@ -79,7 +77,6 @@ export function JournalFilters({
               value="OPEN"
               className="text-[11px] px-3 font-bold uppercase tracking-wider h-full flex items-center justify-center"
             >
-              {/* ФИКС: Откр. на мобилке, Открытые на десктопе */}
               <span className="sm:hidden">Откр.</span>
               <span className="hidden sm:inline">Открытые</span>
             </TabsTrigger>
@@ -87,7 +84,6 @@ export function JournalFilters({
               value="CLOSED"
               className="text-[11px] px-3 font-bold uppercase tracking-wider h-full flex items-center justify-center"
             >
-              {/* ФИКС: Закр. на мобилке, Закрытые на десктопе */}
               <span className="sm:hidden">Закр.</span>
               <span className="hidden sm:inline">Закрытые</span>
             </TabsTrigger>
@@ -95,12 +91,11 @@ export function JournalFilters({
         </Tabs>
       </div>
 
-      {/* ПРАВАЯ ЧАСТЬ */}
       <div className="grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-1.5 shrink-0 w-full sm:w-auto mt-1 sm:mt-0">
         {totalDeals > 0 ? (
           <Button
             onClick={exportToCSV}
-            variant={"secondary"}
+            variant="secondary"
             className="h-9 sm:size-7.5 gap-2"
             title="Сохранить журнал в формате CSV"
           >
@@ -123,7 +118,6 @@ export function JournalFilters({
               <Trash2Icon />
               <span className="sm:hidden">Очистить</span>
             </AlertDialogTrigger>
-
             <AlertDialogContent className="rounded-2xl max-w-xs sm:max-w-sm bg-popover/70 dark:bg-zinc-950/70 backdrop-blur-md border border-border/40 dark:border-white/10 shadow-2xl">
               <AlertDialogHeader>
                 <AlertDialogTitle className="text-sm sm:text-base font-mono">
@@ -140,9 +134,7 @@ export function JournalFilters({
                 </AlertDialogCancel>
                 <AlertDialogAction
                   onClick={handleClearAllDeals}
-                  className={
-                    "rounded-xl text-xs h-9 bg-rose-700 hover:bg-rose-600 text-white font-bold"
-                  }
+                  className="rounded-xl text-xs h-9 bg-rose-700 hover:bg-rose-600 text-white font-bold"
                 >
                   Удалить всё
                 </AlertDialogAction>

@@ -45,28 +45,26 @@ export function CoinSelectorItem({
   }, [asset.coin, asset.logo_slug]);
 
   const displaySeed = (dbSlug || fallbackTicker).toUpperCase();
-
-  let finalImgUrl = "";
-  const defaultCryptoBase =
+  const cryptoBase =
     process.env.TRADINGVIEW_LOGOS_URL_BASE ||
     "https://s3-symbol-logo.tradingview.com";
 
+  let finalImgUrl = "";
   if (dbSlug.startsWith("http://") || dbSlug.startsWith("https://")) {
     finalImgUrl = dbSlug;
   } else if (dbSlug.startsWith("/")) {
-    finalImgUrl = `${defaultCryptoBase}${dbSlug}`;
+    finalImgUrl = `${cryptoBase}${dbSlug}`;
   } else {
-    const activeSlug = (dbSlug || fallbackTicker).toUpperCase();
-    finalImgUrl = `${defaultCryptoBase}/crypto/XTVC${activeSlug}.svg`;
+    finalImgUrl = `${cryptoBase}/crypto/XTVC${displaySeed}.svg`;
   }
+
   return (
     <div className="flex items-center justify-between w-full pr-8 relative">
       <div className="flex items-center gap-2 min-w-0">
         {isLoadFailed ? (
           <div
             className={cn(
-              "size-4 rounded-full flex items-center text-white",
-              "justify-center font-black text-[8px] uppercase shrink-0 select-none",
+              "size-4 rounded-full flex items-center text-white justify-center text-[8px] font-black uppercase shrink-0 select-none",
             )}
             style={{ backgroundImage: getCoinGradient(displaySeed) }}
           >
@@ -104,9 +102,7 @@ export function CoinSelectorItem({
         type="button"
         onClick={(e) => onToggleFav(e, asset.coin)}
         className={cn(
-          "absolute right-1 p-1 border-none bg-transparent outline-none",
-          "transition-colors cursor-pointer text-muted-foreground/30",
-          "hover:text-amber-500 z-30",
+          "absolute right-1 p-1 border-none bg-transparent outline-none transition-colors cursor-pointer text-muted-foreground/30 hover:text-amber-500 z-30",
           asset.is_favorite ? "text-amber-500!" : "",
         )}
         title={asset.is_favorite ? "Из избранного" : "В избранное"}

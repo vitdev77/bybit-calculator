@@ -35,7 +35,6 @@ interface PriceLevelsProps {
   onReset: () => void;
   livePrice: number;
   decimals: number;
-  side: "BUY" | "SELL";
 }
 
 export default function PriceLevelsForm({
@@ -48,7 +47,6 @@ export default function PriceLevelsForm({
   onReset,
   livePrice,
   decimals,
-  side,
 }: PriceLevelsProps) {
   const currentRRValue = String(riskRewardRatio);
   const rrPresets = [1, 1.5, 2, 3, 4, 5];
@@ -59,24 +57,20 @@ export default function PriceLevelsForm({
     setRiskRewardRatio(Number(value));
   };
 
-  // Безопасная проверка: сравниваем отформатированные строки для обхода проблем с плавающей точкой JavaScript
   const formattedEntry =
     entryPrice && !isNaN(entryPrice) ? entryPrice.toFixed(decimals) : "";
   const formattedLive =
     livePrice && !isNaN(livePrice) ? livePrice.toFixed(decimals) : "";
 
-  // Обводка включается, если строки не равны, и обе цены физически существуют
   const hasSignificantDeviation =
     formattedEntry !== "" &&
     formattedLive !== "" &&
     formattedEntry !== formattedLive;
-
-  // Считаем направление отклонения для выбора цвета подсветки
   const isPriceHigherThanMarket = entryPrice > livePrice;
+
   return (
     <div className="space-y-3.5">
       <div className="grid grid-cols-2 gap-2.5 items-start">
-        {/* Поле цены входа с надежной текстовой обводкой */}
         <div className="space-y-1">
           <Label
             htmlFor="entryPrice"
@@ -93,11 +87,9 @@ export default function PriceLevelsForm({
               className={cn(
                 "h-9.5 sm:h-9 text-xs sm:text-sm rounded-lg pl-2 transition-all duration-300 outline-none",
                 hasSignificantDeviation ? "pr-8 ring-2" : "pr-2 border-input",
-                // Если цена выше рынка — включаем сочную изумрудную обводку
                 hasSignificantDeviation && isPriceHigherThanMarket
                   ? "border-emerald-500 ring-emerald-500/20 shadow-[0_0_12px_rgba(16,185,129,0.15)] bg-emerald-500/5 dark:bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 font-bold"
                   : "",
-                // Если цена ниже рынка — включаем сочную оранжевую обводку
                 hasSignificantDeviation && !isPriceHigherThanMarket
                   ? "border-amber-500 ring-amber-500/20 shadow-[0_0_12px_rgba(245,158,11,0.15)] bg-amber-500/5 dark:bg-amber-500/5 text-amber-600 dark:text-amber-400 font-bold"
                   : "",
@@ -125,7 +117,6 @@ export default function PriceLevelsForm({
           </div>
         </div>
 
-        {/* Выбор Risk:Reward режима */}
         <div className="space-y-1">
           <Label
             htmlFor="rr-preset-select"
@@ -162,7 +153,6 @@ export default function PriceLevelsForm({
         </div>
       </div>
 
-      {/* Кнопка полного сброса параметров калькулятора */}
       <div className="flex justify-center pt-2 sm:pt-4 w-full">
         <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
           <AlertDialogTrigger
@@ -180,7 +170,7 @@ export default function PriceLevelsForm({
                 Сбросить калькулятор?
               </AlertDialogTitle>
               <AlertDialogDescription className="text-[11px] sm:text-xs">
-                Это действие вернет все параметры торговли к дефолтным
+                This действие вернет все параметры торговли к дефолтным
                 значениям.
               </AlertDialogDescription>
             </AlertDialogHeader>

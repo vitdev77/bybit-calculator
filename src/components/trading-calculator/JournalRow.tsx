@@ -83,7 +83,6 @@ export function JournalRow({
   const isOpen = deal.status?.toUpperCase() === "OPEN";
   const [isMovingToBu, setIsMovingToBu] = useState(false);
   const [isManualCloseModalOpen, setIsManualCloseModalOpen] = useState(false);
-
   const [formattedDateTime, setFormattedDateTime] = useState({
     date: "--.--.--",
     time: "--:--",
@@ -93,14 +92,8 @@ export function JournalRow({
     if (deal.created_at) {
       try {
         const d = new Date(deal.created_at);
-        const dateStr =
-          `${String(d.getDate()).padStart(2, "0")}.` +
-          `${String(d.getMonth() + 1).padStart(2, "0")}.` +
-          `${String(d.getFullYear())}`;
-        const timeStr =
-          `${String(d.getHours()).padStart(2, "0")}:` +
-          `${String(d.getMinutes()).padStart(2, "0")}:` +
-          `${String(d.getSeconds()).padStart(2, "0")}`;
+        const dateStr = `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}`;
+        const timeStr = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
         setFormattedDateTime({ date: dateStr, time: timeStr });
       } catch (e) {}
     }
@@ -109,14 +102,9 @@ export function JournalRow({
   const openFeeRate = 0.0006;
   const closeFeeRate = 0.0006;
   const totalFeeRate = 0.0013;
-
   const isVolatileCoin =
     precision >= 4 ||
-    deal.coin.includes("DOGE") ||
-    deal.coin.includes("SHIB") ||
-    deal.coin.includes("PEPE") ||
-    deal.coin.includes("BONK");
-
+    ["DOGE", "SHIB", "PEPE", "BONK"].some((t) => deal.coin.includes(t));
   const slippageBuffer = isVolatileCoin ? 0.0004 : 0.0001;
 
   const breakevenPrice = isLong
@@ -124,13 +112,10 @@ export function JournalRow({
       ((1 + openFeeRate) / (1 - closeFeeRate - slippageBuffer))
     : deal.entry_price *
       ((1 - openFeeRate) / (1 + closeFeeRate + slippageBuffer));
-
   let pnlDisplay = null;
   const isCurrentActiveCoin = activeCoin === deal.coin;
-
   const isRowSelected =
     isCurrentActiveCoin && (focusedDeal ? focusedDeal.id === deal.id : isOpen);
-
   const isPriceValid =
     livePrice > 0 &&
     livePrice / deal.entry_price < 1.4 &&
@@ -144,8 +129,6 @@ export function JournalRow({
   const liveRoi = deal.margin > 0 ? (livePnlUsdt / deal.margin) * 100 : 0;
   const isLiveProfit = livePnlUsdt >= 0;
 
-  const pnlDecimalSteps = precision >= 4 ? 4 : 3;
-
   if (isOpen && isCurrentActiveCoin && isPriceValid) {
     if (frozenPnL[deal.id]?.pnl !== livePnlUsdt) {
       setTimeout(() => {
@@ -155,13 +138,8 @@ export function JournalRow({
         }));
       }, 0);
     }
-
     pnlDisplay = (
-      <div
-        className={cn(
-          "flex flex-col text-right select-none relative w-full pl-4",
-        )}
-      >
+      <div className="flex flex-col text-right select-none relative w-full pl-4">
         <span className="absolute left-1 top-1.5 flex h-1.5 w-1.5">
           <span
             className={cn(
@@ -199,21 +177,14 @@ export function JournalRow({
       </div>
     );
   }
+
   if (!pnlDisplay) {
     if (isOpen) {
       const lastKnown = frozenPnL[deal.id] || { pnl: 0, roi: 0 };
       const isLastProfit = lastKnown.pnl >= 0;
       pnlDisplay = (
-        <div
-          className={cn(
-            "flex flex-col text-right select-none opacity-45 relative w-full pl-4",
-          )}
-        >
-          <PauseIcon
-            className={cn(
-              "size-2 text-muted-foreground absolute left-0.5 top-1.5",
-            )}
-          />
+        <div className="flex flex-col text-right select-none opacity-45 relative w-full pl-4">
+          <PauseIcon className="size-2 text-muted-foreground absolute left-0.5 top-1.5" />
           <span
             className={cn(
               "text-[11px] sm:text-xs font-black",
@@ -255,7 +226,6 @@ export function JournalRow({
       const finalPnlUsdt = priceDiff * cryptoQty - deal.volume * totalFeeRate;
       const finalRoi = deal.margin > 0 ? (finalPnlUsdt / deal.margin) * 100 : 0;
       const isFinalProfit = finalPnlUsdt >= 0;
-
       pnlDisplay = (
         <div className="flex flex-col text-right opacity-65 w-full">
           <span
@@ -282,7 +252,6 @@ export function JournalRow({
       );
     }
   }
-
   const handleMoveToBreakevenClick = async () => {
     if (isMovingToBu || Math.abs(deal.stop_loss - breakevenPrice) < 0.00000001)
       return;
@@ -343,15 +312,15 @@ export function JournalRow({
   const isAlreadyInBreakeven =
     Math.abs(deal.stop_loss - breakevenPrice) < 0.00000001;
   const baseRowStyle = isRowSelected
-    ? "bg-linear-to-r from-amber-500/10 via-amber-500/5 to-transparent " +
-      "border-amber-500/30 dark:from-amber-500/15 opacity-100!"
+    ? "bg-linear-to-r from-amber-500/10 via-amber-500/5 to-transparent border-amber-500/30 dark:from-amber-500/15 opacity-100!"
     : !isOpen
       ? "opacity-55 hover:bg-muted/40 hover:opacity-100"
       : "hover:bg-muted/40";
+  const shouldShowTpTouch =
+    deal.tp_touched && deal.status?.toUpperCase() !== "CLOSED";
+  const shouldShowSlTouch =
+    deal.sl_touched && deal.status?.toUpperCase() !== "CLOSED";
 
-  const isManualClosedStatus = deal.status?.toUpperCase() === "CLOSED";
-  const shouldShowTpTouch = deal.tp_touched && !isManualClosedStatus;
-  const shouldShowSlTouch = deal.sl_touched && !isManualClosedStatus;
   return (
     <TableRow
       className={cn(
@@ -594,8 +563,7 @@ export function JournalRow({
                 </AlertDialogCancel>
                 <AlertDialogAction
                   onClick={() => handleDeleteDeal(deal.id)}
-                  className="rounded-xl text-xs h-9 bg-rose-700 hover:bg-rose-600 
-text-white font-bold"
+                  className="rounded-xl text-xs h-9 bg-rose-700 hover:bg-rose-600 text-white font-bold"
                 >
                   Удалить
                 </AlertDialogAction>

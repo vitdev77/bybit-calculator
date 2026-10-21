@@ -2,9 +2,8 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
-import { DBAssetCoin } from "./TradingCalculatorWS";
 import Image from "next/image";
-import { PlayIcon } from "lucide-react";
+import { DBAssetCoin } from "./TradingCalculatorWS";
 
 interface TickerData {
   lastPrice: number;
@@ -37,15 +36,9 @@ interface SuperTickerProps {
 }
 
 function formatCompactNumber(num: number): string {
-  if (num >= 1_000_000_000) {
-    return (num / 1_000_000_000).toFixed(2) + "B";
-  }
-  if (num >= 1_000_000) {
-    return (num / 1_000_000).toFixed(2) + "M";
-  }
-  if (num >= 1_000) {
-    return (num / 1_000).toFixed(1) + "K";
-  }
+  if (num >= 1_000_000_000) return (num / 1_000_000_000).toFixed(2) + "B";
+  if (num >= 1_000_000) return (num / 1_000_000).toFixed(2) + "M";
+  if (num >= 1_000) return (num / 1_000).toFixed(1) + "K";
   return num.toFixed(0);
 }
 
@@ -56,12 +49,12 @@ function getCoinGradient(name: string): string {
   }
   const c1 = Math.abs((hash & 0xff0000) >> 16) % 360;
   const c2 = (c1 + 40) % 360;
-  return (
-    `linear-gradient(135deg, hsl(${c1}, 70%, 45%), ` + `hsl(${c2}, 80%, 35%))`
-  );
+  return `linear-gradient(135deg, hsl(${c1}, 70%, 45%), hsl(${c2}, 80%, 35%))`;
 }
+
 export default function MarketTicker({
   data,
+  loading,
   decimals,
   onPriceClick,
   selectedCoin,
@@ -94,15 +87,14 @@ export default function MarketTicker({
   useEffect(() => {
     if (data?.lastPrice) {
       if (prevPriceRef.current !== null) {
-        if (data.lastPrice > prevPriceRef.current) {
-          setTickDirection("up");
-        } else if (data.lastPrice < prevPriceRef.current) {
+        if (data.lastPrice > prevPriceRef.current) setTickDirection("up");
+        else if (data.lastPrice < prevPriceRef.current)
           setTickDirection("down");
-        }
       }
       prevPriceRef.current = data.lastPrice;
     }
   }, [data?.lastPrice]);
+
   useEffect(() => {
     fetch("/api/fng")
       .then((r) => r.json())
@@ -130,12 +122,7 @@ export default function MarketTicker({
           col = "text-emerald-500";
           rCol = "#10b981";
         }
-        setFng({
-          value: val,
-          sentiment: sent,
-          color: col,
-          rawColor: rCol,
-        });
+        setFng({ value: val, sentiment: sent, color: col, rawColor: rCol });
       })
       .catch((e) => console.error(e))
       .finally(() => setFngLoading(false));
@@ -153,7 +140,7 @@ export default function MarketTicker({
         now.getUTCSeconds(),
       );
       const h = now.getUTCHours();
-      const intervals = Array.of(0, 8, 16);
+      const intervals = [0, 8, 16];
       const nextHour = intervals.find((i) => i > h) ?? 24;
       const nextFundingUtc = Date.UTC(
         now.getUTCFullYear(),
@@ -196,6 +183,7 @@ export default function MarketTicker({
       </div>
     );
   }
+
   const ratio = allocatedMarginMax > 0 ? marginUsed / allocatedMarginMax : 0;
   const isFundingHigh = Math.abs(data.fundingRate) >= 0.01;
   const radius = 8;
@@ -229,25 +217,16 @@ export default function MarketTicker({
   } else if (dbSlug.startsWith("/")) {
     finalImgUrl = `${defaultCryptoBase}${dbSlug}`;
   } else {
-    const activeSlug = (dbSlug || fallbackTicker).toUpperCase();
-    finalImgUrl = `${defaultCryptoBase}/crypto/XTVC${activeSlug}.svg`;
+    finalImgUrl = `${defaultCryptoBase}/crypto/XTVC${displaySeed}.svg`;
   }
-
   return (
     <div
       className={cn(
-        "p-3 border border-border/40 w-full rounded-xl bg-muted/30",
-        "select-none dark:bg-black/40 grid grid-cols-1 md:grid-cols-12",
-        "gap-4 items-stretch",
+        "p-3 border border-border/40 w-full rounded-xl bg-muted/30 select-none dark:bg-black/40",
+        "grid grid-cols-1 md:grid-cols-12 gap-4 items-center",
       )}
     >
-      <div
-        className={cn(
-          "md:col-span-5 flex flex-row md:flex-col justify-between",
-          "items-center md:items-start min-w-0 md:border-r border-border/30",
-          "pr-2 py-0.5",
-        )}
-      >
+      <div className="md:col-span-5 flex flex-row md:flex-col justify-between items-center md:items-start min-w-0 md:border-r border-border/30 pr-2 py-0.5">
         <div className="flex items-center gap-3 min-w-0 max-w-[50%] md:max-w-full">
           <div className="relative size-9 shrink-0 flex items-center justify-center">
             {!mounted ? (
@@ -263,10 +242,7 @@ export default function MarketTicker({
               />
             ) : (
               <div
-                className={cn(
-                  "w-full h-full flex text-white items-center",
-                  "font-black justify-center text-xs uppercase rounded-full",
-                )}
+                className="w-full h-full flex text-white items-center font-black justify-center text-xs uppercase rounded-full"
                 style={{ backgroundImage: getCoinGradient(displaySeed) }}
               >
                 {displaySeed.slice(0, 2)}
@@ -274,12 +250,7 @@ export default function MarketTicker({
             )}
           </div>
           <div className="flex flex-col min-w-0 flex-1 leading-tight">
-            <span
-              className={cn(
-                "text-sm sm:text-base font-black text-foreground truncate block",
-                "max-w-50 xs:max-w-none",
-              )}
-            >
+            <span className="text-sm sm:text-base font-black text-foreground truncate block max-w-50 xs:max-w-none">
               {selectedCoin}
             </span>
             <span className="text-[9px] font-bold opacity-30 truncate mt-0.5">
@@ -293,11 +264,7 @@ export default function MarketTicker({
           onClick={() => onPriceClick?.(data.lastPrice)}
         >
           <span
-            className={cn(
-              "flex flex-row gap-1.5 items-baseline",
-              "leading-none",
-              priceColor,
-            )}
+            className={`flex flex-row gap-1.5 items-baseline leading-none ${priceColor}`}
           >
             <span className="text-2xl">
               {tickDirection === "up"
@@ -314,12 +281,7 @@ export default function MarketTicker({
       </div>
       <div className="md:col-span-7 flex flex-col gap-2 justify-center w-full min-w-0">
         <div className="grid grid-cols-3 gap-2 w-full">
-          <div
-            className={cn(
-              "bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border",
-              "border-border/10 flex flex-col justify-center min-w-0",
-            )}
-          >
+          <div className="bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border border-border/10 flex flex-col justify-center min-w-0">
             <span className="text-[8px] opacity-50 uppercase font-bold">
               24h Изменение
             </span>
@@ -330,12 +292,7 @@ export default function MarketTicker({
               {changeValue.toFixed(2)}%
             </span>
           </div>
-          <div
-            className={cn(
-              "bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border",
-              "border-border/10 flex flex-col justify-center min-w-0",
-            )}
-          >
+          <div className="bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border border-border/10 flex flex-col justify-center min-w-0">
             <span className="text-[8px] opacity-50 uppercase font-bold">
               Суточный Оборот
             </span>
@@ -343,12 +300,7 @@ export default function MarketTicker({
               {formatCompactNumber(data.turnover24h)}
             </span>
           </div>
-          <div
-            className={cn(
-              "bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border",
-              "border-border/10 flex flex-col justify-center min-w-0",
-            )}
-          >
+          <div className="bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border border-border/10 flex flex-col justify-center min-w-0">
             <span className="text-[8px] opacity-50 uppercase font-bold">
               Ставка Bybit
             </span>
@@ -358,12 +310,7 @@ export default function MarketTicker({
           </div>
         </div>
         <div className="grid grid-cols-3 gap-2 w-full">
-          <div
-            className={cn(
-              "bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border",
-              "border-border/10 flex flex-col justify-center min-w-0 relative",
-            )}
-          >
+          <div className="bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border border-border/10 flex flex-col justify-center min-w-0 relative">
             <span className="text-[8px] opacity-50 uppercase font-bold">
               Fear & Greed
             </span>
@@ -389,12 +336,7 @@ export default function MarketTicker({
               </span>
             )}
           </div>
-          <div
-            className={cn(
-              "bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border",
-              "border-border/10 flex items-center justify-between min-w-0 gap-1",
-            )}
-          >
+          <div className="bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border border-border/10 flex items-center justify-between min-w-0 gap-1">
             <div className="flex flex-col min-w-0">
               <span className="text-[8px] opacity-50 uppercase font-bold">
                 Countdown
@@ -436,12 +378,7 @@ export default function MarketTicker({
               />
             </svg>
           </div>
-          <div
-            className={cn(
-              "bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border",
-              "border-border/10 flex flex-col justify-center min-w-0",
-            )}
-          >
+          <div className="bg-background/40 dark:bg-neutral-900/40 p-1.5 rounded-lg border border-border/10 flex flex-col justify-center min-w-0">
             <div className="flex justify-between items-center w-full">
               <span className="text-[8px] opacity-50 uppercase font-bold">
                 Margin Load

@@ -27,15 +27,8 @@ import { CoinListingRow } from "./CoinListingRow";
 interface ListingManagerModalProps {
   availableCoinsList: DBAssetCoin[];
   setAvailableCoinsList?: React.Dispatch<React.SetStateAction<DBAssetCoin[]>>;
-  tickerRegistry: Record<string, { price24hPcnt: number; turnover24h: number }>;
   isModalOpen: boolean;
   setIsModalOpen: (open: boolean) => void;
-  handleToggleActive: (coin: string) => void;
-  handleSetActiveStatus: (
-    coinName: string,
-    targetStatus: boolean,
-    currentStatus: boolean,
-  ) => Promise<void>;
   onCoinSelect?: (coin: string) => void;
   selectedCoin: string;
 }
@@ -85,6 +78,7 @@ export default function ListingManagerModal({
     setVisibleCount(50);
     if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
   }, [modalSearch, filterType]);
+
   const handleSelectCoinRow = (coinName: string, isDelisted: boolean) => {
     if (isDelisted) return;
     if (onCoinSelect) {
@@ -138,7 +132,6 @@ export default function ListingManagerModal({
     }
     setFavLoadingMap((prev) => ({ ...prev, [coinName]: false }));
   };
-
   const processDistribution = () => {
     const liqRows: DBAssetCoin[] = [];
     const midRows: DBAssetCoin[] = [];
@@ -151,14 +144,11 @@ export default function ListingManagerModal({
         .toLowerCase()
         .includes(modalSearch.toLowerCase());
       if (!match) return;
-
       allRows.push(asset);
-
       if (asset.is_delisted) {
         delisRows.push(asset);
         return;
       }
-
       const live = localRegistry[asset.coin] || { turnover24h: 0 };
       const isMem =
         asset.coin.includes("DOGE") ||
@@ -167,7 +157,6 @@ export default function ListingManagerModal({
         asset.coin.includes("BONK");
       const isLiq = live.turnover24h >= 50000000;
       const isRisk = !isLiq && (isMem || live.turnover24h < 10000000);
-
       if (isLiq) liqRows.push(asset);
       else if (isRisk) riskRows.push(asset);
       else midRows.push(asset);
@@ -178,7 +167,6 @@ export default function ListingManagerModal({
     else if (filterType === "MID") filtered = midRows;
     else if (filterType === "RISK") filtered = riskRows;
     else if (filterType === "DELIS") filtered = delisRows;
-
     return { liqRows, midRows, riskRows, delisRows, allRows, filtered };
   };
 
@@ -190,7 +178,6 @@ export default function ListingManagerModal({
     allRows,
     filtered: filteredCoins,
   } = processDistribution();
-
   const renderedCoins = filteredCoins.slice(0, visibleCount);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -206,43 +193,19 @@ export default function ListingManagerModal({
       }
     }
   };
+
   return (
     <AlertDialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-      <AlertDialogContent
-        className={cn(
-          "w-[calc(100%-1rem)] max-w-sm sm:max-w-md md:max-w-2xl!",
-          "p-4 rounded-2xl text-xs border border-border/40",
-          "bg-background/90 backdrop-blur-md shadow-2xl",
-          "mx-auto my-auto fixed left-1/2 top-1/2 -translate-x-1/2",
-          "-translate-y-1/2 max-h-[calc(100dvh-2rem)] flex flex-col",
-        )}
-      >
-        <AlertDialogHeader
-          className={cn(
-            "flex flex-row gap-2 items-center border-b justify-between",
-            "pb-2 shrink-0",
-          )}
-        >
+      <AlertDialogContent className="w-[calc(100%-1rem)] max-w-sm sm:max-w-md md:max-w-2xl! p-4 rounded-2xl text-xs border border-border/40 bg-background/90 backdrop-blur-md shadow-2xl mx-auto my-auto fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-h-[calc(100dvh-2rem)] flex flex-col">
+        <AlertDialogHeader className="flex flex-row gap-2 items-center border-b justify-between pb-2 shrink-0">
           <AlertDialogTitle className="text-sm font-black font-mono uppercase tracking-wider">
             Листинг пар Bybit
           </AlertDialogTitle>
-          <AlertDialogCancel
-            className={cn(
-              "p-1 h-auto w-auto bg-transparent border-none text-muted-foreground",
-              "hover:text-foreground shadow-none rounded-md flex items-center",
-              "justify-end cursor-pointer sm:self-start",
-            )}
-          >
+          <AlertDialogCancel className="p-1 h-auto w-auto bg-transparent border-none text-muted-foreground hover:text-foreground shadow-none rounded-md flex items-center justify-end cursor-pointer sm:self-start">
             <XIcon className="size-4" />
           </AlertDialogCancel>
         </AlertDialogHeader>
-
-        <div
-          className={cn(
-            "my-3 flex flex-col md:flex-row md:items-center justify-between gap-3",
-            "shrink-0",
-          )}
-        >
+        <div className="my-3 flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0">
           <div className="relative w-full md:w-64 flex items-center group shrink-0">
             <SearchIcon className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground/60" />
             <Input
@@ -262,13 +225,7 @@ export default function ListingManagerModal({
               </button>
             )}
           </div>
-          <div
-            className={cn(
-              "grid grid-cols-5 gap-1 w-full bg-background border border-input",
-              "p-0.5 rounded-lg overflow-hidden flex-1",
-              "*:h-7 *:text-[10px] *:font-black *:rounded-md *:flex-1",
-            )}
-          >
+          <div className="grid grid-cols-5 gap-1 w-full bg-background border border-input p-0.5 rounded-lg overflow-hidden flex-1 *:h-7 *:text-[10px] *:font-black *:rounded-md *:flex-1">
             <Button
               type="button"
               variant={filterType === "ALL" ? "default" : "ghost"}
@@ -330,7 +287,6 @@ export default function ListingManagerModal({
             </Button>
           </div>
         </div>
-
         <div
           ref={scrollContainerRef}
           onScroll={handleScroll}

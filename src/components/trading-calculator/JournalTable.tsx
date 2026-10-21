@@ -38,24 +38,12 @@ export function JournalTable({
   return (
     <div
       className={cn(
-        "w-full rounded-xl",
-        "border border-border/50",
-        "bg-background",
-        "shadow-xs",
-        "overflow-hidden",
-        "flex flex-col",
+        "w-full rounded-xl border border-border/50 bg-background shadow-xs overflow-hidden flex flex-col",
       )}
     >
       <div
         className={cn(
-          "w-full flex",
-          "items-center",
-          "justify-start",
-          "bg-muted/30",
-          "dark:bg-muted/10",
-          "px-3.5 py-2.5",
-          "border-b",
-          "border-border/30",
+          "w-full flex items-center justify-start bg-muted/30 dark:bg-muted/10 px-3.5 py-2.5 border-b border-border/30",
         )}
       >
         <JournalFilters
@@ -72,20 +60,11 @@ export function JournalTable({
       </div>
       <div
         className={cn(
-          "w-full max-h-96",
-          "overflow-x-auto",
-          "overflow-y-auto",
-          "scrollbar-thin",
-          "touch-pan-x",
+          "w-full max-h-96 overflow-x-auto overflow-y-auto scrollbar-thin touch-pan-x",
         )}
       >
         <Table
-          className={cn(
-            "w-full text-xs",
-            "min-w-180",
-            "relative",
-            "border-collapse",
-          )}
+          className={cn("w-full text-xs min-w-180 relative border-collapse")}
         >
           <JournalHeader />
           <TableBody>
@@ -94,10 +73,7 @@ export function JournalTable({
                 <td
                   colSpan={9}
                   className={cn(
-                    "p-8 text-center",
-                    "text-xs",
-                    "text-muted-foreground",
-                    "font-medium",
+                    "p-8 text-center text-xs text-muted-foreground font-medium",
                   )}
                 >
                   <div className="flex gap-2 items-center justify-center">
@@ -111,10 +87,7 @@ export function JournalTable({
                 <td
                   colSpan={9}
                   className={cn(
-                    "p-8 text-center",
-                    "text-xs",
-                    "text-muted-foreground",
-                    "font-medium",
+                    "p-8 text-center text-xs text-muted-foreground font-medium",
                   )}
                 >
                   Ничего не найдено.

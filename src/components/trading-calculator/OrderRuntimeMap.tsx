@@ -1,5 +1,4 @@
 "use client";
-
 import React from "react";
 import { LogInIcon, RocketIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -19,11 +18,9 @@ export function OrderRuntimeMap({
   isChangingCoin = false,
   storedPnL = { pnl: 0, roi: 0 },
 }: OrderRuntimeMapProps) {
-  // Переносим проверку загрузки на самый верх, до валидации focusedDeal
   if (isChangingCoin) {
     return (
       <div className="w-full pt-2 select-none">
-        {/* Стабильный каркас шапки ордера для защиты от вертикальных прыжков верстки */}
         <div className="flex items-center justify-between h-5 mb-2.5 text-xs font-semibold bg-transparent px-0.5 animate-pulse">
           <div className="flex items-center gap-2">
             <div className="h-2 w-2 rounded-full bg-muted-foreground/20" />
@@ -61,7 +58,6 @@ export function OrderRuntimeMap({
   const isOpen = focusedDeal.status?.toUpperCase() === "OPEN";
   const openFeeRate = 0.0006;
   const closeFeeRate = 0.0006;
-  const totalFeeRate = 0.0013;
 
   const bPrice = isLong
     ? focusedDeal.entry_price *
@@ -116,12 +112,10 @@ export function OrderRuntimeMap({
   const isMovingToProfit = isLong
     ? livePrice > focusedDeal.entry_price
     : livePrice < focusedDeal.entry_price;
-
   const liveBgClass =
     livePrice >= bPrice
       ? "bg-cyan-500 shadow-md shadow-cyan-500/30"
       : "bg-neutral-500 dark:bg-zinc-400 shadow-md shadow-neutral-500/20";
-
   const liveTextClass =
     livePrice >= bPrice
       ? "text-cyan-600 dark:text-cyan-400 border-cyan-500/20"
@@ -164,7 +158,6 @@ export function OrderRuntimeMap({
     dynamicMeshGlow = "rgba(59, 130, 246, 0.03)";
     outerNeonGlowStyle = { boxShadow: "0 4px 20px -2px rgba(0, 0, 0, 0.05)" };
   }
-
   const isHeaderProfit = storedPnL.pnl >= 0;
   return (
     <div className="w-full space-y-2.5 pt-2 select-none">
@@ -296,7 +289,13 @@ export function OrderRuntimeMap({
               style={{ left: `${closePct}%`, transform: "translateX(-50%)" }}
             >
               <div className="p-1 bg-blue-500 text-white rounded-full shadow-[0_0_12px_rgba(59,130,246,0.6)] border border-background dark:border-neutral-900 animate-bounce">
-                <RocketIcon className="size-3.5 block shrink-0" />
+                <div
+                  className="size-3.5 bg-white rounded-full shrink-0"
+                  style={{
+                    clipPath:
+                      "polygon(40% 10%, 90% 50%, 40% 90%, 20% 70%, 50% 50%, 20% 30%)",
+                  }}
+                />
               </div>
               <div className="absolute top-7 bg-blue-600 text-white border border-blue-400/20 font-black rounded-lg px-2 py-0.5 text-[10px] sm:text-xs shadow-[0_4px_12px_rgba(59,130,246,0.3)] whitespace-nowrap">
                 EXIT:{" "}

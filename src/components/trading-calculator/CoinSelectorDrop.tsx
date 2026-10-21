@@ -3,8 +3,8 @@ import React from "react";
 import {
   SelectContent,
   SelectGroup,
-  SelectItem,
   SelectLabel,
+  SelectItem,
 } from "@/components/ui/select";
 import { SearchIcon, XIcon } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
@@ -72,8 +72,7 @@ export function CoinSelectorDrop({
               setDebouncedSearch("");
             }}
             className={cn(
-              "p-0.5 border-none bg-transparent",
-              "text-muted-foreground cursor-pointer",
+              "p-0.5 border-none bg-transparent text-muted-foreground cursor-pointer",
             )}
           >
             <XIcon className="size-3" />
@@ -85,8 +84,7 @@ export function CoinSelectorDrop({
           <SelectGroup>
             <SelectLabel
               className={cn(
-                "text-amber-500 font-black text-[10px]",
-                "select-none",
+                "text-amber-500 font-black text-[10px] select-none",
               )}
             >
               ★ ИЗБРАННОЕ
@@ -96,8 +94,7 @@ export function CoinSelectorDrop({
                 key={asset.coin}
                 value={asset.coin}
                 className={cn(
-                  "text-xs sm:text-sm flex items-center",
-                  "w-full relative pr-9!",
+                  "text-xs sm:text-sm flex items-center w-full relative pr-9!",
                 )}
               >
                 <CoinSelectorItem
@@ -113,9 +110,7 @@ export function CoinSelectorDrop({
           <SelectGroup key={char}>
             <SelectLabel
               className={cn(
-                "text-muted-foreground pb-0.5 font-bold",
-                "mt-1 text-[10px] border-b border-border/10",
-                "select-none",
+                "text-muted-foreground pb-0.5 font-bold mt-1 text-[10px] border-b border-border/10 select-none",
               )}
             >
               {char}
@@ -125,8 +120,7 @@ export function CoinSelectorDrop({
                 key={asset.coin}
                 value={asset.coin}
                 className={cn(
-                  "text-xs sm:text-sm flex items-center",
-                  "w-full relative pr-9!",
+                  "text-xs sm:text-sm flex items-center w-full relative pr-9!",
                 )}
               >
                 <CoinSelectorItem
