@@ -592,13 +592,11 @@ export default function TradingCalculator({
     partsCount,
   ]);
   const cardCls = cn(
-    "shadow-sm border flex flex-col " +
-      "border-border/40 bg-background " +
-      "rounded-xl sm:rounded-2xl",
+    "shadow-sm border flex flex-col border-border/40 bg-background rounded-xl sm:rounded-2xl",
   );
   const headCls = cn("py-2 px-2.5 border-b border-border/40 sm:py-2.5 sm:px-4");
   const titCls = cn(
-    "text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground",
+    "text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground font-mono",
   );
   const contCls = cn("space-y-3.5 p-2.5 flex-1 sm:space-y-4 sm:p-4");
   const repCls = cn("p-2.5 flex-1 flex flex-col justify-between sm:p-4");

@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { ChevronUpIcon, ChevronDownIcon, DatabaseIcon } from "lucide-react";
+import { ChevronUpIcon, DatabaseIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import TradingCalculator from "@/components/trading-calculator/TradingCalculatorWS";
 import TradingViewChart from "@/components/trading-calculator/TradingViewChart";
@@ -240,11 +240,12 @@ export default function Home() {
                   </h2>
                 </div>
                 <div className={cn("text-muted-foreground")}>
-                  {isCalcExpanded ? (
-                    <ChevronUpIcon className="size-4" />
-                  ) : (
-                    <ChevronDownIcon className="size-4" />
-                  )}
+                  <ChevronUpIcon
+                    className={cn(
+                      "size-4 transition-all duration-300",
+                      !isCalcExpanded && "rotate-180",
+                    )}
+                  />
                 </div>
               </div>
               <div
@@ -303,11 +304,12 @@ export default function Home() {
                   </h2>
                 </div>
                 <div className={cn("text-muted-foreground")}>
-                  {isChartExpanded ? (
-                    <ChevronUpIcon className="size-4" />
-                  ) : (
-                    <ChevronDownIcon className="size-4" />
-                  )}
+                  <ChevronUpIcon
+                    className={cn(
+                      "size-4 transition-all duration-300",
+                      !isChartExpanded && "rotate-180",
+                    )}
+                  />
                 </div>
               </div>
               <div
@@ -351,11 +353,12 @@ export default function Home() {
                   </h2>
                 </div>
                 <div className={cn("text-muted-foreground")}>
-                  {isJournalExpanded ? (
-                    <ChevronUpIcon className="size-4" />
-                  ) : (
-                    <ChevronDownIcon className="size-4" />
-                  )}
+                  <ChevronUpIcon
+                    className={cn(
+                      "size-4 transition-all duration-300",
+                      !isJournalExpanded && "rotate-180",
+                    )}
+                  />
                 </div>
               </div>
               <div
