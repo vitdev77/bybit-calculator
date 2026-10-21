@@ -10,7 +10,6 @@ import {
   ActivityIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { DBAssetCoin } from "./TradingCalculatorWS";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -24,11 +23,28 @@ import {
 } from "@/components/ui/alert-dialog";
 import { CoinListingRow } from "./CoinListingRow";
 
+export interface DBAssetCoin {
+  coin: string;
+  decimals: number;
+  is_favorite: boolean;
+  is_active: boolean;
+  is_delisted: boolean;
+  fullname?: string;
+  logo_slug?: string;
+}
+
 interface ListingManagerModalProps {
   availableCoinsList: DBAssetCoin[];
   setAvailableCoinsList?: React.Dispatch<React.SetStateAction<DBAssetCoin[]>>;
+  tickerRegistry: Record<string, { price24hPcnt: number; turnover24h: number }>;
   isModalOpen: boolean;
   setIsModalOpen: (open: boolean) => void;
+  handleToggleActive: (coin: string) => void;
+  handleSetActiveStatus: (
+    coinName: string,
+    targetStatus: boolean,
+    currentStatus: boolean,
+  ) => Promise<void>;
   onCoinSelect?: (coin: string) => void;
   selectedCoin: string;
 }

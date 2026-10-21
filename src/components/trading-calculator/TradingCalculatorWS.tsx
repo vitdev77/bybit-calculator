@@ -76,7 +76,6 @@ interface CalculatorProps {
   setExternalPartsCount: (v: number) => void;
   onSyncStatusChange?: (v: boolean) => void;
 }
-
 export default function TradingCalculator({
   selectedCoin,
   setSelectedCoin,
@@ -110,6 +109,7 @@ export default function TradingCalculator({
   const currentCoinMeta = availableCoinsList.find(
     (c) => c.coin === selectedCoin,
   );
+
   const getAutoDecimals = () => {
     if (entryPrice > 0) {
       const fixedStr = entryPrice.toFixed(8);
@@ -198,7 +198,6 @@ export default function TradingCalculator({
       setIsLoaded(true);
     }
   }, [setSelectedCoin, onBalanceChange, setPartsCount]);
-
   const getCalculatedIdealLeverage = useCallback(() => {
     const baseRiskAmount = (balance * riskPercent) / 100;
     const allocatedMarginMax = balance / partsCount;
@@ -234,6 +233,7 @@ export default function TradingCalculator({
     isLoaded,
     getCalculatedIdealLeverage,
   ]);
+
   const loadDatabaseCoins = useCallback(
     async (event?: Event) => {
       try {
@@ -313,8 +313,7 @@ export default function TradingCalculator({
       setIsInitialLoad(false);
       return;
     }
-    const ideal = getCalculatedIdealLeverage();
-    setLeverage(ideal);
+    setLeverage(getCalculatedIdealLeverage());
   }, [partsCount, isInitialLoad, getCalculatedIdealLeverage]);
 
   useEffect(() => {
@@ -323,7 +322,6 @@ export default function TradingCalculator({
     let ws: WebSocket | null = null;
     let reconnectTimeout: NodeJS.Timeout | null = null;
     let lockInterval: NodeJS.Timeout | null = null;
-
     const checkDbLockStatus = async () => {
       try {
         const res = await fetch(`/api/bybit?symbol=${selectedCoin}`);
@@ -336,7 +334,6 @@ export default function TradingCalculator({
         console.error("Lock check error:", e);
       }
     };
-
     const fetchMetaAndInit = async () => {
       try {
         setTickerLoading(true);
@@ -363,13 +360,13 @@ export default function TradingCalculator({
         if (active) setTickerLoading(false);
       }
     };
-
     const connectWebSocket = () => {
       if (!active) return;
       const p1 = "wss" + "://" + "stream";
       const p2 = ".bybit.com" + "/v5";
       const p3 = "/public/linear";
       const cleanUrl = p1 + p2 + p3;
+
       ws = new WebSocket(cleanUrl);
       ws.onopen = () => {
         if (!ws || ws.readyState !== WebSocket.OPEN) return;
@@ -639,8 +636,11 @@ export default function TradingCalculator({
         <ListingManagerModal
           availableCoinsList={availableCoinsList}
           setAvailableCoinsList={setAvailableCoinsList}
+          tickerRegistry={tickerRegistry}
           isModalOpen={isModalOpen}
           setIsModalOpen={setIsModalOpen}
+          handleToggleActive={() => {}}
+          handleSetActiveStatus={async () => {}}
           onCoinSelect={setSelectedCoin}
           selectedCoin={selectedCoin}
         />
