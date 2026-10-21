@@ -284,18 +284,13 @@ export function OrderRuntimeMap({
             style={{ left: `${tpPct}%`, transform: "translateX(-100%)" }}
           />
           {!isOpen && hasManualClosePointer && closePct !== null && (
-            <div
-              className="absolute flex flex-col items-center z-30"
-              style={{ left: `${closePct}%`, transform: "translateX(-50%)" }}
-            >
-              <div className="p-1 bg-blue-500 text-white rounded-full shadow-[0_0_12px_rgba(59,130,246,0.6)] border border-background dark:border-neutral-900 animate-bounce">
-                <RocketIcon className="size-3.5 block shrink-0" />
-              </div>
-              <div className="absolute top-7 bg-blue-600 text-white border border-blue-400/20 font-black rounded-lg px-2 py-0.5 text-[10px] sm:text-xs shadow-[0_4px_12px_rgba(59,130,246,0.3)] whitespace-nowrap">
-                EXIT:{" "}
+            <div className="absolute -left-1.5 flex flex-row items-center z-30 rounded-full overflow-hidden shadow-xs">
+              <span className="p-2 bg-blue-600 text-white">
+                <RocketIcon className="size-3.5 shrink-0" />
+              </span>
+              <span className="bg-white text-blue-600 border border-blue-600 font-black px-2 py-1.5 text-[10px] rounded-r-full sm:text-xs whitespace-nowrap h-full">
                 {parseFloat(focusedDeal.closed_at_price).toFixed(precision)}
-              </div>
-              <div className="absolute -bottom-4 border-l-2 border-blue-500/50 h-4 border-dashed" />
+              </span>
             </div>
           )}
 
