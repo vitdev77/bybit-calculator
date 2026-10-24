@@ -48,7 +48,6 @@ value JSONB NOT NULL
     console.error("Admin DB Coins Migration Error:", err);
   }
 }
-
 export async function GET(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
@@ -81,10 +80,17 @@ export async function GET(request: Request) {
     let rows = [];
     let stats: any = { count: 0 };
     let syncMeta: any = null;
+    let dealsMetrics = {
+      totalPnl: 0,
+      winRate: 0,
+      openCount: 0,
+      totalMargin: 0,
+    };
     const registryMap: Record<
       string,
       { price24hPcnt: number; turnover24h: number }
     > = {};
+
     try {
       const metaRes = await sql`
 SELECT value FROM sys_settings WHERE key = 'last_sync_meta' LIMIT 1;
@@ -95,6 +101,7 @@ SELECT value FROM sys_settings WHERE key = 'last_sync_meta' LIMIT 1;
     } catch (e) {
       console.warn("⚠️ Cannot read sync meta settings:", e);
     }
+
     if (table === "coins") {
       rows = await sql`
 SELECT coin, decimals, is_favorite, is_active, is_delisted, fullname, logo_slug, listed_at 
@@ -106,8 +113,8 @@ FROM coins ORDER BY coin ASC;
         const bybitDomain =
           process.env.BYBIT_API_URL || "https://api.bytick.com";
         const cleanedDomain = bybitDomain.replace(/^https?:\/\//, "");
-        const baseUrl = "https://" + cleanedDomain;
-        const tickersUrl = baseUrl + "/v5/market/tickers?category=linear";
+        const tickersUrl =
+          "https://" + cleanedDomain + "/v5/market/tickers?category=linear";
         const tickersRes = await fetch(tickersUrl, { cache: "no-store" });
         if (tickersRes.ok) {
           const bulkJson = await tickersRes.json();
@@ -131,16 +138,58 @@ d.closed_at_price::TEXT as closed_at_price, d.tp_touched, d.sl_touched,
 COALESCE(c.decimals, 2) as precision, c.logo_slug
 FROM deals d LEFT JOIN coins c ON d.coin = c.coin ORDER BY d.created_at DESC;
 `;
-      rows = rawDeals.map((d: any) => ({
-        ...d,
-        entry_price: parseFloat(d.entry_price) || 0,
-        stop_loss: parseFloat(d.stop_loss) || 0,
-        take_profit: parseFloat(d.take_profit) || 0,
-        closed_at_price: d.closed_at_price
-          ? parseFloat(d.closed_at_price)
-          : null,
-        precision: parseInt(d.precision, 10) || 2,
-      }));
+
+      let grossProfitDeals = 0;
+      let closedDealsCount = 0;
+
+      rows = rawDeals.map((d: any) => {
+        const isLong = d.side === "BUY";
+        const statusUpper = d.status?.toUpperCase();
+        const isOpen = statusUpper === "OPEN";
+        const marginVal = parseFloat(d.margin) || 0;
+        const volVal = parseFloat(d.volume) || 0;
+        const entryPriceNum = parseFloat(d.entry_price) || 0;
+
+        if (isOpen) {
+          dealsMetrics.openCount += 1;
+          dealsMetrics.totalMargin += marginVal; // Суммируем маржу только для открытых позиций
+        } else {
+          closedDealsCount += 1;
+          const closedPriceNum = d.closed_at_price
+            ? parseFloat(d.closed_at_price)
+            : 0;
+          let targetPrice = closedPriceNum;
+          if (targetPrice <= 0) {
+            targetPrice =
+              statusUpper === "PROFIT"
+                ? parseFloat(d.take_profit)
+                : parseFloat(d.stop_loss);
+          }
+          const cryptoQty = entryPriceNum > 0 ? volVal / entryPriceNum : 0;
+          const priceDiff = isLong
+            ? targetPrice - entryPriceNum
+            : entryPriceNum - targetPrice;
+          const netPnlUsdt = priceDiff * cryptoQty - volVal * 0.0013;
+          dealsMetrics.totalPnl += netPnlUsdt;
+          if (netPnlUsdt >= 0) grossProfitDeals += 1;
+        }
+
+        return {
+          ...d,
+          entry_price: entryPriceNum,
+          stop_loss: parseFloat(d.stop_loss) || 0,
+          take_profit: parseFloat(d.take_profit) || 0,
+          closed_at_price: d.closed_at_price
+            ? parseFloat(d.closed_at_price)
+            : null,
+          precision: parseInt(d.precision, 10) || 2,
+        };
+      });
+
+      if (closedDealsCount > 0) {
+        dealsMetrics.winRate = (grossProfitDeals / closedDealsCount) * 100;
+      }
+
       const dRes: any = await sql`SELECT COUNT(*) as count FROM deals;`;
       stats.count = parseInt(dRes[0]?.count || "0", 10);
     } else {
@@ -149,11 +198,13 @@ FROM deals d LEFT JOIN coins c ON d.coin = c.coin ORDER BY d.created_at DESC;
         { status: 400 },
       );
     }
+
     return NextResponse.json({
       success: true,
       table,
       stats,
       data: rows,
+      dealsMetrics, // Передаем прецизионно рассчитанную на бэкенде статистику маржи
       tickerRegistry: registryMap,
       syncMeta,
     });

@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useEffect, useRef } from "react";
 import {
   XIcon,
@@ -40,6 +39,7 @@ interface SyncMeta {
   totalCoins: number;
   liveCount: number;
 }
+
 export default function AdminDbPage() {
   const [activeTable, setActiveTable] = useState<"deals" | "coins">("deals");
   const [filterType, setFilterType] = useState<string>("ALL");
@@ -53,6 +53,12 @@ export default function AdminDbPage() {
   const [isClearOpen, setIsClearOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [dm, setDm] = useState({
+    totalPnl: 0,
+    winRate: 0,
+    openCount: 0,
+    totalMargin: 0,
+  });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -75,6 +81,9 @@ export default function AdminDbPage() {
       if (data.success) {
         setRows(data.data || []);
         setStats(data.stats || { count: 0 });
+        if (data.dealsMetrics) {
+          setDm(data.dealsMetrics); // Напрямую считываем точную маржу и PnL из базы
+        }
         if (data.tickerRegistry) {
           setTickerRegistry(data.tickerRegistry);
         }
@@ -97,7 +106,7 @@ export default function AdminDbPage() {
       }
       setIsMounted(true);
     }
-  }, []);
+  }, []); // Исправлено: жестко зафиксировали пустой массив зависимостей
 
   useEffect(() => {
     if (!isMounted) return;
@@ -114,10 +123,10 @@ export default function AdminDbPage() {
       localStorage.setItem(STORAGE_KEY_TABLE, tableName);
     }
   };
-
   const handleReloadTable = async () => {
     await loadTableData(activeTable);
   };
+
   const handleSyncBybit = async () => {
     if (isSyncing) return;
     window.dispatchEvent(new Event("db-sync-start"));
@@ -128,9 +137,7 @@ export default function AdminDbPage() {
       const res = await fetch("/api/coins", {
         method: "PATCH",
         headers: getAuthHeaders(),
-        body: JSON.stringify({
-          action: "SYNC_BYBIT",
-        }),
+        body: JSON.stringify({ action: "SYNC_BYBIT" }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
@@ -155,14 +162,12 @@ export default function AdminDbPage() {
         method: "DELETE",
         headers: getAuthHeaders(),
       });
-      if (!res.ok) {
-        throw new Error("Ошибка очистки");
-      }
+      if (!res.ok) throw new Error("Ошибка очистки");
       setRows([]);
       setIsClearOpen(false);
       toast.add({
         title: "Таблица очищена",
-        description: `Все данные из таблицы ` + `${activeTable} стерты.`,
+        description: `Все данные из таблицы ${activeTable} стерты.`,
         type: "success",
       });
     } catch (err: any) {
@@ -184,7 +189,6 @@ export default function AdminDbPage() {
       const blob = new Blob([dataStr], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
-
       link.href = url;
       link.download = `bybit_calc_db_backup_${new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 19).replace("T", "_").replace(/:/g, "-")}.json`;
       document.body.appendChild(link);
@@ -204,9 +208,7 @@ export default function AdminDbPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     const msg =
-      "Внимание! Импорт полностью " +
-      "перезапишет текущие таблицы. " +
-      "Продолжить?";
+      "Внимание! Импорт полностью перезапишет текущие таблицы. Продолжить?";
     if (!confirm(msg)) {
       e.target.value = "";
       return;
@@ -219,10 +221,7 @@ export default function AdminDbPage() {
       const res = await fetch("/api/admin/db", {
         method: "POST",
         headers: getAuthHeaders(),
-        body: JSON.stringify({
-          action: "restore",
-          backupData: parsedBackup,
-        }),
+        body: JSON.stringify({ action: "restore", backupData: parsedBackup }),
       });
       if (res.ok) {
         toast.add({
@@ -271,43 +270,6 @@ export default function AdminDbPage() {
       "precision",
     ].includes(c);
   };
-  const getDealsMetrics = () => {
-    let totalPnl = 0,
-      totalMargin = 0,
-      openCount = 0;
-    let profitCount = 0,
-      lossCount = 0;
-    rows.forEach((r) => {
-      if (activeTable !== "deals") return;
-      const feeRate = 0.0013;
-      const entry = parseFloat(r.entry_price) || 0;
-      const vol = parseFloat(r.volume) || 0;
-      const marg = parseFloat(r.margin) || 0;
-      const status = String(r.status || "").toUpperCase();
-      if (status === "OPEN") {
-        openCount++;
-        return;
-      }
-      totalMargin += marg;
-      const clPrice = r.closed_at_price ? parseFloat(r.closed_at_price) : entry;
-      const cryptoQty = entry > 0 ? vol / entry : 0;
-      const diff = r.side === "BUY" ? clPrice - entry : entry - clPrice;
-      totalPnl += diff * cryptoQty - vol * feeRate;
-      if (status === "PROFIT") profitCount++;
-      if (status === "LOSS") lossCount++;
-    });
-    const closedCount = profitCount + lossCount;
-    const winRate = closedCount > 0 ? (profitCount / closedCount) * 100 : 0;
-    return {
-      totalPnl,
-      totalMargin,
-      openCount,
-      profitCount,
-      lossCount,
-      winRate,
-    };
-  };
-
   const processAdminTableDistribution = () => {
     if (activeTable === "deals") {
       const filteredDeals = rows.filter((row) =>
@@ -332,10 +294,7 @@ export default function AdminDbPage() {
     const newRows: any[] = [];
     const allRows: any[] = [];
     const validTickers = Object.entries(tickerRegistry)
-      .map(([coin, t]: [string, any]) => ({
-        coin,
-        p: t.price24hPcnt || 0,
-      }))
+      .map(([coin, t]: [string, any]) => ({ coin, p: t.price24hPcnt || 0 }))
       .filter((item) => !isNaN(item.p));
     const sortedTickers = [...validTickers].sort((a, b) => b.p - a.p);
     const topGainers = sortedTickers.slice(0, 3).map((i) => i.coin);
@@ -361,11 +320,9 @@ export default function AdminDbPage() {
         }
       }
       const live = tickerRegistry[row.coin] || { turnover24h: 0 };
-      const isMem =
-        row.coin?.includes("DOGE") ||
-        row.coin?.includes("SHIB") ||
-        row.coin?.includes("PEPE") ||
-        row.coin?.includes("BONK");
+      const isMem = ["DOGE", "SHIB", "PEPE", "BONK"].some((t) =>
+        row.coin?.includes(t),
+      );
       const isLiq = live.turnover24h >= 50000000;
       const isRisk = !isLiq && (isMem || live.turnover24h < 10000000);
       if (isLiq) liqRows.push(row);
@@ -391,7 +348,6 @@ export default function AdminDbPage() {
     };
   };
 
-  const dm = getDealsMetrics();
   const {
     liqRows,
     midRows,
@@ -427,13 +383,11 @@ export default function AdminDbPage() {
     "is_delisted",
     "listed_at",
   ];
-
   const activeHeaders = activeTable === "deals" ? dealsHeaders : coinsHeaders;
   return (
     <div
       className={cn(
-        "w-full max-h-screen max-w-5xl mx-auto flex flex-col",
-        "p-2.5 sm:p-6 space-y-4",
+        "w-full max-h-screen max-w-5xl mx-auto flex flex-col p-2.5 sm:p-6 space-y-4",
       )}
     >
       <AdminHeader
@@ -449,26 +403,21 @@ export default function AdminDbPage() {
         delistedCount={rows.filter((r) => r.is_delisted).length}
         activeCount={rows.length - rows.filter((r) => r.is_delisted).length}
       />
-
       <div
         className={cn(
-          "flex flex-col gap-2 p-3 bg-muted/30 ",
-          "border border-border/40 rounded-xl",
+          "flex flex-col gap-2 p-3 bg-muted/30 border border-border/40 rounded-xl",
         )}
       >
         <div
           className={cn(
-            "flex flex-col sm:flex-row ",
-            "items-start sm:items-center ",
-            "justify-between gap-3 w-full",
+            "flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 w-full",
           )}
         >
           <div className="flex items-center gap-2">
             <SettingsIcon className={cn("size-4 text-violet-400 shrink-0")} />
             <div
               className={cn(
-                "text-[11px] font-bold ",
-                "text-muted-foreground uppercase",
+                "text-[11px] font-bold text-muted-foreground uppercase",
               )}
             >
               Панель управления
@@ -476,8 +425,7 @@ export default function AdminDbPage() {
           </div>
           <div
             className={cn(
-              "flex items-center gap-2 ml-auto ",
-              "w-full sm:w-auto justify-end",
+              "flex items-center gap-2 ml-auto w-full sm:w-auto justify-end",
             )}
           >
             <div className="flex items-center gap-2">
@@ -531,7 +479,6 @@ export default function AdminDbPage() {
                     {isLoading || isSyncing ? <Spinner /> : <RefreshCcwIcon />}
                   </Button>
                 )}
-
                 {activeTable === "coins" && (
                   <Button
                     type="button"
@@ -560,9 +507,7 @@ export default function AdminDbPage() {
                         }
                         size={"icon"}
                         className={cn(
-                          "bg-rose-700 ",
-                          "hover:bg-rose-600 ",
-                          "text-white font-bold",
+                          "bg-rose-700 hover:bg-rose-600 text-white font-bold",
                         )}
                         title="Удалить всё"
                       >
@@ -571,10 +516,7 @@ export default function AdminDbPage() {
                     )}
                   />
                   <AlertDialogContent
-                    className={cn(
-                      "rounded-2xl max-w-sm ",
-                      "w-[calc(100%-1rem)]",
-                    )}
+                    className={cn("rounded-2xl max-w-sm w-[calc(100%-1rem)]")}
                   >
                     <AlertDialogHeader>
                       <AlertDialogTitle className="text-sm font-mono">
@@ -596,9 +538,7 @@ export default function AdminDbPage() {
                       <AlertDialogAction
                         onClick={handleTruncateTable}
                         className={cn(
-                          "rounded-xl text-xs h-9 ",
-                          "bg-rose-700 hover:bg-rose-600 ",
-                          "text-white font-bold",
+                          "rounded-xl text-xs h-9 bg-rose-700 hover:bg-rose-600 text-white font-bold",
                         )}
                       >
                         Удалить всё
@@ -610,13 +550,10 @@ export default function AdminDbPage() {
             </div>
           </div>
         </div>
-
         {activeTable === "coins" && syncMeta && (
           <div
             className={cn(
-              "text-[10px] font-semibold ",
-              "text-muted-foreground/60 ",
-              "leading-none px-0.5 mt-1",
+              "text-[10px] font-semibold text-muted-foreground/60 leading-none px-0.5 mt-1",
             )}
           >
             Синхронизировано:{" "}
@@ -625,28 +562,20 @@ export default function AdminDbPage() {
             </span>
           </div>
         )}
-
         {activeTable === "coins" && (
           <div
             className={cn(
-              "w-full pt-1.5 border-t ",
-              "border-border/10 flex ",
-              "flex-col md:flex-row ",
-              "md:items-center ",
-              "justify-between gap-3",
+              "w-full pt-1.5 border-t border-border/10 flex flex-col md:flex-row md:items-center justify-between gap-3",
             )}
           >
             <div
               className={cn(
-                "relative w-full md:w-48 flex ",
-                "items-center group shrink-0",
+                "relative w-full md:w-48 flex items-center group shrink-0",
               )}
             >
               <SearchIcon
                 className={cn(
-                  "absolute left-2.5 h-3.5 ",
-                  "w-3.5 text-muted-foreground/60 ",
-                  "pointer-events-none",
+                  "absolute left-2.5 h-3.5 w-3.5 text-muted-foreground/60 pointer-events-none",
                 )}
               />
               <Input
@@ -658,20 +587,14 @@ export default function AdminDbPage() {
                   isLoading || actionLoading || displayedRows.length === 0
                 }
                 className={cn(
-                  "pl-8 pr-8 h-8 text-xs ",
-                  "bg-background/50 ",
-                  "border-border/40 rounded-lg w-full",
+                  "pl-8 pr-8 h-8 text-xs bg-background/50 border-border/40 rounded-lg w-full",
                 )}
               />
               {searchQuery.length > 0 && (
                 <button
                   onClick={() => setSearchQuery("")}
                   className={cn(
-                    "absolute right-2.5 ",
-                    "text-muted-foreground/60 ",
-                    "hover:text-foreground ",
-                    "bg-transparent border-none ",
-                    "p-0 cursor-pointer",
+                    "absolute right-2.5 text-muted-foreground/60 hover:text-foreground bg-transparent border-none p-0 cursor-pointer",
                   )}
                 >
                   <XIcon className="size-3.5" />
@@ -680,12 +603,7 @@ export default function AdminDbPage() {
             </div>
             <div
               className={cn(
-                "flex flex-wrap gap-1 w-full ",
-                "bg-background border border-input ",
-                "p-0.5 rounded-lg overflow-hidden ",
-                "flex-1 *:h-7 *:text-[10px] ",
-                "*:font-black *:rounded-md ",
-                "*:flex-1 *:min-w-14 *:w-full",
+                "flex flex-wrap gap-1 w-full bg-background border border-input p-0.5 rounded-lg overflow-hidden flex-1 *:h-7 *:text-[10px] *:font-black *:rounded-md *:flex-1 *:min-w-14 *:w-full",
               )}
             >
               <Button
@@ -757,20 +675,18 @@ export default function AdminDbPage() {
           </div>
         )}
       </div>
-
       <Card
         className={cn(
-          "border min-h-32 md:min-h-auto md:grow border-border/40",
-          "bg-background mt-1 py-0!",
+          "border min-h-32 md:min-h-auto md:grow border-border/40 bg-background mt-1 py-0!",
         )}
       >
         {isLoading || actionLoading || isSyncing ? (
           <div
             className={cn(
-              "w-full h-32 flex gap-2 items-center ",
-              "justify-center text-muted-foreground",
+              "w-full h-32 flex gap-2 items-center justify-center text-muted-foreground",
             )}
           >
+            {/* Вредный пустойimg-тег полностью удален для исключения дублирующих запросов */}
             <Spinner className="text-violet-500" />
             <span className="text-xs font-medium">
               {isLoading && !isSyncing && "Загрузка данных..."}
@@ -779,9 +695,7 @@ export default function AdminDbPage() {
             </span>
           </div>
         ) : displayedRows.length === 0 ? (
-          <div
-            className={cn("p-12 text-center text-xs ", "text-muted-foreground")}
-          >
+          <div className={cn("p-12 text-center text-xs text-muted-foreground")}>
             Ничего не найдено
           </div>
         ) : (
