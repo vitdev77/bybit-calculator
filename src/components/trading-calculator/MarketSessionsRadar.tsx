@@ -29,6 +29,7 @@ interface Session {
   icon: React.ComponentType<any>;
 }
 
+// Скорректировали UTC-время работы под реальные биржевые регламенты
 const MARKET_SESSIONS: Session[] = [
   {
     name: "SYD",
@@ -47,7 +48,7 @@ const MARKET_SESSIONS: Session[] = [
     name: "TOK",
     fullname: "Токио (Азия)",
     startUtc: 0,
-    endUtc: 8,
+    endUtc: 9, // Исправлено на 09:00 UTC для честного пересечения с Европой
     color: "#10b981",
     bgCls: "bg-emerald-500/10 dark:bg-emerald-500/5",
     borderCls: "border-emerald-500/40 dark:border-emerald-500/20",
@@ -89,12 +90,15 @@ interface SessionMeta {
   statusType: "OPENING" | "CLOSING" | "TRADING" | "CLOSED";
   statusText: string;
   countdownText: string;
+  localStart: number;
+  localEnd: number;
 }
 
 interface RadarState {
   h: number;
   m: number;
   s: number;
+  tzName: string;
   metaMap: Record<string, SessionMeta>;
   overlap: { title: string; desc: string; level: string; timeAlert: string };
 }
@@ -104,6 +108,7 @@ export default function MarketSessionsRadar() {
     h: 0,
     m: 0,
     s: 0,
+    tzName: "Local",
     metaMap: {},
     overlap: {
       title: "Загрузка",
@@ -117,19 +122,28 @@ export default function MarketSessionsRadar() {
     setMounted(true);
     const calculateRadarMetrics = () => {
       const now = new Date();
-      const h = now.getUTCHours();
-      const m = now.getUTCMinutes();
-      const s = now.getUTCSeconds();
+      const h = now.getHours();
+      const m = now.getMinutes();
+      const s = now.getSeconds();
+      const utcHours = now.getUTCHours();
+
+      const offsetHours = -now.getTimezoneOffset() / 60;
+      const sign = offsetHours >= 0 ? "+" : "";
+      const tzName = `GMT${sign}${offsetHours}`;
 
       const metaMap: Record<string, SessionMeta> = {};
       MARKET_SESSIONS.forEach((session) => {
         const start = session.startUtc;
         const end = session.endUtc;
+
+        const localStart = (start + offsetHours + 24) % 24;
+        const localEnd = (end + offsetHours + 24) % 24;
+
         let isActive = false;
         if (start < end) {
-          isActive = h >= start && h < end;
+          isActive = utcHours >= start && utcHours < end;
         } else {
-          isActive = h >= start || h < end;
+          isActive = utcHours >= start || utcHours < end;
         }
 
         let statusType: "OPENING" | "CLOSING" | "TRADING" | "CLOSED" = "CLOSED";
@@ -137,23 +151,23 @@ export default function MarketSessionsRadar() {
         let countdownText = "";
 
         if (isActive) {
-          if (h === start && m < 30) {
+          if (utcHours === start && m < 30) {
             statusType = "OPENING";
             statusText = "ОТКРЫТИЕ";
-          } else if ((h + 1) % 24 === end && m >= 30) {
+          } else if ((utcHours + 1) % 24 === end && m >= 30) {
             statusType = "CLOSING";
             statusText = "ФИКСАЦИЯ";
           } else {
             statusType = "TRADING";
             statusText = "ТОРГОВЛЯ";
           }
-          let remainingHours = end - h - 1;
-          if (end <= h) remainingHours = 24 - h + end - 1;
+          let remainingHours = end - utcHours - 1;
+          if (end <= utcHours) remainingHours = 24 - utcHours + end - 1;
           if (remainingHours < 0) remainingHours = 0;
           countdownText = `${remainingHours}ч ${59 - m}м`;
         } else {
-          let untilHours = start - h;
-          if (start <= h) untilHours = 24 - h + start;
+          let untilHours = start - utcHours;
+          if (start <= utcHours) untilHours = 24 - utcHours + start;
           if (untilHours > 0 && m > 0) untilHours -= 1;
           const remainingMins = m === 0 ? 0 : 60 - m;
           countdownText = `через ${untilHours}ч ${remainingMins}м`;
@@ -164,6 +178,8 @@ export default function MarketSessionsRadar() {
           statusType,
           statusText,
           countdownText,
+          localStart,
+          localEnd,
         };
       });
 
@@ -179,7 +195,7 @@ export default function MarketSessionsRadar() {
       const isTok = metaMap["TOK"]?.isActive;
 
       if (isLon && isNy) {
-        let remainingHours = 16 - h - 1;
+        let remainingHours = 16 - utcHours - 1;
         overlap = {
           title: "ВРЕМЯ СИЛЫ (LON + NY)",
           desc: "Пиковая ликвидность Bybit. Агрессивные пробойные сетапы и чистые тренды.",
@@ -189,9 +205,9 @@ export default function MarketSessionsRadar() {
       } else if (isTok && isLon) {
         overlap = {
           title: "ПЕРЕСЕЧЕНИЕ АЗИЯ + ЕВРОПА",
-          desc: "Высокая активность, возможны развороты утренних движений.",
+          desc: "Повышенная волатильность, объемы заходят в стакан на стыке сессий.",
           level: "mid",
-          timeAlert: "Вливание европейского капитала в рынок",
+          timeAlert: "Токио и Лондон работают одновременно",
         };
       } else {
         const count = MARKET_SESSIONS.filter(
@@ -199,12 +215,12 @@ export default function MarketSessionsRadar() {
         ).length;
         if (count >= 2) {
           overlap = {
-            title: "П ПЕРЕСЕЧЕНИЕ СЕССИЙ",
-            desc: "Повышенная волатильность, объемы заходят в стакан.",
+            title: "ПЕРЕСЕЧЕНИЕ СЕССИЙ",
+            desc: "Смешанные объемы в стакане, возможна повышенная волатильность.",
             level: "mid",
             timeAlert: "Наложение двух часовых поясов",
           };
-        } else if (h >= 22 || h < 2) {
+        } else if (utcHours >= 22 || utcHours < 2) {
           overlap = {
             title: "ТИХООКЕАНСКИЙ ФЛЭТ",
             desc: "Низкие объемы. Осторожно с лимитными ордерами, рынок спит.",
@@ -214,13 +230,13 @@ export default function MarketSessionsRadar() {
         }
       }
 
-      setTimeState({ h, m, s, metaMap, overlap });
+      setTimeState({ h, m, s, tzName, metaMap, overlap });
     };
 
     calculateRadarMetrics();
     const timer = setInterval(calculateRadarMetrics, 1000);
     return () => clearInterval(timer);
-  }, []); // Строгий пустой массив зависимостей для защиты от утечек памяти
+  }, []); // Массив зависимостей железно пустой
 
   const pad = (n: number) => String(n).padStart(2, "0");
   const renderStatusIcon = (
@@ -248,7 +264,7 @@ export default function MarketSessionsRadar() {
         </div>
         <div className="text-right text-sm font-black text-foreground bg-background/80 dark:bg-zinc-950/80 border border-border/10 rounded-lg px-2.5 py-0.5 tracking-tight shadow-md flex items-center gap-1.5">
           <span className="text-[9px] text-muted-foreground/50 font-bold uppercase">
-            UTC:
+            {timeState.tzName}:
           </span>
           <span className="text-amber-500">
             {mounted
@@ -264,6 +280,8 @@ export default function MarketSessionsRadar() {
             statusType: "CLOSED",
             statusText: "Закрыт",
             countdownText: "",
+            localStart: 0,
+            localEnd: 0,
           };
           const active = !!meta.isActive;
           const IconComponent = session.icon;
@@ -354,10 +372,12 @@ export default function MarketSessionsRadar() {
         <div className="relative w-full h-22 rounded-xl border border-border/20 bg-background/50 dark:bg-zinc-950/40 flex flex-col justify-center px-1">
           <div className="relative w-full h-18 bg-muted/20 dark:bg-neutral-900/30 rounded-lg flex flex-col justify-between py-1 px-1">
             {MARKET_SESSIONS.map((session, laneIdx) => {
-              const start = session.startUtc;
-              const end = session.endUtc;
+              const meta = timeState.metaMap[session.name];
+              if (!meta) return null;
+              const start = meta.localStart;
+              const end = meta.localEnd;
               const laneTop = `${laneIdx * 25 + 2}%`;
-              const barActive = !!timeState.metaMap[session.name]?.isActive;
+              const barActive = meta.isActive;
               const barBaseCls =
                 "absolute h-3.5 opacity-60 rounded-md transition-all duration-300 flex items-center justify-center text-[7px] font-black text-white px-1 overflow-hidden shadow-xs border border-white/5";
               if (start < end) {
@@ -383,7 +403,6 @@ export default function MarketSessionsRadar() {
                   </div>
                 );
               } else {
-                // Исправлено: Левый сегмент жестко привязан к левому краю (0%), правый - к точке старта (22)
                 let left1 = (start / 24) * 100;
                 let width1 = ((24 - start) / 24) * 100;
                 let left2 = 0;
