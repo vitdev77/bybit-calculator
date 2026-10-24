@@ -31,7 +31,6 @@ export default function Home() {
   const [isJournalExpanded, setIsJournalExpanded] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
 
-  // Стабилизируем ссылку на сеттер статуса базы данных, изолируя дочерний эффект
   const handleSyncStatusChange = useCallback((status: boolean) => {
     setIsDbSyncing((prev) => (prev !== status ? status : prev));
   }, []);
@@ -151,7 +150,7 @@ export default function Home() {
         </div>
       </header>
       <main className="max-w-[2000px] mx-auto pt-4 pb-6 relative px-2 sm:px-6 w-full flex-1 space-y-4">
-        <div className="border border-border/40 bg-background rounded-2xl p-1 transition-all">
+        <div className="border border-border/40 bg-background rounded-2xl p-1 transition-all h-auto">
           <div
             onClick={() => setIsRadarExpanded(!isRadarExpanded)}
             className="flex items-center justify-between px-3 py-2 cursor-pointer select-none"
@@ -172,20 +171,20 @@ export default function Home() {
           </div>
           <div
             className={cn(
-              "radar-container-grid grid transition-all duration-300 ease-in-out overflow-hidden",
+              "grid transition-[grid-template-rows,opacity] duration-300 ease-in-out overflow-hidden h-auto min-h-0",
               isRadarExpanded
                 ? "grid-rows-[1fr] opacity-100"
                 : "grid-rows-[0fr] opacity-0",
             )}
           >
-            <div className="min-h-0 w-full">
+            <div className="min-h-0 w-full overflow-hidden">
               <MarketSessionsRadar />
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start w-full overflow-hidden">
-          <div className="xl:col-span-5 order-first xl:order-last w-full">
-            <div className="border border-border/40 bg-background rounded-2xl p-1 transition-all">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start w-full overflow-hidden h-auto">
+          <div className="xl:col-span-5 order-first xl:order-last w-full h-auto">
+            <div className="border border-border/40 bg-background rounded-2xl p-1 transition-all h-auto">
               <div
                 onClick={() => setIsCalcExpanded(!isCalcExpanded)}
                 className={cn(
@@ -208,13 +207,13 @@ export default function Home() {
               </div>
               <div
                 className={cn(
-                  "calc-container-grid grid transition-all duration-300 ease-in-out overflow-hidden",
+                  "grid transition-[grid-template-rows,opacity] duration-300 ease-in-out overflow-hidden h-auto min-h-0",
                   isCalcExpanded
                     ? "grid-rows-[1fr] opacity-100"
                     : "grid-rows-[0fr] opacity-0",
                 )}
               >
-                <div className="min-h-0 w-full">
+                <div className="min-h-0 w-full overflow-hidden">
                   <TradingCalculator
                     selectedCoin={selectedCoin}
                     setSelectedCoin={setSelectedCoin}
@@ -228,8 +227,8 @@ export default function Home() {
               </div>
             </div>
           </div>
-          <div className="xl:col-span-7 grid grid-cols-1 gap-6 w-full min-w-0">
-            <div className="border border-border/40 bg-background rounded-2xl p-1 transition-all">
+          <div className="xl:col-span-7 grid grid-cols-1 gap-6 w-full min-w-0 h-auto">
+            <div className="border border-border/40 bg-background rounded-2xl p-1 transition-all h-auto">
               <div
                 onClick={() => setIsChartExpanded(!isChartExpanded)}
                 className={cn(
@@ -252,18 +251,18 @@ export default function Home() {
               </div>
               <div
                 className={cn(
-                  "chart-container-grid grid transition-all duration-300 ease-in-out overflow-hidden",
+                  "grid transition-[grid-template-rows,opacity] duration-300 ease-in-out overflow-hidden h-auto min-h-0",
                   isChartExpanded
                     ? "grid-rows-[1fr] opacity-100"
                     : "grid-rows-[0fr] opacity-0",
                 )}
               >
-                <div className="min-h-0 w-full">
+                <div className="min-h-0 w-full overflow-hidden">
                   <TradingViewChart coin={selectedCoin} />
                 </div>
               </div>
             </div>
-            <div className="border border-border/40 bg-background rounded-2xl p-1 transition-all">
+            <div className="border border-border/40 bg-background rounded-2xl p-1 transition-all h-auto">
               <div
                 onClick={() => setIsJournalExpanded(!isJournalExpanded)}
                 className={cn(
@@ -286,7 +285,7 @@ export default function Home() {
               </div>
               <div
                 className={cn(
-                  "journal-container-grid grid transition-all duration-300 ease-in-out overflow-hidden",
+                  "grid transition-[grid-template-rows,opacity] duration-300 ease-in-out overflow-hidden h-auto min-h-0",
                   isJournalExpanded
                     ? "grid-rows-[1fr] opacity-100"
                     : "grid-rows-[0fr] opacity-0",
