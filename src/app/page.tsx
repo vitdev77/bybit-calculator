@@ -149,39 +149,7 @@ export default function Home() {
           </div>
         </div>
       </header>
-      <main className="max-w-[2000px] mx-auto pt-4 pb-6 relative px-2 sm:px-6 w-full flex-1 space-y-4">
-        <div className="border border-border/40 bg-background rounded-2xl p-1 transition-all h-auto">
-          <div
-            onClick={() => setIsRadarExpanded(!isRadarExpanded)}
-            className="flex items-center justify-between px-3 py-2 cursor-pointer select-none"
-          >
-            <div className="flex flex-col min-w-0 pr-2">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Мониторинг рыночных сессий и активности
-              </h2>
-            </div>
-            <div className="text-muted-foreground">
-              <ChevronUpIcon
-                className={cn(
-                  "size-4 transition-all duration-300",
-                  !isRadarExpanded && "rotate-180",
-                )}
-              />
-            </div>
-          </div>
-          <div
-            className={cn(
-              "grid transition-[grid-template-rows,opacity] duration-300 ease-in-out overflow-hidden h-auto min-h-0",
-              isRadarExpanded
-                ? "grid-rows-[1fr] opacity-100"
-                : "grid-rows-[0fr] opacity-0",
-            )}
-          >
-            <div className="min-h-0 w-full overflow-hidden">
-              <MarketSessionsRadar />
-            </div>
-          </div>
-        </div>
+      <main className="max-w-[2000px] mx-auto pt-4 pb-6 relative px-2 sm:px-6 w-full flex-1">
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start w-full overflow-hidden h-auto">
           <div className="xl:col-span-5 order-first xl:order-last w-full h-auto">
             <div className="border border-border/40 bg-background rounded-2xl p-1 transition-all h-auto">
@@ -230,6 +198,40 @@ export default function Home() {
           <div className="xl:col-span-7 grid grid-cols-1 gap-6 w-full min-w-0 h-auto">
             <div className="border border-border/40 bg-background rounded-2xl p-1 transition-all h-auto">
               <div
+                onClick={() => setIsRadarExpanded(!isRadarExpanded)}
+                className="flex items-center justify-between px-3 py-2 cursor-pointer select-none"
+              >
+                <div className="flex flex-col min-w-0 pr-2">
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Мониторинг рыночных сессий и активности
+                  </h2>
+                </div>
+                <div className="text-muted-foreground">
+                  <ChevronUpIcon
+                    className={cn(
+                      "size-4 transition-all duration-300",
+                      !isRadarExpanded && "rotate-180",
+                    )}
+                  />
+                </div>
+              </div>
+              {/* Настроили строгое соответствие: если приложение еще не смонтировано на клиенте, Grid изначально скрыт */}
+              <div
+                className={cn(
+                  "grid transition-[grid-template-rows,opacity] duration-300 ease-in-out overflow-hidden h-auto min-h-0",
+                  isMounted && isRadarExpanded
+                    ? "grid-rows-[1fr] opacity-100"
+                    : "grid-rows-[0fr] opacity-0",
+                )}
+              >
+                <div className="min-h-0 w-full overflow-hidden">
+                  <MarketSessionsRadar />
+                </div>
+              </div>
+            </div>
+
+            <div className="border border-border/40 bg-background rounded-2xl p-1 transition-all h-auto">
+              <div
                 onClick={() => setIsChartExpanded(!isChartExpanded)}
                 className={cn(
                   "flex items-center justify-between px-3 py-2 cursor-pointer select-none",
@@ -252,7 +254,7 @@ export default function Home() {
               <div
                 className={cn(
                   "grid transition-[grid-template-rows,opacity] duration-300 ease-in-out overflow-hidden h-auto min-h-0",
-                  isChartExpanded
+                  isMounted && isChartExpanded
                     ? "grid-rows-[1fr] opacity-100"
                     : "grid-rows-[0fr] opacity-0",
                 )}
@@ -286,7 +288,7 @@ export default function Home() {
               <div
                 className={cn(
                   "grid transition-[grid-template-rows,opacity] duration-300 ease-in-out overflow-hidden h-auto min-h-0",
-                  isJournalExpanded
+                  isMounted && isJournalExpanded
                     ? "grid-rows-[1fr] opacity-100"
                     : "grid-rows-[0fr] opacity-0",
                 )}
