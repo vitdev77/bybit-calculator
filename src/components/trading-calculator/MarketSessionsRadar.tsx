@@ -170,7 +170,7 @@ export default function MarketSessionsRadar() {
           if (start <= utcHours) untilHours = 24 - utcHours + start;
           if (untilHours > 0 && m > 0) untilHours -= 1;
           const remainingMins = m === 0 ? 0 : 60 - m;
-          countdownText = `через ${untilHours}ч ${remainingMins}м`;
+          countdownText = `${untilHours}ч ${remainingMins}м`;
         }
 
         metaMap[session.name] = {
@@ -350,7 +350,7 @@ export default function MarketSessionsRadar() {
                 </div>
                 <div className="flex justify-between items-center opacity-80 mt-0.5">
                   <span className="opacity-40">
-                    {active ? "До конца:" : "Старт:"}
+                    {active ? "До закрытия:" : "До открытия:"}
                   </span>
                   <span className="font-bold tabular-nums">
                     {meta.countdownText}
