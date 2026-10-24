@@ -1,11 +1,12 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { ChevronUpIcon, DatabaseIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import TradingCalculator from "@/components/trading-calculator/TradingCalculatorWS";
 import TradingViewChart from "@/components/trading-calculator/TradingViewChart";
 import TradingJournal from "@/components/trading-calculator/TradingJournal";
+import MarketSessionsRadar from "@/components/trading-calculator/MarketSessionsRadar";
 import { ModeToggle } from "@/components/ModeToggle";
 
 const STORAGE_KEY_LAYOUT = "bybit_calculator_layout_v1";
@@ -24,10 +25,16 @@ export default function Home() {
   const [partsCount, setPartsCount] = useState(5);
   const [isDbSyncing, setIsDbSyncing] = useState(false);
 
+  const [isRadarExpanded, setIsRadarExpanded] = useState(true);
   const [isCalcExpanded, setIsCalcExpanded] = useState(true);
   const [isChartExpanded, setIsChartExpanded] = useState(true);
   const [isJournalExpanded, setIsJournalExpanded] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
+
+  // Стабилизируем ссылку на сеттер статуса базы данных, изолируя дочерний эффект
+  const handleSyncStatusChange = useCallback((status: boolean) => {
+    setIsDbSyncing((prev) => (prev !== status ? status : prev));
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -35,6 +42,9 @@ export default function Home() {
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
+          if (parsed.isRadarExpanded !== undefined) {
+            setIsRadarExpanded(parsed.isRadarExpanded);
+          }
           if (parsed.isCalcExpanded !== undefined) {
             setIsCalcExpanded(parsed.isCalcExpanded);
           }
@@ -54,19 +64,20 @@ export default function Home() {
 
   useEffect(() => {
     if (!isMounted) return;
-    const layoutState = { isCalcExpanded, isChartExpanded, isJournalExpanded };
-    localStorage.setItem(STORAGE_KEY_LAYOUT, JSON.stringify(layoutState));
-    const updateAttr = (attr: string, cond: boolean) => {
-      if (cond) {
-        document.documentElement.removeAttribute(attr);
-      } else {
-        document.documentElement.setAttribute(attr, "true");
-      }
+    const layoutState = {
+      isRadarExpanded,
+      isCalcExpanded,
+      isChartExpanded,
+      isJournalExpanded,
     };
-    updateAttr("data-hide-calc", isCalcExpanded);
-    updateAttr("data-hide-chart", isChartExpanded);
-    updateAttr("data-hide-journal", isJournalExpanded);
-  }, [isCalcExpanded, isChartExpanded, isJournalExpanded, isMounted]);
+    localStorage.setItem(STORAGE_KEY_LAYOUT, JSON.stringify(layoutState));
+  }, [
+    isRadarExpanded,
+    isCalcExpanded,
+    isChartExpanded,
+    isJournalExpanded,
+    isMounted,
+  ]);
 
   const handleDealsCountChange = (summary: DealsCount) => {
     setOpenCount(summary.open || 0);
@@ -95,7 +106,6 @@ export default function Home() {
           </span>
         </div>
       )}
-
       <header
         className={cn(
           "sticky top-0 z-50 w-full bg-background/60 backdrop-blur-xl",
@@ -124,7 +134,6 @@ export default function Home() {
               </p>
             </div>
           </div>
-
           <div className="flex items-center gap-3 shrink-0 ml-auto">
             <Link
               href="/admin/db"
@@ -141,8 +150,39 @@ export default function Home() {
           </div>
         </div>
       </header>
-
-      <main className="max-w-[2000px] mx-auto pt-4 pb-6 relative px-2 sm:px-6 w-full flex-1">
+      <main className="max-w-[2000px] mx-auto pt-4 pb-6 relative px-2 sm:px-6 w-full flex-1 space-y-4">
+        <div className="border border-border/40 bg-background rounded-2xl p-1 transition-all">
+          <div
+            onClick={() => setIsRadarExpanded(!isRadarExpanded)}
+            className="flex items-center justify-between px-3 py-2 cursor-pointer select-none"
+          >
+            <div className="flex flex-col min-w-0 pr-2">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Мониторинг рыночных сессий и активности
+              </h2>
+            </div>
+            <div className="text-muted-foreground">
+              <ChevronUpIcon
+                className={cn(
+                  "size-4 transition-all duration-300",
+                  !isRadarExpanded && "rotate-180",
+                )}
+              />
+            </div>
+          </div>
+          <div
+            className={cn(
+              "radar-container-grid grid transition-all duration-300 ease-in-out overflow-hidden",
+              isRadarExpanded
+                ? "grid-rows-[1fr] opacity-100"
+                : "grid-rows-[0fr] opacity-0",
+            )}
+          >
+            <div className="min-h-0 w-full">
+              <MarketSessionsRadar />
+            </div>
+          </div>
+        </div>
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start w-full overflow-hidden">
           <div className="xl:col-span-5 order-first xl:order-last w-full">
             <div className="border border-border/40 bg-background rounded-2xl p-1 transition-all">
@@ -182,7 +222,7 @@ export default function Home() {
                     onPriceUpdate={setCurrentCoinPrice}
                     externalPartsCount={partsCount}
                     setExternalPartsCount={setPartsCount}
-                    onSyncStatusChange={setIsDbSyncing}
+                    onSyncStatusChange={handleSyncStatusChange}
                   />
                 </div>
               </div>
@@ -223,7 +263,6 @@ export default function Home() {
                 </div>
               </div>
             </div>
-
             <div className="border border-border/40 bg-background rounded-2xl p-1 transition-all">
               <div
                 onClick={() => setIsJournalExpanded(!isJournalExpanded)}
