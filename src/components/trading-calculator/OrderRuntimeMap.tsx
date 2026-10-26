@@ -284,7 +284,12 @@ export function OrderRuntimeMap({
             style={{ left: `${tpPct}%`, transform: "translateX(-100%)" }}
           />
           {!isOpen && hasManualClosePointer && closePct !== null && (
-            <div className="absolute -left-1.5 flex flex-row items-center z-30 rounded-full overflow-hidden shadow-xs">
+            <div
+              className={cn(
+                "absolute flex flex-row items-center z-30 rounded-full overflow-hidden shadow-xs",
+                tpPct === closePct ? "-right-1.5" : "-left-1.5",
+              )}
+            >
               <span className="p-2 bg-blue-600 text-white">
                 <RocketIcon className="size-3.5 shrink-0" />
               </span>

@@ -300,8 +300,7 @@ export function AdminTable({
         badgeCls = "bg-rose-500/10 text-rose-400 border-rose-500/20 font-bold";
       else if (s === "OPEN")
         badgeCls =
-          "bg-amber-500/10 text-amber-400 border-amber-500/20 " +
-          "font-black animate-pulse";
+          "bg-amber-500/10 text-amber-400 border-amber-500/20 font-black animate-pulse";
       return (
         <span
           className={cn(
