@@ -29,7 +29,6 @@ interface Session {
   icon: React.ComponentType<any>;
 }
 
-// Скорректировали UTC-время работы под реальные биржевые регламенты
 const MARKET_SESSIONS: Session[] = [
   {
     name: "SYD",
@@ -48,7 +47,7 @@ const MARKET_SESSIONS: Session[] = [
     name: "TOK",
     fullname: "Токио (Азия)",
     startUtc: 0,
-    endUtc: 9, // Исправлено на 09:00 UTC для честного пересечения с Европой
+    endUtc: 9,
     color: "#10b981",
     bgCls: "bg-emerald-500/10 dark:bg-emerald-500/5",
     borderCls: "border-emerald-500/40 dark:border-emerald-500/20",
@@ -112,7 +111,7 @@ export default function MarketSessionsRadar() {
     metaMap: {},
     overlap: {
       title: "Загрузка",
-      desc: "Синхронизация времени...",
+      desc: "Синхронизация...",
       level: "low",
       timeAlert: "",
     },
@@ -126,26 +125,21 @@ export default function MarketSessionsRadar() {
       const m = now.getMinutes();
       const s = now.getSeconds();
       const utcHours = now.getUTCHours();
-
       const offsetHours = -now.getTimezoneOffset() / 60;
       const sign = offsetHours >= 0 ? "+" : "";
       const tzName = `GMT${sign}${offsetHours}`;
-
       const metaMap: Record<string, SessionMeta> = {};
+
       MARKET_SESSIONS.forEach((session) => {
         const start = session.startUtc;
         const end = session.endUtc;
-
         const localStart = (start + offsetHours + 24) % 24;
         const localEnd = (end + offsetHours + 24) % 24;
 
-        let isActive = false;
-        if (start < end) {
-          isActive = utcHours >= start && utcHours < end;
-        } else {
-          isActive = utcHours >= start || utcHours < end;
-        }
-
+        let isActive =
+          start < end
+            ? utcHours >= start && utcHours < end
+            : utcHours >= start || utcHours < end;
         let statusType: "OPENING" | "CLOSING" | "TRADING" | "CLOSED" = "CLOSED";
         let statusText = "Рынок закрыт";
         let countdownText = "";
@@ -169,10 +163,8 @@ export default function MarketSessionsRadar() {
           let untilHours = start - utcHours;
           if (start <= utcHours) untilHours = 24 - utcHours + start;
           if (untilHours > 0 && m > 0) untilHours -= 1;
-          const remainingMins = m === 0 ? 0 : 60 - m;
-          countdownText = `${untilHours}ч ${remainingMins}м`;
+          countdownText = `${untilHours}ч ${m === 0 ? 0 : 60 - m}м`;
         }
-
         metaMap[session.name] = {
           isActive,
           statusType,
@@ -185,73 +177,66 @@ export default function MarketSessionsRadar() {
 
       let overlap = {
         title: "СТАНДАРТНЫЙ ИМПУЛЬС",
-        desc: "Рынок движется в рамках стандартных сессионных объемов.",
+        desc: "Объемы в рамках нормы.",
         level: "normal",
         timeAlert: "",
       };
-
-      const isLon = metaMap["LON"]?.isActive;
-      const isNy = metaMap["NY"]?.isActive;
-      const isTok = metaMap["TOK"]?.isActive;
-
-      if (isLon && isNy) {
-        let remainingHours = 16 - utcHours - 1;
+      if (metaMap["LON"]?.isActive && metaMap["NY"]?.isActive) {
         overlap = {
           title: "ВРЕМЯ СИЛЫ (LON + NY)",
-          desc: "Пиковая ликвидность Bybit. Агрессивные пробойные сетапы и чистые тренды.",
+          desc: "Пиковая ликвидность Bybit.",
           level: "high",
-          timeAlert: `Пересечение активно еще ${remainingHours}ч ${59 - m}м`,
+          timeAlert: `Активно еще ${16 - utcHours - 1}ч ${59 - m}м`,
         };
-      } else if (isTok && isLon) {
+      } else if (metaMap["TOK"]?.isActive && metaMap["LON"]?.isActive) {
         overlap = {
-          title: "ПЕРЕСЕЧЕНИЕ АЗИЯ + ЕВРОПА",
-          desc: "Повышенная волатильность, объемы заходят в стакан на стыке сессий.",
+          title: "П ПЕРЕСЕЧЕНИЕ АЗИЯ + ЕВРОПА",
+          desc: "Повышенная волатильность.",
           level: "mid",
-          timeAlert: "Токио и Лондон работают одновременно",
+          timeAlert: "Токио и Лондон работают вместе",
         };
-      } else {
-        const count = MARKET_SESSIONS.filter(
-          (s) => metaMap[s.name]?.isActive,
-        ).length;
-        if (count >= 2) {
-          overlap = {
-            title: "ПЕРЕСЕЧЕНИЕ СЕССИЙ",
-            desc: "Смешанные объемы в стакане, возможна повышенная волатильность.",
-            level: "mid",
-            timeAlert: "Наложение двух часовых поясов",
-          };
-        } else if (utcHours >= 22 || utcHours < 2) {
-          overlap = {
-            title: "ТИХООКЕАНСКИЙ ФЛЭТ",
-            desc: "Низкие объемы. Осторожно с лимитными ордерами, рынок спит.",
-            level: "low",
-            timeAlert: "Рекомендуется снизить риски",
-          };
-        }
+      } else if (utcHours >= 22 || utcHours < 2) {
+        overlap = {
+          title: "ТИХООКЕАНСКИЙ ФЛЭТ",
+          desc: "Низкие объемы, рынок спит.",
+          level: "low",
+          timeAlert: "Рекомендуется снизить риски",
+        };
       }
-
       setTimeState({ h, m, s, tzName, metaMap, overlap });
     };
 
     calculateRadarMetrics();
     const timer = setInterval(calculateRadarMetrics, 1000);
     return () => clearInterval(timer);
-  }, []); // Массив зависимостей железно пустой
+  }, []);
 
   const pad = (n: number) => String(n).padStart(2, "0");
   const renderStatusIcon = (
     type: "OPENING" | "CLOSING" | "TRADING" | "CLOSED",
     colorCls: string,
   ) => {
-    const iconSize = "size-3 shrink-0";
     if (type === "OPENING")
-      return <ZapIcon className={cn(iconSize, colorCls, "animate-pulse")} />;
+      return (
+        <ZapIcon className={cn("size-3 shrink-0", colorCls, "animate-pulse")} />
+      );
     if (type === "CLOSING")
-      return <LayersIcon className={cn(iconSize, colorCls)} />;
+      return <LayersIcon className={cn("size-3 shrink-0", colorCls)} />;
     if (type === "TRADING")
-      return <ActivityIcon className={cn(iconSize, colorCls)} />;
-    return <XIcon className={cn(iconSize, "opacity-30")} />;
+      return <ActivityIcon className={cn("size-3 shrink-0", colorCls)} />;
+    return <XIcon className={cn("size-3 shrink-0 opacity-30")} />;
   };
+  const livePositionPercent =
+    ((timeState.h * 60 + timeState.m + timeState.s / 60) / 1440) * 100;
+  const gridHoursAll = Array.from({ length: 25 }, (_, i) => i);
+  const gridHoursMobile = [0, 4, 8, 12, 16, 20, 24];
+
+  const timeBadgeCls =
+    livePositionPercent < 10
+      ? "absolute -top-7 left-0 translate-x-0"
+      : livePositionPercent > 90
+        ? "absolute -top-7 right-0 left-auto translate-x-0"
+        : "absolute -top-7 left-1/2 -translate-x-1/2";
 
   return (
     <div className="w-full border border-border/40 bg-linear-to-b from-muted/30 to-background dark:from-zinc-900/10 dark:to-black/40 rounded-xl p-3.5 select-none text-xs font-mono shadow-xs">
@@ -278,7 +263,7 @@ export default function MarketSessionsRadar() {
           const meta = timeState.metaMap[session.name] || {
             isActive: false,
             statusType: "CLOSED",
-            statusText: "Закрыт",
+            statusText: "Рынок закрыт",
             countdownText: "",
             localStart: 0,
             localEnd: 0,
@@ -289,11 +274,12 @@ export default function MarketSessionsRadar() {
             <div
               key={session.name}
               className={cn(
-                "p-2.5 rounded-xl border flex flex-col justify-between transition-all duration-500 min-h-20 relative overflow-hidden bg-background/30",
+                "p-2.5 rounded-xl border flex flex-col justify-between transition-all duration-500 min-h-22 relative overflow-hidden bg-background/30",
                 active
                   ? `${session.bgCls} ${session.borderCls} ${session.glowCls} ring-1 ring-foreground/5`
                   : "border-border/10 opacity-40 bg-background/10",
               )}
+              style={{ color: active ? session.color : undefined }}
             >
               <IconComponent
                 className="absolute -bottom-4 -right-2 size-24 pointer-events-none transition-all duration-500"
@@ -302,22 +288,7 @@ export default function MarketSessionsRadar() {
                   opacity: active ? 0.1 : 0.03,
                 }}
               />
-              {active && (
-                <span className="absolute top-1.5 right-1.5 flex h-1.5 w-1.5">
-                  <span
-                    className={cn(
-                      "animate-ping absolute inline-flex h-full w-full rounded-full opacity-75",
-                      "bg-current",
-                    )}
-                    style={{ color: session.color }}
-                  />
-                  <span
-                    className="relative inline-flex rounded-full h-1.5 w-1.5"
-                    style={{ backgroundColor: session.color }}
-                  />
-                </span>
-              )}
-              <div className="flex flex-col min-w-0 relative z-10">
+              <div className="flex items-center justify-between w-full relative z-10">
                 <div className="flex items-baseline gap-1">
                   <span
                     className={cn(
@@ -331,11 +302,35 @@ export default function MarketSessionsRadar() {
                     {session.city}
                   </span>
                 </div>
-                <span className="text-[9px] font-bold text-muted-foreground/60 truncate mt-0.5">
+                <div className="flex size-4.5 items-center justify-center relative">
+                  <span
+                    className={cn(
+                      "absolute inset-0.5 rounded-full blur-[3px] opacity-50",
+                      active
+                        ? "bg-current animate-pulse duration-1000"
+                        : "bg-neutral-800",
+                    )}
+                  />
+                  <div
+                    className={cn(
+                      "size-2 rounded-full border border-white/20 transition-all shadow-[inset_0_1px_1px_rgba(255,255,245,0.2)]",
+                      active
+                        ? "bg-current shadow-[0_0_10px_currentColor]"
+                        : "bg-zinc-700/60 dark:bg-zinc-800/80",
+                    )}
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col min-w-0 relative z-10 mt-1">
+                <span className="text-[9px] font-bold text-muted-foreground/60 truncate">
                   {session.fullname}
                 </span>
+                <span className="text-[8px] font-semibold text-muted-foreground/40 mt-0.5 font-mono">
+                  Локально: {pad(Math.floor(meta.localStart))}:00 -{" "}
+                  {pad(Math.floor(meta.localEnd))}:00
+                </span>
               </div>
-              <div className="mt-3 pt-1.5 border-t border-border/10 flex flex-col gap-0.5 text-[9px] relative z-10">
+              <div className="mt-2.5 pt-1.5 border-t border-border/10 flex flex-col gap-0.5 text-[9px] relative z-10">
                 <div className="flex justify-between items-center font-bold">
                   <span className="opacity-40">Статус:</span>
                   <div className="flex items-center gap-1">
@@ -349,9 +344,7 @@ export default function MarketSessionsRadar() {
                   </div>
                 </div>
                 <div className="flex justify-between items-center opacity-80 mt-0.5">
-                  <span className="opacity-40">
-                    {active ? "До закрытия:" : "До открытия:"}
-                  </span>
+                  <span className="opacity-40">До закрытия:</span>
                   <span className="font-bold tabular-nums">
                     {meta.countdownText}
                   </span>
@@ -362,97 +355,142 @@ export default function MarketSessionsRadar() {
         })}
       </div>
       <div className="w-full my-3.5 space-y-1">
-        <div className="flex justify-between text-[8px] font-bold uppercase tracking-wider text-muted-foreground/40 px-1">
-          <span>00:00</span>
-          <span>06:00</span>
-          <span>12:00</span>
-          <span>18:00</span>
-          <span>24:00</span>
-        </div>
-        <div className="relative w-full h-22 rounded-xl border border-border/20 bg-background/50 dark:bg-zinc-950/40 flex flex-col justify-center px-1">
-          <div className="relative w-full h-18 bg-muted/20 dark:bg-neutral-900/30 rounded-lg flex flex-col justify-between py-1 px-1">
-            {MARKET_SESSIONS.map((session, laneIdx) => {
-              const meta = timeState.metaMap[session.name];
-              if (!meta) return null;
-              const start = meta.localStart;
-              const end = meta.localEnd;
-              const laneTop = `${laneIdx * 25 + 2}%`;
-              const barActive = meta.isActive;
-              const barBaseCls =
-                "absolute h-3.5 opacity-60 rounded-md transition-all duration-300 flex items-center justify-center text-[7px] font-black text-white px-1 overflow-hidden shadow-xs border border-white/5";
-              if (start < end) {
-                let left = (start / 24) * 100;
-                let width = ((end - start) / 24) * 100;
-                return (
-                  <div
-                    key={`bar-${session.name}`}
-                    className={barBaseCls}
-                    style={{
-                      left: `${left}%`,
-                      width: `${width}%`,
-                      backgroundColor: session.color,
-                      top: laneTop,
-                      boxShadow: barActive
-                        ? `0 0 10px ${session.color}40`
-                        : "none",
-                    }}
-                  >
-                    <span className="truncate opacity-90">
-                      {session.name} {pad(start)}-{pad(end)}
-                    </span>
-                  </div>
-                );
-              } else {
-                let left1 = (start / 24) * 100;
-                let width1 = ((24 - start) / 24) * 100;
-                let left2 = 0;
-                let width2 = (end / 24) * 100;
-                return (
-                  <React.Fragment key={`bar-frag-${session.name}`}>
+        <div className="relative w-full h-34 rounded-xl border border-border/20 bg-background/50 dark:bg-zinc-950/40 flex flex-col justify-start pt-9 px-2 overflow-visible">
+          <div className="relative w-full h-16 bg-muted/20 dark:bg-neutral-900/30 rounded-lg flex flex-col justify-between py-1 px-0 overflow-visible">
+            <div className="absolute inset-0 z-0 flex justify-between pointer-events-none overflow-hidden rounded-lg">
+              {gridHoursAll.map((h) => (
+                <div
+                  key={`grid-line-${h}`}
+                  className={cn(
+                    "h-full border-l border-solid transition-colors",
+                    h % 4 === 0
+                      ? "border-muted-foreground/25 dark:border-neutral-700"
+                      : "border-muted-foreground/5 dark:border-neutral-900/50",
+                  )}
+                  style={{ width: "1px" }}
+                />
+              ))}
+            </div>
+            <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden rounded-lg">
+              {MARKET_SESSIONS.map((session, laneIdx) => {
+                const meta = timeState.metaMap[session.name];
+                if (!meta) return null;
+                const start = meta.localStart;
+                const end = meta.localEnd;
+                const laneTop = `${laneIdx * 24 + 1}%`;
+                const barActive = meta.isActive;
+                const barBaseCls =
+                  "absolute h-3 opacity-75 rounded-md transition-all duration-300 flex items-center justify-center text-[7px] font-black text-white px-1 overflow-hidden border border-white/5";
+                if (start < end) {
+                  let left = (start / 24) * 100;
+                  let width = ((end - start) / 24) * 100;
+                  return (
                     <div
+                      key={`bar-${session.name}`}
                       className={barBaseCls}
                       style={{
-                        left: `${left1}%`,
-                        width: `${width1}%`,
+                        left: `${left}%`,
+                        width: `${width}%`,
                         backgroundColor: session.color,
                         top: laneTop,
                         boxShadow: barActive
-                          ? `0 0 10px ${session.color}40`
+                          ? `0 0 10px ${session.color}35`
                           : "none",
                       }}
                     >
                       <span className="truncate opacity-90">
-                        {session.name} {pad(start)}-24
+                        {session.name} {pad(start)}-{pad(end)}
                       </span>
                     </div>
-                    <div
-                      className={barBaseCls}
-                      style={{
-                        left: `${left2}%`,
-                        width: `${width2}%`,
-                        backgroundColor: session.color,
-                        top: laneTop,
-                        boxShadow: barActive
-                          ? `0 0 10px ${session.color}40`
-                          : "none",
-                      }}
-                    >
-                      <span className="truncate opacity-90">
-                        {session.name} 00-{pad(end)}
-                      </span>
-                    </div>
-                  </React.Fragment>
-                );
-              }
-            })}
+                  );
+                } else {
+                  let left1 = (start / 24) * 100;
+                  let width1 = ((24 - start) / 24) * 100;
+                  let left2 = 0;
+                  let width2 = (end / 24) * 100;
+                  return (
+                    <React.Fragment key={`bar-frag-${session.name}`}>
+                      <div
+                        className={barBaseCls}
+                        style={{
+                          left: `${left1}%`,
+                          width: `${width1}%`,
+                          backgroundColor: session.color,
+                          top: laneTop,
+                          boxShadow: barActive
+                            ? `0 0 10px ${session.color}35`
+                            : "none",
+                        }}
+                      >
+                        <span className="truncate opacity-90">
+                          {session.name} {pad(start)}-24
+                        </span>
+                      </div>
+                      <div
+                        className={barBaseCls}
+                        style={{
+                          left: `${left2}%`,
+                          width: `${width2}%`,
+                          backgroundColor: session.color,
+                          top: laneTop,
+                          boxShadow: barActive
+                            ? `0 0 10px ${session.color}35`
+                            : "none",
+                        }}
+                      >
+                        <span className="truncate opacity-90">
+                          {session.name} 00-{pad(end)}
+                        </span>
+                      </div>
+                    </React.Fragment>
+                  );
+                }
+              })}
+            </div>
             {mounted && (
               <div
-                className="absolute top-0 bottom-0 w-0.5 bg-rose-500/80 z-20 pointer-events-none"
-                style={{ left: `${(timeState.h / 24) * 100}%` }}
+                className="absolute top-0 bottom-0 w-0.5 z-30 pointer-events-none will-change-transform bg-linear-to-b from-slate-400 via-slate-400/50 to-transparent dark:from-zinc-500 dark:via-zinc-500/50 shadow-[0_0_8px_rgba(148,163,184,0.2)]"
+                style={{ left: `${livePositionPercent}%` }}
               >
-                <div className="absolute -top-1.5 -left-1 size-2.5 rounded-full bg-rose-500 border border-background dark:border-zinc-950 shadow-md animate-pulse" />
-                <div className="h-full w-full border-l border-dashed border-rose-500/40" />
+                <div
+                  className={cn(
+                    "h-4.5 bg-slate-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md border border-white/10 shadow-[0_2px_8px_rgba(148,163,184,0.3)] flex items-center justify-center font-mono select-none tracking-tight",
+                    timeBadgeCls,
+                  )}
+                  style={{ width: "48px" }}
+                >
+                  <span>
+                    {pad(timeState.h)}:{pad(timeState.m)}:{pad(timeState.s)}
+                  </span>
+                </div>
+                <div className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 size-3.5 rounded-full bg-slate-400 dark:bg-zinc-500 border-2 border-background dark:border-zinc-950 shadow-[0_0_8px_rgba(148,163,184,0.6)] flex items-center justify-center">
+                  <div className="size-1 rounded-full bg-white animate-pulse" />
+                </div>
               </div>
+            )}
+          </div>
+          <div className="relative w-full hidden md:flex justify-between px-0.5 mt-2.5 text-[8px] font-black font-mono text-muted-foreground/50 select-none overflow-visible">
+            {gridHoursAll.map((h) => (
+              <span
+                key={`lbl-all-${h}`}
+                className="w-4 text-center -ml-2 first:ml-0 last:-ml-4 tabular-nums"
+              >
+                {pad(h)}
+              </span>
+            ))}
+          </div>
+          <div className="relative w-full flex md:hidden justify-between px-0.5 mt-2.5 text-[8px] font-black font-mono text-muted-foreground/50 select-none overflow-visible">
+            {gridHoursAll.map((h) =>
+              gridHoursMobile.includes(h) ? (
+                <span
+                  key={`lbl-mob-${h}`}
+                  className="w-4 text-center -ml-2 first:ml-0 last:-ml-4 tabular-nums"
+                >
+                  {pad(h)}
+                </span>
+              ) : (
+                <div key={`lbl-mob-empty-${h}`} className="w-0" />
+              ),
             )}
           </div>
         </div>
