@@ -92,9 +92,8 @@ export async function GET(request: Request) {
     > = {};
 
     try {
-      const metaRes = await sql`
-SELECT value FROM sys_settings WHERE key = 'last_sync_meta' LIMIT 1;
-`;
+      const metaRes =
+        await sql`SELECT value FROM sys_settings WHERE key = 'last_sync_meta' LIMIT 1;`;
       if (metaRes && metaRes.length > 0) {
         syncMeta = metaRes[0].value;
       }
@@ -144,7 +143,7 @@ FROM deals d LEFT JOIN coins c ON d.coin = c.coin ORDER BY d.created_at DESC;
 
       rows = rawDeals.map((d: any) => {
         const isLong = d.side === "BUY";
-        const statusUpper = d.status?.toUpperCase();
+        let statusUpper = d.status?.toUpperCase();
         const isOpen = statusUpper === "OPEN";
         const marginVal = parseFloat(d.margin) || 0;
         const volVal = parseFloat(d.volume) || 0;
@@ -152,7 +151,7 @@ FROM deals d LEFT JOIN coins c ON d.coin = c.coin ORDER BY d.created_at DESC;
 
         if (isOpen) {
           dealsMetrics.openCount += 1;
-          dealsMetrics.totalMargin += marginVal; // Суммируем маржу только для открытых позиций
+          dealsMetrics.totalMargin += marginVal;
         } else {
           closedDealsCount += 1;
           const closedPriceNum = d.closed_at_price
@@ -171,11 +170,25 @@ FROM deals d LEFT JOIN coins c ON d.coin = c.coin ORDER BY d.created_at DESC;
             : entryPriceNum - targetPrice;
           const netPnlUsdt = priceDiff * cryptoQty - volVal * 0.0013;
           dealsMetrics.totalPnl += netPnlUsdt;
-          if (netPnlUsdt >= 0) grossProfitDeals += 1;
+
+          if (netPnlUsdt >= 0) {
+            grossProfitDeals += 1;
+          }
+
+          // Корректировка статуса LOSS на BREAKEVEN, если стоп был перенесен в БУ или закрыт в плюс/ноль
+          if (statusUpper === "LOSS") {
+            const isBreakeven = isLong
+              ? targetPrice >= entryPriceNum
+              : targetPrice <= entryPriceNum;
+            if (isBreakeven) {
+              statusUpper = "BREAKEVEN";
+            }
+          }
         }
 
         return {
           ...d,
+          status: statusUpper,
           entry_price: entryPriceNum,
           stop_loss: parseFloat(d.stop_loss) || 0,
           take_profit: parseFloat(d.take_profit) || 0,
@@ -204,7 +217,7 @@ FROM deals d LEFT JOIN coins c ON d.coin = c.coin ORDER BY d.created_at DESC;
       table,
       stats,
       data: rows,
-      dealsMetrics, // Передаем прецизионно рассчитанную на бэкенде статистику маржи
+      dealsMetrics,
       tickerRegistry: registryMap,
       syncMeta,
     });
@@ -212,6 +225,7 @@ FROM deals d LEFT JOIN coins c ON d.coin = c.coin ORDER BY d.created_at DESC;
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
 export async function POST(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {

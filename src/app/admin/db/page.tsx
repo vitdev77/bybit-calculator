@@ -39,7 +39,6 @@ interface SyncMeta {
   totalCoins: number;
   liveCount: number;
 }
-
 export default function AdminDbPage() {
   const [activeTable, setActiveTable] = useState<"deals" | "coins">("deals");
   const [filterType, setFilterType] = useState<string>("ALL");
@@ -59,15 +58,11 @@ export default function AdminDbPage() {
     openCount: 0,
     totalMargin: 0,
   });
-
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const getAuthHeaders = () => {
     const token = process.env.ADMIN_SECRET_KEY || "fallback_default_token_key";
-    return {
-      "X-Admin-Token": token,
-      "Content-Type": "application/json",
-    };
+    return { "X-Admin-Token": token, "Content-Type": "application/json" };
   };
 
   const loadTableData = async (tableName: "deals" | "coins") => {
@@ -81,15 +76,9 @@ export default function AdminDbPage() {
       if (data.success) {
         setRows(data.data || []);
         setStats(data.stats || { count: 0 });
-        if (data.dealsMetrics) {
-          setDm(data.dealsMetrics); // Напрямую считываем точную маржу и PnL из базы
-        }
-        if (data.tickerRegistry) {
-          setTickerRegistry(data.tickerRegistry);
-        }
-        if (data.syncMeta) {
-          setSyncMeta(data.syncMeta);
-        }
+        if (data.dealsMetrics) setDm(data.dealsMetrics);
+        if (data.tickerRegistry) setTickerRegistry(data.tickerRegistry);
+        if (data.syncMeta) setSyncMeta(data.syncMeta);
       }
     } catch (err: any) {
       console.error("Fetch Error:", err.message);
@@ -101,12 +90,11 @@ export default function AdminDbPage() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem(STORAGE_KEY_TABLE);
-      if (saved === "coins" || saved === "deals") {
+      if (saved === "coins" || saved === "deals")
         setActiveTable(saved as "deals" | "coins");
-      }
       setIsMounted(true);
     }
-  }, []); // Исправлено: жестко зафиксировали пустой массив зависимостей
+  }, []);
 
   useEffect(() => {
     if (!isMounted) return;
@@ -119,14 +107,13 @@ export default function AdminDbPage() {
     if (tableName === activeTable) return;
     setRows([]);
     setActiveTable(tableName);
-    if (typeof window !== "undefined") {
+    if (typeof window !== "undefined")
       localStorage.setItem(STORAGE_KEY_TABLE, tableName);
-    }
   };
+
   const handleReloadTable = async () => {
     await loadTableData(activeTable);
   };
-
   const handleSyncBybit = async () => {
     if (isSyncing) return;
     window.dispatchEvent(new Event("db-sync-start"));
@@ -140,13 +127,9 @@ export default function AdminDbPage() {
         body: JSON.stringify({ action: "SYNC_BYBIT" }),
       });
       const data = await res.json();
-      if (res.ok && data.success) {
-        loadTableData(activeTable);
-      } else {
-        throw new Error(data.error || "Ошибка API");
-      }
+      if (res.ok && data.success) loadTableData(activeTable);
+      else throw new Error(data.error || "Ошибка API");
     } catch (err: any) {
-      console.error("Sync Error:", err.message);
       loadTableData(activeTable);
     } finally {
       setIsSyncing(false);
@@ -171,7 +154,7 @@ export default function AdminDbPage() {
         type: "success",
       });
     } catch (err: any) {
-      console.error("Truncate Error:", err.message);
+      console.error(err.message);
     } finally {
       setIsLoading(false);
       window.dispatchEvent(new Event("db-sync-end"));
@@ -190,12 +173,11 @@ export default function AdminDbPage() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `bybit_calc_db_backup_${new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 19).replace("T", "_").replace(/:/g, "-")}.json`;
+      link.download = `bybit_calc_db_backup_${Date.now()}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     } catch (err) {
-      console.error(err);
       toast.add({
         title: "Сбой бэкапа",
         description: "Не удалось выгрузить слепок.",
@@ -207,9 +189,11 @@ export default function AdminDbPage() {
   const handleBackupImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const msg =
-      "Внимание! Импорт полностью перезапишет текущие таблицы. Продолжить?";
-    if (!confirm(msg)) {
+    if (
+      !confirm(
+        "Внимание! Импорт полностью перезапишет текущие таблицы. Продолжить?",
+      )
+    ) {
       e.target.value = "";
       return;
     }
@@ -234,7 +218,6 @@ export default function AdminDbPage() {
         throw new Error();
       }
     } catch (err) {
-      console.error(err);
       toast.add({
         title: "Сбой восстановления",
         description: "Неверный формат JSON.",
@@ -247,34 +230,21 @@ export default function AdminDbPage() {
     }
   };
 
-  const getRowStyles = (row: any) => {
-    if (activeTable === "coins" && row.is_delisted) {
-      return "opacity-50 cursor-not-allowed";
-    }
-    return "hover:bg-muted/10";
-  };
-
-  const isNumericColumn = (col: string) => {
-    const c = col.toLowerCase();
-    return [
-      "id",
-      "price",
-      "entry_price",
-      "stop_loss",
-      "take_profit",
-      "closed_at_price",
-      "volume",
-      "margin",
-      "leverage",
-      "decimals",
-      "precision",
-    ].includes(c);
-  };
   const processAdminTableDistribution = () => {
     if (activeTable === "deals") {
-      const filteredDeals = rows.filter((row) =>
+      let filteredDeals = rows.filter((row) =>
         row.coin?.toLowerCase().includes(searchQuery.toLowerCase()),
       );
+      if (filterType === "BE")
+        filteredDeals = filteredDeals.filter(
+          (row) => row.status === "BREAKEVEN",
+        );
+      if (filterType === "NEW")
+        filteredDeals = filteredDeals.filter((row) => row.status === "OPEN");
+      if (filterType === "DELIS")
+        filteredDeals = filteredDeals.filter((row) =>
+          ["PROFIT", "LOSS", "BREAKEVEN"].includes(row.status),
+        );
       return {
         liqRows: [],
         midRows: [],
@@ -303,31 +273,28 @@ export default function AdminDbPage() {
       .reverse()
       .map((i) => i.coin);
     rows.forEach((row) => {
-      const isMatch = row.coin
-        ?.toLowerCase()
-        .includes(searchQuery.toLowerCase());
-      if (!isMatch) return;
+      if (
+        searchQuery &&
+        !row.coin?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+        return;
       allRows.push(row);
       if (row.is_delisted) {
         delisRows.push(row);
         return;
       }
-      if (row.listed_at) {
-        const created = new Date(row.listed_at).getTime();
-        const oneDayAgo = Date.now() - 1 * 24 * 60 * 60 * 1000;
-        if (created >= oneDayAgo) {
-          newRows.push(row);
-        }
-      }
+      if (
+        row.listed_at &&
+        new Date(row.listed_at).getTime() >= Date.now() - 24 * 60 * 60 * 1000
+      )
+        newRows.push(row);
       const live = tickerRegistry[row.coin] || { turnover24h: 0 };
       const isMem = ["DOGE", "SHIB", "PEPE", "BONK"].some((t) =>
         row.coin?.includes(t),
       );
-      const isLiq = live.turnover24h >= 50000000;
-      const isRisk = !isLiq && (isMem || live.turnover24h < 10000000);
-      if (isLiq) liqRows.push(row);
-      else if (isRisk) riskRows.push(row);
-      else midRows.push(row);
+      if (live.turnover24h >= 50000000) liqRows.push(row);
+      else if (!isMem && live.turnover24h >= 10000000) midRows.push(row);
+      else riskRows.push(row);
     });
     let filtered = allRows;
     if (filterType === "LIQ") filtered = liqRows;
@@ -347,7 +314,6 @@ export default function AdminDbPage() {
       topLosers,
     };
   };
-
   const {
     liqRows,
     midRows,
@@ -359,37 +325,33 @@ export default function AdminDbPage() {
     topGainers,
     topLosers,
   } = processAdminTableDistribution();
+  const activeHeaders =
+    activeTable === "deals"
+      ? [
+          "id",
+          "created_at",
+          "coin",
+          "order_type",
+          "volume",
+          "entry_price",
+          "tp_sl",
+          "status",
+          "closed_at_price",
+          "tp_touched",
+          "sl_touched",
+        ]
+      : [
+          "coin",
+          "logo_slug",
+          "decimals",
+          "is_favorite",
+          "is_active",
+          "is_delisted",
+          "listed_at",
+        ];
 
-  const dealsHeaders = [
-    "id",
-    "created_at",
-    "coin",
-    "order_type",
-    "volume",
-    "entry_price",
-    "tp_sl",
-    "status",
-    "closed_at_price",
-    "tp_touched",
-    "sl_touched",
-  ];
-
-  const coinsHeaders = [
-    "coin",
-    "logo_slug",
-    "decimals",
-    "is_favorite",
-    "is_active",
-    "is_delisted",
-    "listed_at",
-  ];
-  const activeHeaders = activeTable === "deals" ? dealsHeaders : coinsHeaders;
   return (
-    <div
-      className={cn(
-        "w-full max-h-screen max-w-5xl mx-auto flex flex-col p-2.5 sm:p-6 space-y-4",
-      )}
-    >
+    <div className="w-full max-h-screen max-w-5xl mx-auto flex flex-col p-2.5 sm:p-6 space-y-4">
       <AdminHeader
         activeTable={activeTable}
         onTableChange={handleTableChange}
@@ -403,299 +365,250 @@ export default function AdminDbPage() {
         delistedCount={rows.filter((r) => r.is_delisted).length}
         activeCount={rows.length - rows.filter((r) => r.is_delisted).length}
       />
-      <div
-        className={cn(
-          "flex flex-col gap-2 p-3 bg-muted/30 border border-border/40 rounded-xl",
-        )}
-      >
-        <div
-          className={cn(
-            "flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 w-full",
-          )}
-        >
+      <div className="flex flex-col gap-2 p-3 bg-muted/30 border border-border/40 rounded-xl">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 w-full">
           <div className="flex items-center gap-2">
-            <SettingsIcon className={cn("size-4 text-violet-400 shrink-0")} />
-            <div
-              className={cn(
-                "text-[11px] font-bold text-muted-foreground uppercase",
-              )}
-            >
+            <SettingsIcon className="size-4 text-violet-400 shrink-0" />
+            <div className="text-[11px] font-bold text-muted-foreground uppercase">
               Панель управления
             </div>
           </div>
-          <div
-            className={cn(
-              "flex items-center gap-2 ml-auto w-full sm:w-auto justify-end",
-            )}
-          >
-            <div className="flex items-center gap-2">
-              <ButtonGroup>
+          <div className="flex items-center gap-2 ml-auto w-full sm:w-auto justify-end">
+            <ButtonGroup>
+              <Button
+                type="button"
+                disabled={isLoading || rows.length === 0 || isSyncing}
+                onClick={handleBackupExport}
+                size="icon"
+                variant="secondary"
+                title="Бэкап базы данных"
+              >
+                <DownloadIcon className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                disabled={isLoading || isSyncing}
+                onClick={() => fileInputRef.current?.click()}
+                size="icon"
+                variant="secondary"
+                title="Восстановить СУБД"
+              >
+                <UploadIcon className="size-4" />
+              </Button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept=".json"
+                onChange={handleBackupImport}
+                disabled={isLoading || isSyncing}
+                className="hidden"
+              />
+            </ButtonGroup>
+            <ButtonGroup>
+              {activeTable === "deals" && (
                 <Button
                   type="button"
-                  disabled={
-                    actionLoading || isLoading || rows.length === 0 || isSyncing
-                  }
-                  onClick={handleBackupExport}
-                  size={"icon"}
-                  variant={"secondary"}
-                  title="Бэкап базы данных"
+                  disabled={isLoading || isSyncing || rows.length === 0}
+                  onClick={handleReloadTable}
+                  size="icon"
+                  variant="secondary"
+                  title="Обновить таблицу"
                 >
-                  <DownloadIcon className="size-4" />
+                  {isLoading || isSyncing ? <Spinner /> : <RefreshCcwIcon />}
                 </Button>
+              )}
+              {activeTable === "coins" && (
                 <Button
                   type="button"
-                  disabled={actionLoading || isLoading || isSyncing}
-                  onClick={() => fileInputRef.current?.click()}
-                  size={"icon"}
-                  variant={"secondary"}
-                  title="Восстановить СУБД"
+                  disabled={isSyncing || isLoading}
+                  onClick={handleSyncBybit}
+                  size="icon"
+                  variant="secondary"
+                  title="Синхронизация Bybit"
                 >
-                  <UploadIcon className="size-4" />
+                  {isSyncing ? <Spinner /> : <RotateCcwClockIcon />}
                 </Button>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  accept=".json"
-                  onChange={handleBackupImport}
-                  disabled={actionLoading || isLoading || isSyncing}
-                  className="hidden"
-                />
-              </ButtonGroup>
-              <ButtonGroup>
-                {activeTable === "deals" && (
+              )}
+            </ButtonGroup>
+            <AlertDialog open={isClearOpen} onOpenChange={setIsClearOpen}>
+              <AlertDialogTrigger
+                render={(triggerProps) => (
                   <Button
+                    {...triggerProps}
                     type="button"
-                    disabled={
-                      actionLoading ||
-                      isLoading ||
-                      isSyncing ||
-                      rows.length === 0
-                    }
-                    onClick={handleReloadTable}
-                    size={"icon"}
-                    variant={"secondary"}
-                    title="Обновить таблицу"
+                    disabled={isLoading || rows.length === 0 || isSyncing}
+                    size="icon"
+                    className="bg-rose-700 hover:bg-rose-600 text-white font-bold"
+                    title="Удалить всё"
                   >
-                    {isLoading || isSyncing ? <Spinner /> : <RefreshCcwIcon />}
+                    <TrashIcon />
                   </Button>
                 )}
-                {activeTable === "coins" && (
-                  <Button
-                    type="button"
-                    disabled={actionLoading || isSyncing || isLoading}
-                    onClick={handleSyncBybit}
-                    size={"icon"}
-                    variant={"secondary"}
-                    title="Синхронизация Bybit"
+              />
+              <AlertDialogContent className="rounded-2xl max-w-sm w-[calc(100%-1rem)]">
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="text-sm font-mono">
+                    Очистить таблицу{" "}
+                    <span className="uppercase">{activeTable}</span>?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription className="text-xs">
+                    {activeTable === "deals"
+                      ? "Историю Вашей торговли будет полностью удалена из базы данных."
+                      : "Все пары монет будут безвозвратно удалены из базы данных."}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="gap-1.5">
+                  <AlertDialogCancel className="rounded-xl text-xs h-9">
+                    Отмена
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleTruncateTable}
+                    className="rounded-xl text-xs h-9 bg-rose-700 hover:bg-rose-600 text-white font-bold"
                   >
-                    {isSyncing ? <Spinner /> : <RotateCcwClockIcon />}
-                  </Button>
-                )}
-              </ButtonGroup>
-              <ButtonGroup>
-                <AlertDialog open={isClearOpen} onOpenChange={setIsClearOpen}>
-                  <AlertDialogTrigger
-                    render={(triggerProps) => (
-                      <Button
-                        {...triggerProps}
-                        type="button"
-                        disabled={
-                          actionLoading ||
-                          isLoading ||
-                          rows.length === 0 ||
-                          isSyncing
-                        }
-                        size={"icon"}
-                        className={cn(
-                          "bg-rose-700 hover:bg-rose-600 text-white font-bold",
-                        )}
-                        title="Удалить всё"
-                      >
-                        <TrashIcon />
-                      </Button>
-                    )}
-                  />
-                  <AlertDialogContent
-                    className={cn("rounded-2xl max-w-sm w-[calc(100%-1rem)]")}
-                  >
-                    <AlertDialogHeader>
-                      <AlertDialogTitle className="text-sm font-mono">
-                        Очистить таблицу{" "}
-                        <span className="uppercase">{activeTable}</span>?
-                      </AlertDialogTitle>
-                      <AlertDialogDescription className={cn("text-xs")}>
-                        {activeTable === "deals"
-                          ? "Историю Вашей торговли будет полностью удалена из базы данных."
-                          : "Все пары монет будут безвозвратно удалены из базы данных."}
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter className="gap-1.5">
-                      <AlertDialogCancel
-                        className={cn("rounded-xl text-xs h-9")}
-                      >
-                        Отмена
-                      </AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={handleTruncateTable}
-                        className={cn(
-                          "rounded-xl text-xs h-9 bg-rose-700 hover:bg-rose-600 text-white font-bold",
-                        )}
-                      >
-                        Удалить всё
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </ButtonGroup>
-            </div>
+                    Удалить всё
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
         {activeTable === "coins" && syncMeta && (
-          <div
-            className={cn(
-              "text-[10px] font-semibold text-muted-foreground/60 leading-none px-0.5 mt-1",
-            )}
-          >
+          <div className="text-[10px] font-semibold text-muted-foreground/60 leading-none px-0.5 mt-1">
             Синхронизировано:{" "}
-            <span className={cn("text-foreground/80 font-bold")}>
+            <span className="text-foreground/80 font-bold">
               {new Date(syncMeta.timestamp).toLocaleString("ru-RU")}
             </span>
           </div>
         )}
-        {activeTable === "coins" && (
-          <div
-            className={cn(
-              "w-full pt-1.5 border-t border-border/10 flex flex-col md:flex-row md:items-center justify-between gap-3",
+        <div className="w-full pt-1.5 border-t border-border/10 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="relative w-full md:w-48 flex items-center group shrink-0">
+            <SearchIcon className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground/60 pointer-events-none" />
+            <Input
+              type="text"
+              placeholder="Search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              disabled={isLoading || displayedRows.length === 0}
+              className="pl-8 pr-8 h-8 text-xs bg-background/50 border-border/40 rounded-lg w-full"
+            />
+            {searchQuery.length > 0 && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 text-muted-foreground/60 hover:text-foreground bg-transparent border-none p-0 cursor-pointer"
+              >
+                <XIcon className="size-3.5" />
+              </button>
             )}
-          >
-            <div
-              className={cn(
-                "relative w-full md:w-48 flex items-center group shrink-0",
-              )}
-            >
-              <SearchIcon
-                className={cn(
-                  "absolute left-2.5 h-3.5 w-3.5 text-muted-foreground/60 pointer-events-none",
-                )}
-              />
-              <Input
-                type="text"
-                placeholder="Search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                disabled={
-                  isLoading || actionLoading || displayedRows.length === 0
-                }
-                className={cn(
-                  "pl-8 pr-8 h-8 text-xs bg-background/50 border-border/40 rounded-lg w-full",
-                )}
-              />
-              {searchQuery.length > 0 && (
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className={cn(
-                    "absolute right-2.5 text-muted-foreground/60 hover:text-foreground bg-transparent border-none p-0 cursor-pointer",
-                  )}
-                >
-                  <XIcon className="size-3.5" />
-                </button>
-              )}
-            </div>
-            <div
-              className={cn(
-                "flex flex-wrap gap-1 w-full bg-background border border-input p-0.5 rounded-lg overflow-hidden flex-1 *:h-7 *:text-[10px] *:font-black *:rounded-md *:flex-1 *:min-w-14 *:w-full",
-              )}
-            >
-              <Button
-                type="button"
-                disabled={
-                  isLoading || actionLoading || rows.length === 0 || isSyncing
-                }
-                variant={filterType === "ALL" ? "default" : "ghost"}
-                onClick={() => setFilterType("ALL")}
-              >
-                ALL ({allRows.length})
-              </Button>
-              <Button
-                type="button"
-                disabled={
-                  isLoading || actionLoading || rows.length === 0 || isSyncing
-                }
-                variant={filterType === "LIQ" ? "default" : "ghost"}
-                className="text-emerald-500"
-                onClick={() => setFilterType("LIQ")}
-              >
-                LIQ ({liqRows.length})
-              </Button>
-              <Button
-                type="button"
-                disabled={
-                  isLoading || actionLoading || rows.length === 0 || isSyncing
-                }
-                variant={filterType === "MID" ? "default" : "ghost"}
-                className="text-blue-500"
-                onClick={() => setFilterType("MID")}
-              >
-                MID ({midRows.length})
-              </Button>
-              <Button
-                type="button"
-                disabled={
-                  isLoading || actionLoading || rows.length === 0 || isSyncing
-                }
-                variant={filterType === "RISK" ? "default" : "ghost"}
-                className="text-amber-500"
-                onClick={() => setFilterType("RISK")}
-              >
-                RISK ({riskRows.length})
-              </Button>
-              <Button
-                type="button"
-                disabled={
-                  isLoading || actionLoading || rows.length === 0 || isSyncing
-                }
-                variant={filterType === "NEW" ? "default" : "ghost"}
-                className="text-cyan-500"
-                onClick={() => setFilterType("NEW")}
-              >
-                NEW ({newRows.length})
-              </Button>
-              <Button
-                type="button"
-                disabled={
-                  isLoading || actionLoading || rows.length === 0 || isSyncing
-                }
-                variant={filterType === "DELIS" ? "default" : "ghost"}
-                className="text-rose-500"
-                onClick={() => setFilterType("DELIS")}
-              >
-                DEL ({delisRows.length})
-              </Button>
-            </div>
           </div>
-        )}
-      </div>
-      <Card
-        className={cn(
-          "border min-h-32 md:min-h-auto md:grow border-border/40 bg-background mt-1 py-0!",
-        )}
-      >
-        {isLoading || actionLoading || isSyncing ? (
-          <div
-            className={cn(
-              "w-full h-32 flex gap-2 items-center justify-center text-muted-foreground",
+          <div className="flex flex-wrap gap-1 w-full bg-background border border-input p-0.5 rounded-lg overflow-hidden flex-1 *:h-7 *:text-[10px] *:font-black *:rounded-md *:flex-1 *:min-w-14 *:w-full">
+            {activeTable === "deals" ? (
+              <>
+                <Button
+                  type="button"
+                  disabled={isLoading}
+                  variant={filterType === "ALL" ? "default" : "ghost"}
+                  onClick={() => setFilterType("ALL")}
+                >
+                  ALL
+                </Button>
+                <Button
+                  type="button"
+                  disabled={isLoading}
+                  variant={filterType === "NEW" ? "default" : "ghost"}
+                  className="text-amber-500"
+                  onClick={() => setFilterType("NEW")}
+                >
+                  OPEN
+                </Button>
+                <Button
+                  type="button"
+                  disabled={isLoading}
+                  variant={filterType === "BE" ? "default" : "ghost"}
+                  className="text-cyan-500"
+                  onClick={() => setFilterType("BE")}
+                >
+                  BE
+                </Button>
+                <Button
+                  type="button"
+                  disabled={isLoading}
+                  variant={filterType === "DELIS" ? "default" : "ghost"}
+                  className="text-rose-500"
+                  onClick={() => setFilterType("DELIS")}
+                >
+                  CLOSED
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  disabled={isLoading}
+                  variant={filterType === "ALL" ? "default" : "ghost"}
+                  onClick={() => setFilterType("ALL")}
+                >
+                  ALL
+                </Button>
+                <Button
+                  type="button"
+                  disabled={isLoading}
+                  variant={filterType === "LIQ" ? "default" : "ghost"}
+                  className="text-emerald-500"
+                  onClick={() => setFilterType("LIQ")}
+                >
+                  LIQ
+                </Button>
+                <Button
+                  type="button"
+                  disabled={isLoading}
+                  variant={filterType === "MID" ? "default" : "ghost"}
+                  className="text-blue-500"
+                  onClick={() => setFilterType("MID")}
+                >
+                  MID
+                </Button>
+                <Button
+                  type="button"
+                  disabled={isLoading}
+                  variant={filterType === "RISK" ? "default" : "ghost"}
+                  className="text-amber-500"
+                  onClick={() => setFilterType("RISK")}
+                >
+                  RISK
+                </Button>
+                <Button
+                  type="button"
+                  disabled={isLoading}
+                  variant={filterType === "NEW" ? "default" : "ghost"}
+                  className="text-cyan-500"
+                  onClick={() => setFilterType("NEW")}
+                >
+                  NEW
+                </Button>
+                <Button
+                  type="button"
+                  disabled={isLoading}
+                  variant={filterType === "DELIS" ? "default" : "ghost"}
+                  className="text-rose-500"
+                  onClick={() => setFilterType("DELIS")}
+                >
+                  DEL
+                </Button>
+              </>
             )}
-          >
-            {/* Вредный пустойimg-тег полностью удален для исключения дублирующих запросов */}
+          </div>
+        </div>
+      </div>
+      <Card className="border min-h-32 md:min-h-auto md:grow border-border/40 bg-background mt-1 py-0!">
+        {isLoading || isSyncing ? (
+          <div className="w-full h-32 flex gap-2 items-center justify-center text-muted-foreground">
             <Spinner className="text-violet-500" />
             <span className="text-xs font-medium">
-              {isLoading && !isSyncing && "Загрузка данных..."}
-              {actionLoading && !isLoading && "Восстановление данных..."}
-              {isSyncing && "Синхронизация листинга..."}
+              {isSyncing ? "Синхронизация листинга..." : "Загрузка данных..."}
             </span>
           </div>
         ) : displayedRows.length === 0 ? (
-          <div className={cn("p-12 text-center text-xs text-muted-foreground")}>
+          <div className="p-12 text-center text-xs text-muted-foreground">
             Ничего не найдено
           </div>
         ) : (
@@ -703,8 +616,6 @@ export default function AdminDbPage() {
             activeTable={activeTable}
             activeHeaders={activeHeaders}
             displayedRows={displayedRows}
-            getRowStyles={getRowStyles}
-            isNumericColumn={isNumericColumn}
             topGainers={topGainers}
             topLosers={topLosers}
           />

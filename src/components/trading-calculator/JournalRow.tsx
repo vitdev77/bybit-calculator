@@ -45,7 +45,6 @@ interface Deal {
   tp_touched?: boolean;
   sl_touched?: boolean;
 }
-
 interface JournalRowProps {
   deal: Deal;
   livePrice: number;
@@ -106,12 +105,12 @@ export function JournalRow({
     precision >= 4 ||
     ["DOGE", "SHIB", "PEPE", "BONK"].some((t) => deal.coin.includes(t));
   const slippageBuffer = isVolatileCoin ? 0.0004 : 0.0001;
-
   const breakevenPrice = isLong
     ? deal.entry_price *
       ((1 + openFeeRate) / (1 - closeFeeRate - slippageBuffer))
     : deal.entry_price *
       ((1 - openFeeRate) / (1 + closeFeeRate + slippageBuffer));
+
   let pnlDisplay = null;
   const isCurrentActiveCoin = activeCoin === deal.coin;
   const isRowSelected =
@@ -128,6 +127,29 @@ export function JournalRow({
   const livePnlUsdt = currentPriceDiff * cryptoQty - deal.volume * totalFeeRate;
   const liveRoi = deal.margin > 0 ? (livePnlUsdt / deal.margin) * 100 : 0;
   const isLiveProfit = livePnlUsdt >= 0;
+
+  let isClosedBreakeven = false;
+  let statusUpper = deal.status?.toUpperCase();
+
+  if (!isOpen) {
+    const dbClosedPrice = deal.closed_at_price
+      ? parseFloat(String(deal.closed_at_price))
+      : 0;
+    let targetPrice = dbClosedPrice;
+    if (targetPrice <= 0) {
+      targetPrice =
+        statusUpper === "PROFIT" ? deal.take_profit : deal.stop_loss;
+    }
+    if (statusUpper === "LOSS") {
+      const checkBe = isLong
+        ? targetPrice >= deal.entry_price
+        : targetPrice <= deal.entry_price;
+      if (checkBe) {
+        isClosedBreakeven = true;
+        statusUpper = "BREAKEVEN";
+      }
+    }
+  }
 
   if (isOpen && isCurrentActiveCoin && isPriceValid) {
     if (frozenPnL[deal.id]?.pnl !== livePnlUsdt) {
@@ -177,7 +199,6 @@ export function JournalRow({
       </div>
     );
   }
-
   if (!pnlDisplay) {
     if (isOpen) {
       const lastKnown = frozenPnL[deal.id] || { pnl: 0, roi: 0 };
@@ -208,7 +229,6 @@ export function JournalRow({
         </div>
       );
     } else {
-      const statusUpper = deal.status?.toUpperCase();
       const dbClosedPrice = deal.closed_at_price
         ? parseFloat(String(deal.closed_at_price))
         : 0;
@@ -231,27 +251,34 @@ export function JournalRow({
           <span
             className={cn(
               "font-black text-[11px] sm:text-xs",
-              isFinalProfit
-                ? "text-emerald-600 dark:text-emerald-400"
-                : "text-rose-600 dark:text-rose-400",
+              isClosedBreakeven
+                ? "text-cyan-600 dark:text-cyan-400"
+                : isFinalProfit
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-rose-600 dark:text-rose-400",
             )}
           >
-            {isFinalProfit ? "+" : ""}
+            {finalPnlUsdt >= 0 ? "+" : ""}
             {finalPnlUsdt.toFixed(2)} USDT
           </span>
           <span
             className={cn(
               "text-[9px] sm:text-[10px] font-bold",
-              isFinalProfit ? "text-emerald-500/80" : "text-rose-500/80",
+              isClosedBreakeven
+                ? "text-cyan-500/80"
+                : isFinalProfit
+                  ? "text-emerald-500/80"
+                  : "text-rose-500/80",
             )}
           >
-            {isFinalProfit ? "+" : ""}
+            {finalPnlUsdt >= 0 ? "+" : ""}
             {finalRoi.toFixed(2)}%
           </span>
         </div>
       );
     }
   }
+
   const handleMoveToBreakevenClick = async () => {
     if (isMovingToBu || Math.abs(deal.stop_loss - breakevenPrice) < 0.00000001)
       return;
@@ -293,7 +320,6 @@ export function JournalRow({
       console.error(err);
     }
   };
-
   const handleConfirmManualClose = () => {
     setIsManualCloseModalOpen(false);
     handleUpdateStatus(deal.id, "CLOSED", livePrice)
@@ -304,9 +330,7 @@ export function JournalRow({
           type: "info",
         });
       })
-      .catch((err) => {
-        console.error(err);
-      });
+      .catch((err) => console.error(err));
   };
 
   const isAlreadyInBreakeven =
@@ -338,11 +362,13 @@ export function JournalRow({
           style={{ width: isRowSelected ? "6px" : "4px" }}
         />
         <div className="flex items-start gap-1">
-          {deal.status?.toUpperCase() === "PROFIT" ? (
+          {statusUpper === "PROFIT" ? (
             <CheckCircle2Icon className="size-3 text-emerald-500 mt-0.5" />
-          ) : deal.status?.toUpperCase() === "LOSS" ? (
+          ) : statusUpper === "BREAKEVEN" ? (
+            <ShieldCheckIcon className="size-3 text-cyan-500 mt-0.5" />
+          ) : statusUpper === "LOSS" ? (
             <XCircleIcon className="size-3 text-rose-500 mt-0.5" />
-          ) : deal.status?.toUpperCase() === "CLOSED" ? (
+          ) : statusUpper === "CLOSED" ? (
             <ClockIcon className="size-3 text-muted-foreground mt-0.5 opacity-60" />
           ) : (
             <span className="relative flex h-1.5 w-1.5 mt-1.5 mx-0.5">

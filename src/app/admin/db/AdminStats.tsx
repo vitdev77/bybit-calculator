@@ -37,7 +37,6 @@ export function AdminStats({
 }: StatsProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 select-none">
-      {/* КАРТОЧКА 1: СТРУКТУРА СУБД */}
       <div
         className={cn(
           "flex flex-col rounded-2xl border bg-linear-to-br p-3 relative",
@@ -79,7 +78,6 @@ export function AdminStats({
 
       {activeTable === "deals" ? (
         <>
-          {/* КАРТОЧКА 2 ДЛЯ ЖУРНАЛА: NET PNL */}
           <div
             className={cn(
               "flex flex-col rounded-2xl border bg-linear-to-br p-3 relative",
@@ -142,7 +140,6 @@ export function AdminStats({
             </div>
           </div>
 
-          {/* КАРТОЧКА 3 ДЛЯ ЖУРНАЛА: ПОЗИЦИИ */}
           <div
             className={cn(
               "flex flex-col rounded-2xl border bg-linear-to-br p-3 relative",
@@ -181,7 +178,6 @@ export function AdminStats({
         </>
       ) : (
         <>
-          {/* КАРТОЧКА 2 ДЛЯ ЛИСТИНГА: ТРЕКИНГ */}
           <div
             className={cn(
               "flex flex-col rounded-2xl border bg-linear-to-br p-3 relative",
@@ -214,7 +210,6 @@ export function AdminStats({
             </div>
           </div>
 
-          {/* КАРТОЧКА 3 ДЛЯ ЛИСТИНГА: СТАТУС АРХИВА */}
           <div
             className={cn(
               "flex flex-col rounded-2xl border bg-linear-to-br p-3 relative",

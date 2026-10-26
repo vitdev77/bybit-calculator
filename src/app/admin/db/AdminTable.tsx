@@ -33,28 +33,46 @@ interface TableProps {
   activeTable: "deals" | "coins";
   activeHeaders: string[];
   displayedRows: any[];
-  getRowStyles: (row: any) => string;
-  isNumericColumn: (col: string) => boolean;
   topGainers?: string[];
   topLosers?: string[];
 }
 
 const STORAGE_KEY = "bybit_calculator_state_v14";
-
 export function AdminTable({
   activeTable,
   activeHeaders,
   displayedRows = [],
-  getRowStyles,
-  isNumericColumn,
   topGainers = [],
   topLosers = [],
 }: TableProps) {
   const [copiedCoin, setCopiedCoin] = useState<string | null>(null);
-
   const [visibleCount, setVisibleCount] = useState(50);
   const [isIncrementalLoading, setIsIncrementalLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const getRowStyles = (row: any) => {
+    if (activeTable === "coins" && row.is_delisted) {
+      return "opacity-50 cursor-not-allowed";
+    }
+    return "hover:bg-muted/10";
+  };
+
+  const isNumericColumn = (col: string) => {
+    const c = col.toLowerCase();
+    return [
+      "id",
+      "price",
+      "entry_price",
+      "stop_loss",
+      "take_profit",
+      "closed_at_price",
+      "volume",
+      "margin",
+      "leverage",
+      "decimals",
+      "precision",
+    ].includes(c);
+  };
 
   useEffect(() => {
     setVisibleCount(50);
@@ -76,7 +94,6 @@ export function AdminTable({
       }
     }
   };
-
   const handleCopyCoin = (e: React.MouseEvent, coinName: string) => {
     e.preventDefault();
     e.stopPropagation();
@@ -110,14 +127,8 @@ export function AdminTable({
     if (c === "created_at" || c === "listed_at") {
       try {
         const d = new Date(val);
-        const dateStr =
-          `${String(d.getDate()).padStart(2, "0")}.` +
-          `${String(d.getMonth() + 1).padStart(2, "0")}.` +
-          `${String(d.getFullYear())}`;
-        const timeStr =
-          `${String(d.getHours()).padStart(2, "0")}:` +
-          `${String(d.getMinutes()).padStart(2, "0")}:` +
-          `${String(d.getSeconds()).padStart(2, "0")}`;
+        const dateStr = `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getFullYear())}`;
+        const timeStr = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
         return (
           <div
             className={cn(
@@ -202,35 +213,18 @@ export function AdminTable({
             )}
             <span className="font-bold text-foreground text-xs">{val}</span>
             {activeTable === "coins" && isGainer && (
-              <span
-                className={cn(
-                  "px-1 py-0.5 rounded text-[8px] font-black border",
-                  "bg-emerald-500/10 text-emerald-500",
-                  "border-emerald-500/20 tracking-wider ml-1",
-                )}
-              >
+              <span className="px-1 py-0.5 rounded text-[8px] font-black border bg-emerald-500/10 text-emerald-500 border-emerald-500/20 tracking-wider ml-1">
                 GAINER
               </span>
             )}
             {activeTable === "coins" && isLoser && (
-              <span
-                className={cn(
-                  "px-1 py-0.5 rounded text-[8px] font-black border",
-                  "bg-rose-500/10 text-rose-500",
-                  "border-rose-500/20 tracking-wider ml-1",
-                )}
-              >
+              <span className="px-1 py-0.5 rounded text-[8px] font-black border bg-rose-500/10 text-rose-500 border-rose-500/20 tracking-wider ml-1">
                 LOSER
               </span>
             )}
           </div>
           {activeTable === "coins" && row.fullname && (
-            <span
-              className={cn(
-                "text-[10px] text-muted-foreground/60",
-                "font-medium mt-0.5 pl-12.5",
-              )}
-            >
+            <span className="text-[10px] text-muted-foreground/60 font-medium mt-0.5 pl-12.5">
               {row.fullname}
             </span>
           )}
@@ -252,7 +246,6 @@ export function AdminTable({
         </span>
       );
     }
-
     if (c === "volume" && activeTable === "deals") {
       return (
         <div className="flex flex-col leading-tight">
@@ -265,7 +258,6 @@ export function AdminTable({
         </div>
       );
     }
-
     if (c === "tp_sl" && activeTable === "deals") {
       return (
         <div className="flex flex-col text-[10px] leading-tight gap-0.5">
@@ -278,7 +270,6 @@ export function AdminTable({
         </div>
       );
     }
-
     if (c === "logo_slug" && activeTable === "coins") {
       return (
         <LogoSlugCell
@@ -288,7 +279,6 @@ export function AdminTable({
         />
       );
     }
-
     if (c === "status") {
       const s = String(val).toUpperCase();
       let badgeCls =
@@ -298,6 +288,8 @@ export function AdminTable({
           "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 font-bold";
       else if (s === "LOSS")
         badgeCls = "bg-rose-500/10 text-rose-400 border-rose-500/20 font-bold";
+      else if (s === "BREAKEVEN")
+        badgeCls = "bg-cyan-500/10 text-cyan-400 border-cyan-500/20 font-bold";
       else if (s === "OPEN")
         badgeCls =
           "bg-amber-500/10 text-amber-400 border-amber-500/20 font-black animate-pulse";
@@ -313,7 +305,6 @@ export function AdminTable({
         </span>
       );
     }
-
     if (
       typeof val === "boolean" ||
       [
@@ -324,27 +315,24 @@ export function AdminTable({
         "sl_touched",
       ].includes(c)
     ) {
-      if (c === "is_favorite") {
+      if (c === "is_favorite")
         return val ? (
           <StarIcon className="size-4 text-amber-500 fill-amber-500" />
         ) : (
           <StarIcon className="text-muted-foreground/10 size-4" />
         );
-      }
-      if (c === "is_active") {
+      if (c === "is_active")
         return val ? (
           <CircleSmallIcon className="text-emerald-500 fill-emerald-500 size-4" />
         ) : (
-          <CircleSmallIcon className="text-muted-foreground/10 size-4" />
+          <StarIcon className="text-muted-foreground/10 size-4" />
         );
-      }
-      if (c === "is_delisted") {
+      if (c === "is_delisted")
         return val ? (
           <CircleSmallIcon className="text-rose-500 fill-rose-500 size-4" />
         ) : (
-          <CircleSmallIcon className="text-muted-foreground/10 size-4" />
+          <StarIcon className="text-muted-foreground/10 size-4" />
         );
-      }
       return val ? (
         <span
           className={cn(
@@ -361,12 +349,10 @@ export function AdminTable({
         <span className="text-muted-foreground/20">-</span>
       );
     }
-
     return formatValue(val, col, currentPrecision);
   };
 
   const slicedRows = displayedRows.slice(0, visibleCount);
-
   return (
     <div
       ref={containerRef}
@@ -514,15 +500,6 @@ function LogoSlugCell({
     }
   };
 
-  const handleConfirmSaveWrapper = () => {
-    handleConfirmSave();
-  };
-
-  const handleCancelSave = () => {
-    setIsAlertOpen(false);
-    setVal(initialValue || "");
-  };
-
   return (
     <div className="flex items-center gap-1 w-full max-w-32">
       <input
@@ -560,13 +537,16 @@ function LogoSlugCell({
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-1.5">
             <AlertDialogCancel
-              onClick={handleCancelSave}
+              onClick={() => {
+                setIsAlertOpen(false);
+                setVal(initialValue || "");
+              }}
               className={cn("rounded-xl text-xs h-9 cursor-pointer")}
             >
               Отмена
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleConfirmSaveWrapper}
+              onClick={handleConfirmSave}
               className={cn(
                 "rounded-xl text-xs h-9 bg-amber-600 hover:bg-amber-500",
                 "text-white font-bold",
