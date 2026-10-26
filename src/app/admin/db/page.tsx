@@ -46,6 +46,8 @@ export default function AdminDbPage() {
   const [rows, setRows] = useState<any[]>([]);
   const [tickerRegistry, setTickerRegistry] = useState<Record<string, any>>({});
   const [stats, setStats] = useState<any>({ count: 0 });
+  const [dealsTotalCount, setDealsTotalCount] = useState<number>(0);
+  const [coinsTotalCount, setCoinsTotalCount] = useState<number>(0);
   const [syncMeta, setSyncMeta] = useState<SyncMeta | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -76,6 +78,11 @@ export default function AdminDbPage() {
       if (data.success) {
         setRows(data.data || []);
         setStats(data.stats || { count: 0 });
+        if (tableName === "deals") {
+          setDealsTotalCount(data.stats?.count || 0);
+        } else {
+          setCoinsTotalCount(data.stats?.count || 0);
+        }
         if (data.dealsMetrics) setDm(data.dealsMetrics);
         if (data.tickerRegistry) setTickerRegistry(data.tickerRegistry);
         if (data.syncMeta) setSyncMeta(data.syncMeta);
@@ -85,6 +92,21 @@ export default function AdminDbPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const preloadGlobalCounts = async () => {
+    try {
+      const target = activeTable === "deals" ? "coins" : "deals";
+      const res = await fetch(`/api/admin/db?table=${target}`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.success) {
+        if (target === "deals") setDealsTotalCount(data.stats?.count || 0);
+        else setCoinsTotalCount(data.stats?.count || 0);
+      }
+    } catch (e) {}
   };
 
   useEffect(() => {
@@ -99,6 +121,7 @@ export default function AdminDbPage() {
   useEffect(() => {
     if (!isMounted) return;
     loadTableData(activeTable);
+    preloadGlobalCounts();
     setFilterType("ALL");
     setSearchQuery("");
   }, [activeTable, isMounted]);
@@ -113,6 +136,7 @@ export default function AdminDbPage() {
 
   const handleReloadTable = async () => {
     await loadTableData(activeTable);
+    await preloadGlobalCounts();
   };
   const handleSyncBybit = async () => {
     if (isSyncing) return;
@@ -127,8 +151,10 @@ export default function AdminDbPage() {
         body: JSON.stringify({ action: "SYNC_BYBIT" }),
       });
       const data = await res.json();
-      if (res.ok && data.success) loadTableData(activeTable);
-      else throw new Error(data.error || "Ошибка API");
+      if (res.ok && data.success) {
+        loadTableData(activeTable);
+        preloadGlobalCounts();
+      } else throw new Error(data.error || "Ошибка API");
     } catch (err: any) {
       loadTableData(activeTable);
     } finally {
@@ -153,6 +179,8 @@ export default function AdminDbPage() {
         description: `Все данные из таблицы ${activeTable} стерты.`,
         type: "success",
       });
+      loadTableData(activeTable);
+      preloadGlobalCounts();
     } catch (err: any) {
       console.error(err.message);
     } finally {
@@ -214,6 +242,7 @@ export default function AdminDbPage() {
           type: "success",
         });
         loadTableData(activeTable);
+        preloadGlobalCounts();
       } else {
         throw new Error();
       }
@@ -231,32 +260,6 @@ export default function AdminDbPage() {
   };
 
   const processAdminTableDistribution = () => {
-    if (activeTable === "deals") {
-      let filteredDeals = rows.filter((row) =>
-        row.coin?.toLowerCase().includes(searchQuery.toLowerCase()),
-      );
-      if (filterType === "BE")
-        filteredDeals = filteredDeals.filter(
-          (row) => row.status === "BREAKEVEN",
-        );
-      if (filterType === "NEW")
-        filteredDeals = filteredDeals.filter((row) => row.status === "OPEN");
-      if (filterType === "DELIS")
-        filteredDeals = filteredDeals.filter((row) =>
-          ["PROFIT", "LOSS", "BREAKEVEN"].includes(row.status),
-        );
-      return {
-        liqRows: [],
-        midRows: [],
-        riskRows: [],
-        delisRows: [],
-        newRows: [],
-        allRows: rows,
-        filtered: filteredDeals,
-        topGainers: [],
-        topLosers: [],
-      };
-    }
     const liqRows: any[] = [];
     const midRows: any[] = [];
     const riskRows: any[] = [];
@@ -272,6 +275,39 @@ export default function AdminDbPage() {
       .slice(-3)
       .reverse()
       .map((i) => i.coin);
+
+    if (activeTable === "deals") {
+      const openDeals = rows.filter((r) => r.status === "OPEN");
+      const beDeals = rows.filter((r) => r.status === "BREAKEVEN");
+      const closedDeals = rows.filter((r) =>
+        ["PROFIT", "LOSS", "BREAKEVEN"].includes(r.status),
+      );
+      let filteredDeals = rows.filter((row) =>
+        row.coin?.toLowerCase().includes(searchQuery.toLowerCase()),
+      );
+      if (filterType === "BE")
+        filteredDeals = filteredDeals.filter(
+          (row) => row.status === "BREAKEVEN",
+        );
+      if (filterType === "NEW")
+        filteredDeals = filteredDeals.filter((row) => row.status === "OPEN");
+      if (filterType === "DELIS")
+        filteredDeals = filteredDeals.filter((row) =>
+          ["PROFIT", "LOSS", "BREAKEVEN"].includes(row.status),
+        );
+      return {
+        liqRows: openDeals,
+        midRows: beDeals,
+        riskRows: closedDeals,
+        delisRows: [],
+        newRows: [],
+        allRows: rows,
+        filtered: filteredDeals,
+        topGainers: [],
+        topLosers: [],
+      };
+    }
+
     rows.forEach((row) => {
       if (
         searchQuery &&
@@ -296,6 +332,7 @@ export default function AdminDbPage() {
       else if (!isMem && live.turnover24h >= 10000000) midRows.push(row);
       else riskRows.push(row);
     });
+
     let filtered = allRows;
     if (filterType === "LIQ") filtered = liqRows;
     else if (filterType === "MID") filtered = midRows;
@@ -355,6 +392,8 @@ export default function AdminDbPage() {
       <AdminHeader
         activeTable={activeTable}
         onTableChange={handleTableChange}
+        dealsCount={dealsTotalCount}
+        coinsCount={coinsTotalCount}
       />
       <AdminStats
         activeTable={activeTable}
@@ -509,7 +548,7 @@ export default function AdminDbPage() {
                   variant={filterType === "ALL" ? "default" : "ghost"}
                   onClick={() => setFilterType("ALL")}
                 >
-                  ALL
+                  ALL ({allRows.length})
                 </Button>
                 <Button
                   type="button"
@@ -518,7 +557,7 @@ export default function AdminDbPage() {
                   className="text-amber-500"
                   onClick={() => setFilterType("NEW")}
                 >
-                  OPEN
+                  OPEN ({liqRows.length})
                 </Button>
                 <Button
                   type="button"
@@ -527,7 +566,7 @@ export default function AdminDbPage() {
                   className="text-cyan-500"
                   onClick={() => setFilterType("BE")}
                 >
-                  BE
+                  BE ({midRows.length})
                 </Button>
                 <Button
                   type="button"
@@ -536,7 +575,7 @@ export default function AdminDbPage() {
                   className="text-rose-500"
                   onClick={() => setFilterType("DELIS")}
                 >
-                  CLOSED
+                  CLOSED ({riskRows.length})
                 </Button>
               </>
             ) : (
@@ -547,7 +586,7 @@ export default function AdminDbPage() {
                   variant={filterType === "ALL" ? "default" : "ghost"}
                   onClick={() => setFilterType("ALL")}
                 >
-                  ALL
+                  ALL ({allRows.length})
                 </Button>
                 <Button
                   type="button"
@@ -556,7 +595,7 @@ export default function AdminDbPage() {
                   className="text-emerald-500"
                   onClick={() => setFilterType("LIQ")}
                 >
-                  LIQ
+                  LIQ ({liqRows.length})
                 </Button>
                 <Button
                   type="button"
@@ -565,7 +604,7 @@ export default function AdminDbPage() {
                   className="text-blue-500"
                   onClick={() => setFilterType("MID")}
                 >
-                  MID
+                  MID ({midRows.length})
                 </Button>
                 <Button
                   type="button"
@@ -574,7 +613,7 @@ export default function AdminDbPage() {
                   className="text-amber-500"
                   onClick={() => setFilterType("RISK")}
                 >
-                  RISK
+                  RISK ({riskRows.length})
                 </Button>
                 <Button
                   type="button"
@@ -583,7 +622,7 @@ export default function AdminDbPage() {
                   className="text-cyan-500"
                   onClick={() => setFilterType("NEW")}
                 >
-                  NEW
+                  NEW ({newRows.length})
                 </Button>
                 <Button
                   type="button"
@@ -592,7 +631,7 @@ export default function AdminDbPage() {
                   className="text-rose-500"
                   onClick={() => setFilterType("DELIS")}
                 >
-                  DEL
+                  DEL ({delisRows.length})
                 </Button>
               </>
             )}

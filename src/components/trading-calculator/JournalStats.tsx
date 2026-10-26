@@ -1,5 +1,4 @@
 "use client";
-
 import React from "react";
 import {
   WalletIcon,
@@ -31,23 +30,25 @@ interface Deal {
 interface JournalStatsProps {
   deals: Deal[];
 }
-
 export function JournalStats({ deals = [] }: JournalStatsProps) {
   const totalDeals = deals.length;
   const profitDeals = deals.filter((d) => d.status === "PROFIT").length;
-  const lossDeals = deals.filter((d) => d.status === "LOSS").length;
   const manualClosedDeals = deals.filter((d) => d.status === "CLOSED").length;
 
+  let lossDeals = 0;
+  let breakevenDeals = 0;
   let totalGrossProfit = 0;
   let totalGrossLoss = 0;
   let totalMarginUsed = 0;
 
   deals.forEach((d) => {
     if (d.status === "OPEN") return;
+    const isLong = d.side === "BUY";
     const totalFeeRate = 0.0013;
     const dbPrice = d.closed_at_price
       ? parseFloat(String(d.closed_at_price))
       : 0;
+
     let targetPrice = dbPrice;
     if (targetPrice <= 0) {
       targetPrice =
@@ -57,17 +58,33 @@ export function JournalStats({ deals = [] }: JournalStatsProps) {
             ? d.stop_loss
             : d.entry_price;
     }
+
     const cryptoQty = d.entry_price > 0 ? d.volume / d.entry_price : 0;
-    const priceDiff =
-      d.side === "BUY"
-        ? targetPrice - d.entry_price
-        : d.entry_price - targetPrice;
+    const priceDiff = isLong
+      ? targetPrice - d.entry_price
+      : d.entry_price - targetPrice;
     const pnlUsdt = priceDiff * cryptoQty - d.volume * totalFeeRate;
 
-    if (pnlUsdt >= 0) totalGrossProfit += pnlUsdt;
-    else totalGrossLoss += Math.abs(pnlUsdt);
+    if (pnlUsdt >= 0) {
+      totalGrossProfit += pnlUsdt;
+    } else {
+      totalGrossLoss += Math.abs(pnlUsdt);
+    }
 
-    if (d.margin > 0) totalMarginUsed += d.margin;
+    if (d.margin > 0) {
+      totalMarginUsed += d.margin;
+    }
+
+    if (d.status === "LOSS") {
+      const isBe = isLong
+        ? targetPrice >= d.entry_price
+        : targetPrice <= d.entry_price;
+      if (isBe) {
+        breakevenDeals += 1;
+      } else {
+        lossDeals += 1;
+      }
+    }
   });
 
   const netPnL = totalGrossProfit - totalGrossLoss;
@@ -79,7 +96,6 @@ export function JournalStats({ deals = [] }: JournalStatsProps) {
       : totalGrossProfit > 0
         ? 99.9
         : 0;
-
   const containerCls = cn(
     "flex items-center p-3 sm:px-4 rounded-2xl border bg-linear-to-br shadow-inner min-h-14 w-full",
     "col-span-2 lg:col-span-2 transition-all duration-300 relative overflow-hidden",
@@ -178,15 +194,28 @@ export function JournalStats({ deals = [] }: JournalStatsProps) {
             </span>
             <span className="font-bold text-sm sm:text-base leading-none mt-1 text-foreground/90 flex items-baseline gap-1 truncate">
               <span className="text-emerald-500 font-black">
-                {profitDeals}{" "}
-                <span className="text-[9px] opacity-60 font-semibold">TP</span>
+                {profitDeals}
+                <span className="text-[9px] opacity-60 font-semibold ml-0.5">
+                  TP
+                </span>
+              </span>
+              <span className="text-muted-foreground/30 font-normal text-xs mx-0.5">
+                /
+              </span>
+              <span className="text-cyan-500 font-black">
+                {breakevenDeals}
+                <span className="text-[9px] opacity-60 font-semibold ml-0.5">
+                  BE
+                </span>
               </span>
               <span className="text-muted-foreground/30 font-normal text-xs mx-0.5">
                 /
               </span>
               <span className="text-rose-500 font-black">
-                {lossDeals}{" "}
-                <span className="text-[9px] opacity-60 font-semibold">SL</span>
+                {lossDeals}
+                <span className="text-[9px] opacity-60 font-semibold ml-0.5">
+                  SL
+                </span>
               </span>
             </span>
           </div>
@@ -198,7 +227,7 @@ export function JournalStats({ deals = [] }: JournalStatsProps) {
               Всего записей
             </span>
             <span className="font-black text-sm sm:text-base leading-none mt-1 text-foreground/90 truncate">
-              {totalDeals}{" "}
+              {totalDeals}
               <span className="text-[10px] font-semibold text-muted-foreground/60 hidden sm:inline ml-1">
                 (Ручные: {manualClosedDeals})
               </span>

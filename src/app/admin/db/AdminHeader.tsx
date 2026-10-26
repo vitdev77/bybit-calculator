@@ -9,9 +9,16 @@ import { cn } from "@/lib/utils";
 interface HeaderProps {
   activeTable: "deals" | "coins";
   onTableChange: (table: "deals" | "coins") => void;
+  dealsCount: number;
+  coinsCount: number;
 }
 
-export function AdminHeader({ activeTable, onTableChange }: HeaderProps) {
+export function AdminHeader({
+  activeTable,
+  onTableChange,
+  dealsCount = 0,
+  coinsCount = 0,
+}: HeaderProps) {
   return (
     <div className="flex flex-col gap-3 pb-3 border-b border-border/40">
       <div className="flex items-center justify-between w-full">
@@ -50,7 +57,7 @@ export function AdminHeader({ activeTable, onTableChange }: HeaderProps) {
             className="h-7 text-[10px] rounded-md font-black uppercase px-3 flex-1"
             onClick={() => onTableChange("deals")}
           >
-            Журнал
+            Журнал ({dealsCount})
           </Button>
           <Button
             type="button"
@@ -58,7 +65,7 @@ export function AdminHeader({ activeTable, onTableChange }: HeaderProps) {
             className="h-7 text-[10px] rounded-md font-black uppercase px-3 flex-1"
             onClick={() => onTableChange("coins")}
           >
-            Листинг
+            Листинг ({coinsCount})
           </Button>
         </div>
       </div>
