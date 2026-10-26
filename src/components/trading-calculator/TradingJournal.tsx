@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "@/components/ui/toast";
 import { JournalStats } from "./JournalStats";
 import { JournalTable } from "./JournalTable";
@@ -33,7 +33,6 @@ interface TJournalProps {
   onCoinSelect?: (coin: string) => void;
   availableCoinsList?: DBAssetCoin[];
 }
-
 export default function TradingJournal({
   onDealsCountChange,
   livePrice = 0,
@@ -78,9 +77,7 @@ export default function TradingJournal({
     const isValid =
       livePrice / activeOpenDeal.entry_price < 1.2 &&
       activeOpenDeal.entry_price / livePrice < 1.2;
-    if (isValid) {
-      setIsChangingCoin(false);
-    }
+    if (isValid) setIsChangingCoin(false);
   }, [livePrice, activeCoin, activeOpenDeal, isChangingCoin, statusFilter]);
   const fetchJournal = useCallback(
     async (isInitial = false) => {
@@ -101,6 +98,7 @@ export default function TradingJournal({
             ? resData.deals
             : [];
         setDeals(cleanArray);
+
         let currentOpen =
           resData.activeOpenDeal !== undefined
             ? resData.activeOpenDeal
@@ -117,6 +115,7 @@ export default function TradingJournal({
           cleanArray.find(
             (d: Deal) => d.coin === activeCoin && d.status !== "OPEN",
           ) || null;
+
         setActiveOpenDeal(currentOpen);
         setLastManualClosedDeal(currentClosed);
         setFocusedDeal((prev) => {
@@ -134,6 +133,7 @@ export default function TradingJournal({
                 anyLastClosedDeal
             : currentClosed || anyLastClosedDeal;
         });
+
         const openCount = cleanArray.filter(
           (d: Deal) => d.status?.toUpperCase() === "OPEN",
         ).length;
@@ -173,23 +173,43 @@ export default function TradingJournal({
     },
     [livePrice, fetchJournal],
   );
-
   useEffect(() => {
     if (livePrice <= 0 || !activeCoin || deals.length === 0 || isChangingCoin)
       return;
     if (!activeOpenDeal || activeOpenDeal.coin !== activeCoin) return;
     if (!activeOpenDeal.stop_loss || !activeOpenDeal.take_profit) return;
+
     const isValid =
       livePrice / activeOpenDeal.entry_price < 1.2 &&
       activeOpenDeal.entry_price / livePrice < 1.2;
     if (!isValid) return;
+
     const isLong = activeOpenDeal.side === "BUY";
+    const openFee = 0.0006;
+    const closeFee = 0.0006;
+    const bPrice = isLong
+      ? activeOpenDeal.entry_price * ((1 + openFee) / (1 - closeFee - 0.0001))
+      : activeOpenDeal.entry_price * ((1 - openFee) / (1 + closeFee + 0.0001));
+
+    // Проверка: находится ли текущий стоп в безубытке
+    const isInBuMode = Math.abs(activeOpenDeal.stop_loss - bPrice) < 0.00001;
+
     let isTp = isLong
       ? livePrice >= activeOpenDeal.take_profit
       : livePrice <= activeOpenDeal.take_profit;
     let isSl = isLong
       ? livePrice <= activeOpenDeal.stop_loss
       : livePrice >= activeOpenDeal.stop_loss;
+
+    // Защитный буфер: если стоп в БУ, не даем закрыть позицию по шуму, пока цена реально не пересечет БУ-грань
+    if (isInBuMode) {
+      isSl = isLong
+        ? livePrice <
+          activeOpenDeal.stop_loss - activeOpenDeal.stop_loss * 0.0002
+        : livePrice >
+          activeOpenDeal.stop_loss + activeOpenDeal.stop_loss * 0.0002;
+    }
+
     if (isTp && !activeOpenDeal.tp_touched && !activeOpenDeal.sl_touched) {
       const key = `${activeOpenDeal.id}-tp`;
       if (!processedSignalsRef.current[key]) {
@@ -201,6 +221,7 @@ export default function TradingJournal({
         }).then(() => fetchJournal(false));
       }
     }
+
     if (isSl && !activeOpenDeal.sl_touched && !activeOpenDeal.tp_touched) {
       const key = `${activeOpenDeal.id}-sl`;
       if (!processedSignalsRef.current[key]) {
@@ -239,7 +260,6 @@ export default function TradingJournal({
     return () =>
       window.removeEventListener("refresh-trading-journal", handleTrigger);
   }, [fetchJournal]);
-
   const exportToCSV = () => {
     if (!deals || deals.length === 0) return;
     const headers = [
@@ -255,7 +275,7 @@ export default function TradingJournal({
       "TP",
       "Статус",
     ];
-    const rows = deals.map((d) => [
+    const rowsData = deals.map((d) => [
       String(d.id || ""),
       d.created_at
         ? String(new Date(d.created_at).toLocaleString("ru-RU"))
@@ -272,7 +292,7 @@ export default function TradingJournal({
     ]);
     const csvContent = [
       headers.join(","),
-      ...rows.map((r) => r.join(",")),
+      ...rowsData.map((r) => r.join(",")),
     ].join("\n");
     const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), csvContent], {
       type: "text/csv;charset=utf-8;",
@@ -280,18 +300,12 @@ export default function TradingJournal({
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    const dateStamp = new Date(
-      Date.now() - new Date().getTimezoneOffset() * 60000,
-    )
-      .toISOString()
-      .slice(0, 19)
-      .replace("T", "_")
-      .replace(/:/g, "-");
-    link.setAttribute("download", `trading_journal_export_${dateStamp}.csv`);
+    link.setAttribute("download", `trading_journal_export_${Date.now()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
+
   const handleDeleteDeal = async (id: number) => {
     try {
       const res = await fetch(`/api/journal?id=${id}`, { method: "DELETE" });
@@ -332,7 +346,6 @@ export default function TradingJournal({
           ? d.status?.toUpperCase() === "OPEN"
           : d.status?.toUpperCase() !== "OPEN")),
   );
-
   const activeDealStoredPnL = activeOpenDeal
     ? frozenPnL[activeOpenDeal.id] || { pnl: 0, roi: 0 }
     : { pnl: 0, roi: 0 };
