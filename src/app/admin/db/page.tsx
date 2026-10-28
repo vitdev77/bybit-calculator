@@ -201,7 +201,7 @@ export default function AdminDbPage() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `bybit_calc_db_backup_${Date.now()}.json`;
+      link.download = `bybit_calc_db_backup_${new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 19).replace("T", "_").replace(/:/g, "-")}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
