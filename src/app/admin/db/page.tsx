@@ -39,6 +39,7 @@ interface SyncMeta {
   totalCoins: number;
   liveCount: number;
 }
+
 export default function AdminDbPage() {
   const [activeTable, setActiveTable] = useState<"deals" | "coins">("deals");
   const [filterType, setFilterType] = useState<string>("ALL");
@@ -260,6 +261,10 @@ export default function AdminDbPage() {
   };
 
   const processAdminTableDistribution = () => {
+    const openDeals: any[] = [];
+    const beDeals: any[] = [];
+    const autoDeals: any[] = [];
+    const manualDeals: any[] = [];
     const liqRows: any[] = [];
     const midRows: any[] = [];
     const riskRows: any[] = [];
@@ -277,29 +282,35 @@ export default function AdminDbPage() {
       .map((i) => i.coin);
 
     if (activeTable === "deals") {
-      const openDeals = rows.filter((r) => r.status === "OPEN");
-      const beDeals = rows.filter((r) => r.status === "BREAKEVEN");
-      const closedDeals = rows.filter((r) =>
-        ["PROFIT", "LOSS", "BREAKEVEN"].includes(r.status),
-      );
+      rows.forEach((r) => {
+        if (r.status === "OPEN") openDeals.push(r);
+        else if (r.status === "BREAKEVEN") beDeals.push(r);
+        else if (r.status === "CLOSED") manualDeals.push(r);
+        else if (r.status === "PROFIT" || r.status === "LOSS")
+          autoDeals.push(r);
+      });
+
       let filteredDeals = rows.filter((row) =>
         row.coin?.toLowerCase().includes(searchQuery.toLowerCase()),
       );
+      if (filterType === "OPEN")
+        filteredDeals = filteredDeals.filter((row) => row.status === "OPEN");
       if (filterType === "BE")
         filteredDeals = filteredDeals.filter(
           (row) => row.status === "BREAKEVEN",
         );
-      if (filterType === "NEW")
-        filteredDeals = filteredDeals.filter((row) => row.status === "OPEN");
-      if (filterType === "DELIS")
-        filteredDeals = filteredDeals.filter((row) =>
-          ["PROFIT", "LOSS", "BREAKEVEN"].includes(row.status),
+      if (filterType === "AUTO")
+        filteredDeals = filteredDeals.filter(
+          (row) => row.status === "PROFIT" || row.status === "LOSS",
         );
+      if (filterType === "MANUAL")
+        filteredDeals = filteredDeals.filter((row) => row.status === "CLOSED");
+
       return {
         liqRows: openDeals,
         midRows: beDeals,
-        riskRows: closedDeals,
-        delisRows: [],
+        riskRows: autoDeals,
+        delisRows: manualDeals,
         newRows: [],
         allRows: rows,
         filtered: filteredDeals,
@@ -307,7 +318,6 @@ export default function AdminDbPage() {
         topLosers: [],
       };
     }
-
     rows.forEach((row) => {
       if (
         searchQuery &&
@@ -351,6 +361,7 @@ export default function AdminDbPage() {
       topLosers,
     };
   };
+
   const {
     liqRows,
     midRows,
@@ -362,6 +373,7 @@ export default function AdminDbPage() {
     topGainers,
     topLosers,
   } = processAdminTableDistribution();
+
   const activeHeaders =
     activeTable === "deals"
       ? [
@@ -527,7 +539,7 @@ export default function AdminDbPage() {
               placeholder="Search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              disabled={isLoading || displayedRows.length === 0}
+              disabled={isLoading || rows.length === 0}
               className="pl-8 pr-8 h-8 text-xs bg-background/50 border-border/40 rounded-lg w-full"
             />
             {searchQuery.length > 0 && (
@@ -553,9 +565,9 @@ export default function AdminDbPage() {
                 <Button
                   type="button"
                   disabled={isLoading}
-                  variant={filterType === "NEW" ? "default" : "ghost"}
+                  variant={filterType === "OPEN" ? "default" : "ghost"}
                   className="text-amber-500"
-                  onClick={() => setFilterType("NEW")}
+                  onClick={() => setFilterType("OPEN")}
                 >
                   OPEN ({liqRows.length})
                 </Button>
@@ -571,11 +583,20 @@ export default function AdminDbPage() {
                 <Button
                   type="button"
                   disabled={isLoading}
-                  variant={filterType === "DELIS" ? "default" : "ghost"}
-                  className="text-rose-500"
-                  onClick={() => setFilterType("DELIS")}
+                  variant={filterType === "AUTO" ? "default" : "ghost"}
+                  className="text-emerald-500"
+                  onClick={() => setFilterType("AUTO")}
                 >
-                  CLOSED ({riskRows.length})
+                  AUTO ({riskRows.length})
+                </Button>
+                <Button
+                  type="button"
+                  disabled={isLoading}
+                  variant={filterType === "MANUAL" ? "default" : "ghost"}
+                  className="text-rose-500"
+                  onClick={() => setFilterType("MANUAL")}
+                >
+                  MANUAL ({delisRows.length})
                 </Button>
               </>
             ) : (

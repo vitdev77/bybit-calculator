@@ -48,6 +48,7 @@ value JSONB NOT NULL
     console.error("Admin DB Coins Migration Error:", err);
   }
 }
+
 export async function GET(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
@@ -164,6 +165,9 @@ FROM deals d LEFT JOIN coins c ON d.coin = c.coin ORDER BY d.created_at DESC;
                 ? parseFloat(d.take_profit)
                 : parseFloat(d.stop_loss);
           }
+          if (targetPrice <= 0) {
+            targetPrice = entryPriceNum;
+          }
           const cryptoQty = entryPriceNum > 0 ? volVal / entryPriceNum : 0;
           const priceDiff = isLong
             ? targetPrice - entryPriceNum
@@ -175,7 +179,6 @@ FROM deals d LEFT JOIN coins c ON d.coin = c.coin ORDER BY d.created_at DESC;
             grossProfitDeals += 1;
           }
 
-          // Корректировка статуса LOSS на BREAKEVEN, если стоп был перенесен в БУ или закрыт в плюс/ноль
           if (statusUpper === "LOSS") {
             const isBreakeven = isLong
               ? targetPrice >= entryPriceNum
@@ -211,7 +214,6 @@ FROM deals d LEFT JOIN coins c ON d.coin = c.coin ORDER BY d.created_at DESC;
         { status: 400 },
       );
     }
-
     return NextResponse.json({
       success: true,
       table,
