@@ -3,7 +3,6 @@ import React from "react";
 import {
   WalletIcon,
   FlameIcon,
-  HistoryIcon,
   ArrowUpRightIcon,
   ArrowDownRightIcon,
   ActivityIcon,
@@ -30,6 +29,7 @@ interface Deal {
 interface JournalStatsProps {
   deals: Deal[];
 }
+
 export function JournalStats({ deals = [] }: JournalStatsProps) {
   const totalDeals = deals.length;
   const profitDeals = deals.filter((d) => d.status === "PROFIT").length;
@@ -40,9 +40,11 @@ export function JournalStats({ deals = [] }: JournalStatsProps) {
   let totalGrossProfit = 0;
   let totalGrossLoss = 0;
   let totalMarginUsed = 0;
+  let closedDealsCount = 0;
 
   deals.forEach((d) => {
     if (d.status === "OPEN") return;
+    closedDealsCount += 1;
     const isLong = d.side === "BUY";
     const totalFeeRate = 0.0013;
     const dbPrice = d.closed_at_price
@@ -88,7 +90,7 @@ export function JournalStats({ deals = [] }: JournalStatsProps) {
   });
 
   const netPnL = totalGrossProfit - totalGrossLoss;
-  const totalRoiPercent =
+  const totalMarginPercent =
     totalMarginUsed > 0 ? (netPnL / totalMarginUsed) * 100 : 0;
   const profitFactor =
     totalGrossLoss > 0
@@ -96,8 +98,13 @@ export function JournalStats({ deals = [] }: JournalStatsProps) {
       : totalGrossProfit > 0
         ? 99.9
         : 0;
+
+  const winRate =
+    closedDealsCount > 0 ? (profitDeals / closedDealsCount) * 100 : 0;
+  const avgPnl = closedDealsCount > 0 ? netPnL / closedDealsCount : 0;
+
   const containerCls = cn(
-    "flex items-center p-3 sm:px-4 rounded-2xl border bg-linear-to-br shadow-inner min-h-14 w-full",
+    "flex items-center p-3 sm:px-4 rounded-2xl border bg-linear-to-br shadow-inner w-full",
     "col-span-2 lg:col-span-2 transition-all duration-300 relative overflow-hidden",
     netPnL > 0.005
       ? "from-emerald-500/15 via-emerald-500/5 to-transparent border-emerald-500/20 text-emerald-500 dark:text-emerald-400"
@@ -116,7 +123,7 @@ export function JournalStats({ deals = [] }: JournalStatsProps) {
   );
 
   const roiTextCls = cn(
-    "text-[9px] font-black tracking-tight shrink-0 block sm:inline mt-0.5 xs:mt-0",
+    "text-xs tracking-tight shrink-0 block sm:inline mt-0.5 xs:mt-0",
     netPnL > 0.005
       ? "text-emerald-500"
       : netPnL < -0.005
@@ -125,57 +132,54 @@ export function JournalStats({ deals = [] }: JournalStatsProps) {
   );
 
   const subBoxCls =
-    "flex items-center gap-3.5 px-4 py-3 rounded-2xl bg-muted/30 dark:bg-neutral-900/40 border border-border/20 text-muted-foreground justify-start h-14 sm:h-14 w-full shadow-xs col-span-1 lg:col-span-1";
-
+    "flex items-center gap-3.5 px-4 rounded-2xl bg-muted/30 dark:bg-neutral-900/40 border border-border/20 text-muted-foreground justify-start w-full shadow-xs col-span-2 lg:col-span-2";
   return (
-    <div className="w-full select-none text-xs overflow-hidden box-border">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full items-center">
-        <div className={containerCls}>
+    <div className="w-full select-none text-sm overflow-hidden box-border">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full items-stretch">
+        <div className={cn(containerCls, "min-h-16 py-4 px-4")}>
           <ActivityIcon className="absolute right-3.5 top-3.5 size-12 opacity-3 pointer-events-none stroke-[1.5]" />
           <div className="flex items-center w-full justify-between h-full z-10 min-w-0">
             <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
               <WalletIcon className={walletCls} />
               <div className="flex flex-col min-w-0">
-                <span className="text-[9px] font-black uppercase tracking-wider text-muted-foreground/60 leading-none">
+                <span className="text-xs font-black uppercase tracking-wider text-muted-foreground/60 leading-none">
                   Чистый доход
                 </span>
-                <div className="flex items-baseline gap-1 mt-0.5 min-w-0 flex-wrap">
-                  <span className="font-black text-sm sm:text-base leading-none tracking-tight flex items-center gap-0.5 truncate">
+                <div className="flex items-baseline gap-1 mt-1.5 min-w-0 flex-wrap">
+                  <span className="font-black text-base sm:text-lg leading-none tracking-tight flex items-center gap-0.5 truncate">
                     {netPnL > 0.005 ? (
-                      <ArrowUpRightIcon className="size-3.5 shrink-0 text-emerald-500 inline-block align-middle" />
+                      <ArrowUpRightIcon className="size-4 shrink-0 text-emerald-500 inline-block align-middle" />
                     ) : netPnL < -0.005 ? (
-                      <ArrowDownRightIcon className="size-3.5 shrink-0 text-rose-500 inline-block align-middle" />
+                      <ArrowDownRightIcon className="size-4 shrink-0 text-rose-500 inline-block align-middle" />
                     ) : null}
                     {netPnL > 0.005 ? "+" : ""}
                     {netPnL.toFixed(2)}
                   </span>
-                  <span className="text-[9px] font-black opacity-60 shrink-0">
+                  <span className="text-xs font-black opacity-60 shrink-0">
                     USDT
                   </span>
-                  <span className={cn(roiTextCls)}>
+                  <span className={cn(roiTextCls, "ml-1")}>
                     ({netPnL > 0.005 ? "+" : ""}
-                    {totalRoiPercent.toFixed(1)}%)
+                    {totalMarginPercent.toFixed(1)}%)
                   </span>
                 </div>
               </div>
             </div>
-            <div className="h-8 border-l border-border/30 dark:border-white/5 shrink-0 self-center mx-1" />
+            <div className="h-10 border-l border-border/30 dark:border-white/5 shrink-0 self-center mx-1" />
             <div className="flex items-center gap-2 flex-1 min-w-0 pl-3">
               <TrendingDownIcon className="size-4.5 text-rose-500/70 dark:text-rose-400/70 shrink-0" />
               <div className="flex flex-col min-w-0 w-full">
-                <span className="text-[9px] font-black uppercase tracking-wider text-rose-500/60 dark:text-rose-500/70 leading-none block">
+                <span className="text-xs font-black uppercase tracking-wider text-rose-500/60 dark:text-rose-500/70 leading-none block">
                   Накопленный Убыток
                 </span>
-                <div className="flex items-center gap-1.5 mt-0.5 min-w-0 justify-between w-full">
-                  <span className="font-bold text-xs sm:text-sm leading-none text-rose-500 truncate">
+                <div className="flex items-center gap-1.5 mt-1.5 min-w-0 justify-between w-full">
+                  <span className="font-bold text-sm sm:text-base leading-none text-rose-500 truncate">
                     -{totalGrossLoss.toFixed(2)}{" "}
-                    <span className="text-[9px] font-medium opacity-60">
-                      USDT
-                    </span>
+                    <span className="text-xs font-medium opacity-60">USDT</span>
                   </span>
                   {profitFactor > 0 && (
                     <span
-                      className="text-[8px] font-black px-1 py-px rounded-sm bg-neutral-500/10 text-muted-foreground border border-border/20 uppercase tracking-wider hidden md:inline shrink-0"
+                      className="text-[10px] font-black px-1.5 py-0.5 rounded-sm bg-neutral-500/10 text-muted-foreground border border-border/20 uppercase tracking-wider hidden md:inline shrink-0"
                       title="Коэффициент прибыльности системы"
                     >
                       PF: {profitFactor.toFixed(1)}
@@ -186,52 +190,97 @@ export function JournalStats({ deals = [] }: JournalStatsProps) {
             </div>
           </div>
         </div>
-        <div className={subBoxCls}>
-          <FlameIcon className="size-4.5 text-amber-500/80 shrink-0" />
-          <div className="flex flex-col min-w-0">
-            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 leading-none truncate">
-              Срабатывания
-            </span>
-            <span className="font-bold text-sm sm:text-base leading-none mt-1 text-foreground/90 flex items-baseline gap-1 truncate">
-              <span className="text-emerald-500 font-black">
-                {profitDeals}
-                <span className="text-[9px] opacity-60 font-semibold ml-0.5">
-                  TP
+        <div
+          className={cn(
+            subBoxCls,
+            "min-h-16 p-4 bg-background border-border/50",
+          )}
+        >
+          <div className="grid grid-cols-3 gap-3 w-full min-w-0 items-center">
+            <div className="flex flex-col min-w-0 h-full justify-between pr-2 border-r border-border/30">
+              <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50 leading-none">
+                Сделки ({totalDeals})
+              </span>
+              <div className="flex items-baseline gap-1.5 mt-2.5 font-mono text-xs truncate">
+                <span
+                  className="text-emerald-500 font-bold"
+                  title="Take Profit"
+                >
+                  {profitDeals}
+                  <span className="text-[9px] font-normal opacity-50 ml-0.5">
+                    TP
+                  </span>
                 </span>
-              </span>
-              <span className="text-muted-foreground/30 font-normal text-xs mx-0.5">
-                /
-              </span>
-              <span className="text-cyan-500 font-black">
-                {breakevenDeals}
-                <span className="text-[9px] opacity-60 font-semibold ml-0.5">
-                  BE
+                <span className="text-muted-foreground/30">/</span>
+                <span className="text-cyan-500 font-bold" title="Breakeven">
+                  {breakevenDeals}
+                  <span className="text-[9px] font-normal opacity-50 ml-0.5">
+                    BE
+                  </span>
                 </span>
-              </span>
-              <span className="text-muted-foreground/30 font-normal text-xs mx-0.5">
-                /
-              </span>
-              <span className="text-rose-500 font-black">
-                {lossDeals}
-                <span className="text-[9px] opacity-60 font-semibold ml-0.5">
-                  SL
+                <span className="text-muted-foreground/30">/</span>
+                <span className="text-rose-500 font-bold" title="Stop Loss">
+                  {lossDeals}
+                  <span className="text-[9px] font-normal opacity-50 ml-0.5">
+                    SL
+                  </span>
                 </span>
+                <span className="text-muted-foreground/30">/</span>
+                <span
+                  className="text-violet-500 font-bold"
+                  title="Manual Close"
+                >
+                  {manualClosedDeals}
+                  <span className="text-[9px] font-normal opacity-50 ml-0.5">
+                    MC
+                  </span>
+                </span>
+              </div>
+            </div>
+            <div className="flex flex-col min-w-0 h-full justify-between px-1 border-r border-border/30">
+              <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50 leading-none">
+                Эффективность
               </span>
-            </span>
-          </div>
-        </div>
-        <div className={subBoxCls}>
-          <HistoryIcon className="size-4.5 text-violet-500/80 shrink-0" />
-          <div className="flex flex-col min-w-0">
-            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 leading-none truncate">
-              Всего записей
-            </span>
-            <span className="font-black text-sm sm:text-base leading-none mt-1 text-foreground/90 truncate">
-              {totalDeals}
-              <span className="text-[10px] font-semibold text-muted-foreground/60 hidden sm:inline ml-1">
-                (Ручные: {manualClosedDeals})
+              <div className="flex items-baseline gap-2 mt-2 font-mono truncate">
+                <span className="font-black text-sm text-foreground">
+                  WR: {winRate.toFixed(0)}%
+                </span>
+                <span
+                  className={cn(
+                    "text-xs font-bold",
+                    profitFactor >= 1.5 ? "text-emerald-500" : "text-amber-500",
+                  )}
+                >
+                  PF: {profitFactor.toFixed(1)}
+                </span>
+              </div>
+            </div>
+            <div className="flex flex-col min-w-0 h-full justify-between pl-2">
+              <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50 leading-none">
+                Матожидание
               </span>
-            </span>
+              <div className="flex items-baseline gap-1.5 mt-2 font-mono truncate">
+                <span
+                  className={cn(
+                    "font-black text-sm",
+                    avgPnl >= 0 ? "text-emerald-500" : "text-rose-500",
+                  )}
+                >
+                  {avgPnl >= 0 ? "+" : ""}
+                  {avgPnl.toFixed(2)}
+                  <span className="text-[9px] font-normal text-muted-foreground/60 ml-0.5">
+                    USDT
+                  </span>
+                </span>
+                <span className="text-[10px] font-bold text-violet-400">
+                  Р:{" "}
+                  {totalDeals > 0
+                    ? ((manualClosedDeals / totalDeals) * 100).toFixed(0)
+                    : 0}
+                  %
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
